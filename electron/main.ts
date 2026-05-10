@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron'
 import { initDatabase, getDbPath, setDbPath } from './database/db'
@@ -12,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let mainWindow: BrowserWindow | null = null
 let pomodoroWindow: BrowserWindow | null = null
+const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
 
 function preloadPath(file: string) {
   return app.isPackaged
@@ -19,7 +21,21 @@ function preloadPath(file: string) {
     : path.join(app.getAppPath(), 'electron', file)
 }
 
+function getThemeFromConfig(): string {
+  try {
+    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+    return config.theme || 'dark'
+  } catch {
+    return 'dark'
+  }
+}
+
 function createWindow() {
+  const theme = getThemeFromConfig()
+  const overlay = theme === 'light'
+    ? { color: '#f5f5f9', symbolColor: '#1e1e2e', height: 40 }
+    : { color: '#1e1e2e', symbolColor: '#cdd6f4', height: 40 }
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -31,12 +47,10 @@ function createWindow() {
       nodeIntegration: false,
     },
     titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#1e1e2e',
-      symbolColor: '#cdd6f4',
-      height: 40,
-    },
+    titleBarOverlay: overlay,
   })
+
+  mainWindow.maximize()
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
@@ -149,6 +163,31 @@ function registerIpcHandlers() {
     return app.isPackaged
       ? path.join(process.resourcesPath, 'xylophone.mp3')
       : path.join(app.getAppPath(), 'xylophone.mp3')
+  })
+
+  ipcMain.handle('theme:get', () => {
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+      return config.theme || 'dark'
+    } catch {
+      return 'dark'
+    }
+  })
+
+  ipcMain.handle('theme:set', (_e, theme: string) => {
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
+      config.theme = theme
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
+    } catch {
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify({ theme }, null, 2))
+    }
+    if (mainWindow) {
+      const overlay = theme === 'light'
+        ? { color: '#f5f5f9', symbolColor: '#1e1e2e', height: 40 }
+        : { color: '#1e1e2e', symbolColor: '#cdd6f4', height: 40 }
+      mainWindow.setTitleBarOverlay(overlay)
+    }
   })
 }
 

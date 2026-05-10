@@ -19,6 +19,7 @@ export interface Status {
 export interface Priority {
   id: number
   name: string
+  color: string
 }
 
 export interface Task {
@@ -34,6 +35,7 @@ export interface Task {
 export interface TaskWithRelations extends Task {
   statusName: string
   priorityName: string
+  priorityColor: string
   projectName: string
 }
 
@@ -75,6 +77,9 @@ export interface ElectronAPI {
   // Database
   getDbPath: () => Promise<string>
   pickDbPath: () => Promise<string | null>
+
+  // Theme
+  setTheme: (theme: string) => Promise<void>
 }
 
 declare global {

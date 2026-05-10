@@ -19,7 +19,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('vibe-theme', theme)
   }, [theme])
 
-  const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'))
+  const toggleTheme = () => setTheme(t => {
+    const next = t === 'dark' ? 'light' : 'dark'
+    try { window.electronAPI.setTheme(next) } catch (e) { /* main process may not be available */ }
+    return next
+  })
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

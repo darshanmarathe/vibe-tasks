@@ -3,7 +3,7 @@ import type { Task, TaskWithRelations } from '../../src/types/models'
 
 export function getTasks(): TaskWithRelations[] {
   return getDatabase().exec(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
@@ -19,7 +19,7 @@ export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
   return db.getSingle(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
@@ -44,7 +44,7 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
     db.save()
   }
   return db.getSingle(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id

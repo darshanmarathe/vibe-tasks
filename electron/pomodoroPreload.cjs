@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   close: () => ipcRenderer.invoke('pomodoro:close'),
   minimize: () => ipcRenderer.invoke('pomodoro:minimize'),
   getSoundPath: () => ipcRenderer.invoke('pomodoro:soundPath'),
+  getTheme: () => ipcRenderer.invoke('theme:get'),
 })

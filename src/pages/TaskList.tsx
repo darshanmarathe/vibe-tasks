@@ -103,16 +103,6 @@ export default function TaskList() {
     return true
   })
 
-  const priorityColor = (p: string) => {
-    switch (p) {
-      case 'Critical': return 'var(--critical)'
-      case 'High': return 'var(--high)'
-      case 'Medium': return 'var(--medium)'
-      case 'Low': return 'var(--low)'
-      default: return 'var(--text-secondary)'
-    }
-  }
-
   const formatDate = (d: string | null) => {
     if (!d) return ''
     const date = new Date(d)
@@ -243,14 +233,14 @@ export default function TaskList() {
               <tr
                 key={task.id}
                 className="border-b cursor-pointer transition-colors"
-                style={{ borderColor: 'var(--border)' }}
+                style={{ borderColor: 'var(--border)', borderLeft: `3px solid ${task.priorityColor || 'var(--text-muted)'}` }}
                 onClick={() => openEdit(task)}
                 onMouseEnter={e => { if (!editingTask || editingTask.id !== task.id) e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <td className="py-3 px-4" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
                 <td className="py-3 px-4">{task.statusName}</td>
-                <td className={`py-3 px-4 font-medium`} style={{ color: priorityColor(task.priorityName) }}>
+                <td className="py-3 px-4 font-medium" style={{ color: task.priorityColor || 'var(--text-secondary)' }}>
                   {task.priorityName}
                 </td>
                 <td className="py-3 px-4" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>

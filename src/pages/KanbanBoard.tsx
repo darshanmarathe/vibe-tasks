@@ -28,16 +28,6 @@ export default function KanbanBoard() {
     loadData()
   }
 
-  const priorityColor = (p: string) => {
-    switch (p) {
-      case 'Critical': return 'var(--critical)'
-      case 'High': return 'var(--high)'
-      case 'Medium': return 'var(--medium)'
-      case 'Low': return 'var(--low)'
-      default: return 'var(--text-secondary)'
-    }
-  }
-
   const formatDate = (d: string | null) => {
     if (!d) return ''
     const date = new Date(d)
@@ -86,8 +76,8 @@ export default function KanbanBoard() {
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: priorityColor(task.priorityName) }} />
-                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{task.priorityName}</span>
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: task.priorityColor || 'var(--text-muted)' }} />
+                      <span className="text-xs font-medium" style={{ color: task.priorityColor || 'var(--text-secondary)' }}>{task.priorityName}</span>
                     </div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{task.name}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{task.projectName}</p>

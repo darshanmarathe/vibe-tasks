@@ -1,19 +1,24 @@
 # <img src="assets/icon.svg" width="28" height="28" align="center"> Vibe Tasks
 
-> A desktop task management application built with Electron, React, TypeScript, and SQLite.
+> A desktop task management application built with Electron, React, SQLite, and Syncfusion Controls.
 
-Vibe Tasks helps you organize your work with a clean, intuitive interface featuring task lists, Kanban boards, dashboards with charts, and a Pomodoro timer — all running locally on your desktop.
+Vibe Tasks helps you organize your work with an intuitive interface featuring task lists, Kanban boards, dashboards with charts, and a Pomodoro timer — all running locally on your desktop.
 
 ## Features
 
-- **Dashboard** — Summary cards, charts (bar + donut), and a calendar view showing task due dates
-- **Task List** — Filterable table with Quick Add bar and inline editing modal
-- **Kanban Board** — Drag-and-drop columns that dynamically reflect your custom statuses
-- **Settings** — CRUD management for Users, Projects, Statuses, and Priorities
-- **Pomodoro Timer** — Floating, draggable timer with configurable intervals, sound, and desktop notifications
-- **Dark/Light Mode** — Theme toggle with persisted preference
-- **Natural Language Dates** — Type `tomorrow`, `next week`, `in 3 days` in Quick Add to auto-set due dates
-- **Customizable Database Location** — Choose where your SQLite database lives
+- **Dashboard** — Summary cards, SVG bar chart (tasks by status), SVG donut chart (tasks by priority), and a calendar view with dots for tasks due each day
+- **Calendar Day Click** — Click any day to see tasks due that day in a 50/50 split view
+- **Task List** — Filterable table with Quick Add bar supporting natural language dates (`tomorrow`, `next week`, `in 3 days`, `next 2 weeks`, `next 1 month`, etc.)
+- **Task Edit Modal** — Click any task row to open an inline editor for name, status, priority, project, and due date
+- **Kanban Board** — Dynamically loads all custom statuses in order with drag-and-drop between columns
+- **Priority Colors** — Customizable color per priority, shown as a colored bar/indicator on Task List rows and Kanban cards
+- **Inbox** — Dedicated route showing all tasks with a prominent "Due in Next 2 Days" section, filterable by status and priority
+- **Collapsible Sidebar** — Toggle sidebar between expanded and icon-only collapsed mode for more screen space
+- **Status Ordering** — ▲/▼ buttons in Settings to reorder statuses; Kanban reflects the order
+- **Settings** — Tabbed CRUD for Users, Projects, Statuses, and Priorities (with color picker)
+- **Pomodoro Timer** — Floating draggable window with minimize/close buttons, configurable intervals, xylophone sound on complete, and Electron desktop notifications
+- **Dark/Light Mode** — Theme toggle in sidebar, persisted to localStorage
+- **Customizable Database Location** — Choose where your SQLite database lives via Settings
 
 ## Screenshots
 
@@ -39,10 +44,12 @@ Vibe Tasks helps you organize your work with a clean, intuitive interface featur
 |---|---|
 | Desktop Shell | [Electron](https://www.electronjs.org/) |
 | Frontend | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
+| Runtime | [Node.js](https://nodejs.org/) |
 | Bundler | [Vite 8](https://vitejs.dev/) |
-| Styling | [Tailwind CSS 3](https://tailwindcss.com/) |
+| Styling | [Tailwind CSS 3](https://tailwindcss.com/) + Admin Template |
 | Database | [SQLite](https://sql.js.org/) (via sql.js) |
 | Routing | [React Router 7](https://reactrouter.com/) |
+| UI Controls | [Syncfusion](https://www.syncfusion.com/) (Community License) |
 
 ## Getting Started
 
@@ -95,6 +102,8 @@ vibe-tasks/
 │   ├── components/      # Shared components
 │   ├── pages/           # Page views
 │   │   ├── Dashboard.tsx
+│   │   ├── About.tsx
+│   │   ├── Inbox.tsx
 │   │   ├── TaskList.tsx
 │   │   ├── KanbanBoard.tsx
 │   │   └── Settings/
@@ -116,7 +125,7 @@ vibe-tasks/
 | **Project** | `id`, `name`, `description` |
 | **Task** | `id`, `name`, `description`, `statusId`, `priorityId`, `projectId`, `dueDate` |
 | **Status** | `id`, `name`, `ord` |
-| **Priority** | `id`, `name` |
+| **Priority** | `id`, `name`, `color` |
 
 ## License
 

@@ -156,6 +156,16 @@ function runMigrations() {
     db.run('ALTER TABLE tasks ADD COLUMN dueDate TEXT')
   }
 
+  // Migration: add color column to priorities if missing
+  const priorityCols = exec('PRAGMA table_info(priorities)')
+  if (!priorityCols.some((c: any) => c.name === 'color')) {
+    db.run("ALTER TABLE priorities ADD COLUMN color TEXT DEFAULT '#a6adc8'")
+    db.run("UPDATE priorities SET color = '#a6e3a1' WHERE name = 'Low'")
+    db.run("UPDATE priorities SET color = '#f9e2af' WHERE name = 'Medium'")
+    db.run("UPDATE priorities SET color = '#fab387' WHERE name = 'High'")
+    db.run("UPDATE priorities SET color = '#f38ba8' WHERE name = 'Critical'")
+  }
+
   // Migration: add ord column to statuses if missing
   const statusCols = exec('PRAGMA table_info(statuses)')
   if (!statusCols.some((c: any) => c.name === 'ord')) {

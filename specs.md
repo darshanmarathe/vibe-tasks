@@ -55,3 +55,14 @@
   11. ✅ Calendar day click — clicking a day shows tasks due that day in a 50/50 split (left=calendar, right=tasks)
    12. ✅ Have placed xylophone.mp3 in the same folder use it to play after pomodorrow is done 
    13. ✅ Show me where is the db located in setting allow to pick it from diffrent locations
+   14. ✅ Give priority color — color field added to priorities, color picker in Settings, colored bars on Task List rows and Kanban cards
+   15. ✅ Create a Inbox Route — all tasks displayed, next-2-days section at top, filterable by status and priority
+   16. ✅ Make the sidebar collapsable — ◀/▶ toggle, persists to localStorage, icons-only mode with tooltips
+   17. ✅ Bump up the version (1.1.0), added About screen with credits to Darshan Marathe and OpenCode
+   
+
+   ## Bugs
+
+   1. ✅ Pomodoro timer now inherits theme — uses IPC to read active theme from config, applies light/dark CSS variables
+   2. ✅ Title bar overlay now matches active theme — reads theme from config on launch, updates dynamically when toggling
+   3. ✅ App now opens in Maximized mode — `mainWindow.maximize()` called after window creation
