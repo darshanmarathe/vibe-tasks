@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Timer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: transparent;
+    color: #cdd6f4;
+    overflow: hidden;
+    user-select: none;
+    -webkit-app-region: drag;
+  }
+  .titlebar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 6px 8px 0;
+    -webkit-app-region: no-drag;
+  }
+  .titlebar button {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+    opacity: 0.5;
+  }
+  .titlebar button:hover { opacity: 1; }
+  .titlebar .close-btn { background: #f38ba8; color: #1e1e2e; }
+  .titlebar .min-btn { background: #f9e2af; color: #1e1e2e; }
+  .container {
+    height: calc(100vh - 32px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px 16px;
+    background: rgba(30, 30, 46, 0.95);
+    border: 1px solid #313244;
+    border-radius: 12px;
+    margin: 4px;
+    backdrop-filter: blur(12px);
+  }
+  .mode {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #a6adc8;
+    margin-bottom: 6px;
+  }
+  .mode.focus { color: #a6e3a1; }
+  .mode.break { color: #89b4fa; }
+  .timer {
+    font-size: 48px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    -webkit-app-region: no-drag;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+  .controls button {
+    background: #313244;
+    border: none;
+    color: #cdd6f4;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .controls button:hover { background: #45475a; }
+  .controls button.primary { background: #89b4fa; color: #1e1e2e; }
+  .controls button.primary:hover { background: #74c7ec; }
+  .controls button.danger { color: #f38ba8; }
+  .sessions {
+    font-size: 11px;
+    color: #585b70;
+    margin-top: 8px;
+    -webkit-app-region: no-drag;
+  }
+  .settings {
+    display: none;
+    margin-top: 10px;
+    -webkit-app-region: no-drag;
+  }
+  .settings.open { display: flex; gap: 8px; }
+  .settings label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 10px;
+    color: #a6adc8;
+  }
+  .settings input {
+    width: 48px;
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 6px;
+    padding: 4px 6px;
+    color: #cdd6f4;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 2px;
+  }
+  .settings input:focus { outline: none; border-color: #89b4fa; }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <button class="min-btn" id="minBtn" title="Minimize to background">—</button>
+  <button class="close-btn" id="closeBtn" title="Close">✕</button>
+</div>
+<div class="container">
+  <div class="mode focus" id="mode">Focus</div>
+  <div class="timer" id="timer">25:00</div>
+  <div class="controls">
+    <button class="danger" id="resetBtn" title="Reset">↺</button>
+    <button class="primary" id="toggleBtn" title="Start/Pause">▶</button>
+    <button id="settingsBtn" title="Settings">⚙</button>
+  </div>
+  <div class="settings" id="settings">
+    <label>Focus <input type="number" id="focusTime" min="1" max="120" value="25"></label>
+    <label>Break <input type="number" id="breakTime" min="1" max="60" value="5"></label>
+  </div>
+  <div class="sessions" id="sessions">Sessions: 0</div>
+</div>
+
+<script>
+  let focusMinutes = 25
+  let breakMinutes = 5
+  let secondsLeft = focusMinutes * 60
+  let isRunning = false
+  let isFocus = true
+  let sessionCount = 0
+  let interval = null
+
+  const timerEl = document.getElementById('timer')
+  const modeEl = document.getElementById('mode')
+  const toggleBtn = document.getElementById('toggleBtn')
+  const resetBtn = document.getElementById('resetBtn')
+  const settingsBtn = document.getElementById('settingsBtn')
+  const settingsEl = document.getElementById('settings')
+  const focusInput = document.getElementById('focusTime')
+  const breakInput = document.getElementById('breakTime')
+  const sessionsEl = document.getElementById('sessions')
+  const closeBtn = document.getElementById('closeBtn')
+  const minBtn = document.getElementById('minBtn')
+
+  function updateDisplay() {
+    const mins = Math.floor(secondsLeft / 60)
+    const secs = secondsLeft % 60
+    timerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  function setMode(focus) {
+    isFocus = focus
+    modeEl.textContent = focus ? 'Focus' : 'Break'
+    modeEl.className = 'mode ' + (focus ? 'focus' : 'break')
+    secondsLeft = (focus ? focusMinutes : breakMinutes) * 60
+    updateDisplay()
+  }
+
+  function playChime() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const notes = [523.25, 659.25, 783.99]
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.5)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(ctx.currentTime + i * 0.15)
+        osc.stop(ctx.currentTime + i * 0.15 + 0.5)
+      })
+    } catch (e) { /* audio not available */ }
+  }
+
+  function showNotification(title, body) {
+    try {
+      if (window.electronAPI && window.electronAPI.notify) {
+        window.electronAPI.notify(title, body)
+      } else {
+        new Notification(title, { body })
+      }
+    } catch (e) { /* notification not available */ }
+  }
+
+  async function playXylophone() {
+    try {
+      const soundPath = await window.electronAPI.getSoundPath()
+      if (!soundPath) { playChime(); return }
+      const audio = new Audio(soundPath)
+      audio.volume = 0.5
+      await audio.play()
+    } catch (e) {
+      playChime()
+    }
+  }
+
+  function switchMode() {
+    if (isFocus) {
+      sessionCount++
+      sessionsEl.textContent = 'Sessions: ' + sessionCount
+      playXylophone()
+      showNotification('Focus Complete!', 'Time for a break. ☕')
+      setMode(false)
+    } else {
+      playXylophone()
+      showNotification('Break Over!', 'Time to focus. 🎯')
+      setMode(true)
+    }
+    isRunning = false
+    toggleBtn.textContent = '▶'
+  }
+
+  function tick() {
+    secondsLeft--
+    updateDisplay()
+    if (secondsLeft <= 0) {
+      clearInterval(interval)
+      interval = null
+      switchMode()
+    }
+  }
+
+  function toggleTimer() {
+    if (isRunning) {
+      clearInterval(interval)
+      interval = null
+      isRunning = false
+      toggleBtn.textContent = '▶'
+    } else {
+      isRunning = true
+      toggleBtn.textContent = '⏸'
+      interval = setInterval(tick, 1000)
+    }
+  }
+
+  function resetTimer() {
+    clearInterval(interval)
+    interval = null
+    isRunning = false
+    toggleBtn.textContent = '▶'
+    setMode(isFocus)
+  }
+
+  function applySettings() {
+    focusMinutes = Math.max(1, parseInt(focusInput.value) || 25)
+    breakMinutes = Math.max(1, parseInt(breakInput.value) || 5)
+    if (!isRunning) setMode(isFocus)
+  }
+
+  toggleBtn.addEventListener('click', toggleTimer)
+  resetBtn.addEventListener('click', resetTimer)
+  settingsBtn.addEventListener('click', () => {
+    settingsEl.classList.toggle('open')
+  })
+  focusInput.addEventListener('change', applySettings)
+  breakInput.addEventListener('change', applySettings)
+
+  closeBtn.addEventListener('click', () => {
+    try { window.electronAPI.close() } catch(e) { /* close not available */ }
+  })
+  minBtn.addEventListener('click', () => {
+    try { window.electronAPI.minimize() } catch(e) { /* minimize not available */ }
+  })
+
+  updateDisplay()
+</script>
+</body>
+</html>

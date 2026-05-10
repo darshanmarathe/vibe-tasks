@@ -1,0 +1,25 @@
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider } from './contexts/ThemeContext'
+import Layout from './components/Layout'
+import Dashboard from './pages/Dashboard'
+import TaskList from './pages/TaskList'
+import KanbanBoard from './pages/KanbanBoard'
+import Settings from './pages/Settings/Settings'
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <HashRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/tasks" element={<TaskList />} />
+            <Route path="/kanban" element={<KanbanBoard />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </HashRouter>
+    </ThemeProvider>
+  )
+}

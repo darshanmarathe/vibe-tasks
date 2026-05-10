@@ -1,0 +1,57 @@
+# Vibe Tasks 
+
+## Vibe tasks is a desktop based Task management Application 
+
+## Tech Stack
+1. Electron
+2. React
+3. SQLite
+4. Node.js
+5. Syncfusion Controls
+6. Good Admin Template 
+7. Tailwind CSS
+
+## UI 
+1. Dashboard 
+2. Task List With Quick Add
+3. Kanban Board
+4. Settings
+  a. Users 
+  b. Projects
+  c. Status 
+  d. Priority
+5. Floating Pomodorrow timer visible accross screens 
+  6. Should be able to change the profit 
+  7. Should play a nice sound 
+  8. Should Show Desktop Notification
+
+
+## Models 
+1. User { id: number, name: string, email: string }
+2. Project { id: number, name: string, description: string }
+3. Task { id: number, name: string, description: string, status: string, priority: string, projectId: number }
+4. Status { id: number, name: string }
+5. Priority { id: number, name: string }
+
+
+
+## Change Requests — ✅ Implemented
+  1. ✅ Dark/Light Mode — Theme toggle in sidebar, persists to localStorage, CSS variables for both themes
+  2. ✅ Date Detection — Natural language date parser integrated into Quick Add:
+     - `tomorrow` → sets dueDate to tomorrow
+     - `in next X days` → dueDate X days from now
+     - `next week` → dueDate 7 days from now
+     - `next 2 weeks` → dueDate 14 days from now
+     - `next 1 month` → dueDate 1 month from now
+     - `next (n) month` → dueDate n months from now
+  3. ✅ dueDate column added to tasks table, displayed in Task List & Kanban
+  4. ✅ Add some charts to the dashboard — SVG bar chart (tasks by status) + SVG donut chart (tasks by priority)
+  5. ✅ Add a calendar view to the dashboard — month grid with dots for tasks due each day, overdue highlighted
+  6. ✅ Edit mode for tasks — click any task row to open a modal editor (name, status, priority, project, due date)
+  7. ✅ Status ordering — `ord` column added, ▲/▼ buttons in Settings > Statuses to reorder, Kanban reflects order
+  8. ✅ Kanban board reflects the statuses — dynamically loads all statuses in order
+  9. ✅ Pomodoro timer shows desktop notification on complete — uses `new Notification()` + Electron Notification API
+  10. ✅ Background (minimize) and close (✕) buttons added to pomodoro timer title bar
+  11. ✅ Calendar day click — clicking a day shows tasks due that day in a 50/50 split (left=calendar, right=tasks)
+   12. ✅ Have placed xylophone.mp3 in the same folder use it to play after pomodorrow is done 
+   13. ✅ Show me where is the db located in setting allow to pick it from diffrent locations

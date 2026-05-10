@@ -1,0 +1,79 @@
+appId: com.vibetasks.app
+productName: Vibe Tasks
+copyright: Copyright © 2026
+
+directories:
+  output: build
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - "!node_modules/**/*"
+  - node_modules/sql.js/**/*
+  - node_modules/react/**/*
+  - node_modules/react-dom/**/*
+  - node_modules/scheduler/**/*
+  - node_modules/react-router-dom/**/*
+  - node_modules/@remix-run/**/*
+
+extraResources:
+  - from: "dist-electron/"
+    to: "electron/"
+    filter:
+      - "*.cjs"
+      - "*.html"
+  - from: "."
+    to: "."
+    filter:
+      - "xylophone.mp3"
+
+asar: true
+asarUnpack:
+  - "node_modules/sql.js/**"
+
+win:
+  icon: icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+mac:
+  icon: icon.png
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.productivity
+  hardenedRuntime: true
+
+dmg:
+  title: "Vibe Tasks ${version}"
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+linux:
+  icon: icon.png
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  category: Office
+  synopsis: Desktop task management application
+  description: A beautiful, productivity-focused task manager for your desktop.

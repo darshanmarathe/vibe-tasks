@@ -1,0 +1,42 @@
+node_modules/
+dist/
+dist-electron/
+build/
+.vite/
+
+# Database
+*.db
+*.db-journal
+vibetasks-config.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Binaries
+*.exe
+
+# Temp
+tmp/
+temp/
+*.tmp
+
+# Test
+coverage/
