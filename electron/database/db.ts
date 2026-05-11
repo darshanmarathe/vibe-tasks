@@ -166,6 +166,20 @@ function runMigrations() {
     db.run("UPDATE priorities SET color = '#f38ba8' WHERE name = 'Critical'")
   }
 
+  // Migration: add notes and dependency columns to tasks if missing
+  let cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'notes')) {
+    db.run("ALTER TABLE tasks ADD COLUMN notes TEXT DEFAULT ''")
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'predecessorIds')) {
+    db.run("ALTER TABLE tasks ADD COLUMN predecessorIds TEXT DEFAULT '[]'")
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'successorIds')) {
+    db.run("ALTER TABLE tasks ADD COLUMN successorIds TEXT DEFAULT '[]'")
+  }
+
   // Migration: add ord column to statuses if missing
   const statusCols = exec('PRAGMA table_info(statuses)')
   if (!statusCols.some((c: any) => c.name === 'ord')) {

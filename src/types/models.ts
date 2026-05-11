@@ -26,10 +26,13 @@ export interface Task {
   id: number
   name: string
   description: string
+  notes: string
   dueDate: string | null
   statusId: number
   priorityId: number
   projectId: number
+  predecessorIds: string
+  successorIds: string
 }
 
 export interface TaskWithRelations extends Task {
@@ -37,6 +40,8 @@ export interface TaskWithRelations extends Task {
   priorityName: string
   priorityColor: string
   projectName: string
+  predecessorNames: string
+  successorNames: string
 }
 
 export interface ElectronAPI {

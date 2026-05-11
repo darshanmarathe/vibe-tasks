@@ -4,7 +4,7 @@ copyright: Copyright © 2026
 
 directories:
   output: build
-  buildResources: build
+  buildResources: assets
 
 files:
   - dist/**/*
@@ -33,6 +33,8 @@ asarUnpack:
   - "node_modules/sql.js/**"
 
 win:
+  icon: assets/icon.png
+  artifactName: "vibetask.${ext}"
   target:
     - target: portable
       arch:

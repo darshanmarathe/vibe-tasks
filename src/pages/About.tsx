@@ -8,7 +8,7 @@ export default function About() {
           <img src="assets/icon.svg" alt="Vibe Tasks" width="48" height="48" />
           <div>
             <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Vibe Tasks</h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Version 1.1.0</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Version 1.1.3</p>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Desktop Task Management Application</p>
           </div>
         </div>

@@ -59,7 +59,15 @@
    15. ✅ Create a Inbox Route — all tasks displayed, next-2-days section at top, filterable by status and priority
    16. ✅ Make the sidebar collapsable — ◀/▶ toggle, persists to localStorage, icons-only mode with tooltips
    17. ✅ Bump up the version (1.1.0), added About screen with credits to Darshan Marathe and OpenCode
-   
+
+
+   ### Release 1.1.2 ✅
+   1. ✅ Tree grid — Task List grouped by project with expandable/collapsible sections
+   2. ✅ Notes field — Markdown textarea with preview toggle, stored per task
+   3. ✅ Task dependencies — Predecessor/Successor picker modal with search, checkbox selection, and linked display
+
+### Release 1.1.3 ✅
+  1. ✅ Kanban card click — opens detail modal showing task name, status, priority, project, due date, Markdown notes preview, and predecessor/successor dependencies
 
    ## Bugs
 

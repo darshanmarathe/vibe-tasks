@@ -15,6 +15,7 @@ export default function TaskList() {
   const [filterStatus, setFilterStatus] = useState(0)
   const [filterPriority, setFilterPriority] = useState(0)
   const [filterProject, setFilterProject] = useState(0)
+  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set())
 
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
@@ -23,6 +24,12 @@ export default function TaskList() {
   const [editPriority, setEditPriority] = useState(0)
   const [editProject, setEditProject] = useState(0)
   const [editDueDate, setEditDueDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
+  const [editPredecessorIds, setEditPredecessorIds] = useState<number[]>([])
+  const [editSuccessorIds, setEditSuccessorIds] = useState<number[]>([])
+  const [showDepPicker, setShowDepPicker] = useState<'predecessor' | 'successor' | null>(null)
+  const [depSearch, setDepSearch] = useState('')
 
   const loadData = useCallback(async () => {
     const [t, s, p, pr] = await Promise.all([
@@ -51,13 +58,19 @@ export default function TaskList() {
   const handleQuickAdd = async () => {
     if (!quickName.trim()) return
     const { cleaned, dueDate } = parseDateFromText(quickName)
+    const sid = quickStatus || statuses[0]?.id || 1
+    const pid = quickPriority || priorities[0]?.id || 1
+    const prid = quickProject || projects[0]?.id || 1
     await window.electronAPI.createTask({
       name: cleaned,
       description: '',
+      notes: '',
       dueDate: dueDate,
-      statusId: quickStatus,
-      priorityId: quickPriority,
-      projectId: quickProject,
+      statusId: sid,
+      priorityId: pid,
+      projectId: prid,
+      predecessorIds: '[]',
+      successorIds: '[]',
     })
     setQuickName('')
     setParsedDueDate(null)
@@ -69,7 +82,6 @@ export default function TaskList() {
     loadData()
   }
 
-  // Edit handlers
   const openEdit = (task: TaskWithRelations) => {
     setEditingTask(task)
     setEditName(task.name)
@@ -77,10 +89,15 @@ export default function TaskList() {
     setEditPriority(task.priorityId)
     setEditProject(task.projectId)
     setEditDueDate(task.dueDate || '')
+    setEditNotes(task.notes || '')
+    setEditPredecessorIds(JSON.parse(task.predecessorIds || '[]'))
+    setEditSuccessorIds(JSON.parse(task.successorIds || '[]'))
+    setShowMarkdownPreview(false)
   }
 
   const closeEdit = () => {
     setEditingTask(null)
+    setShowDepPicker(null)
   }
 
   const saveEdit = async () => {
@@ -91,6 +108,9 @@ export default function TaskList() {
       priorityId: editPriority,
       projectId: editProject,
       dueDate: editDueDate || null,
+      notes: editNotes,
+      predecessorIds: JSON.stringify(editPredecessorIds),
+      successorIds: JSON.stringify(editSuccessorIds),
     })
     closeEdit()
     loadData()
@@ -102,6 +122,32 @@ export default function TaskList() {
     if (filterProject && t.projectId !== filterProject) return false
     return true
   })
+
+  // Group tasks by project
+  const tasksByProject = new Map<number, { projectName: string; tasks: TaskWithRelations[] }>()
+  for (const task of filteredTasks) {
+    if (!tasksByProject.has(task.projectId)) {
+      tasksByProject.set(task.projectId, { projectName: task.projectName, tasks: [] })
+    }
+    tasksByProject.get(task.projectId)!.tasks.push(task)
+  }
+  const sortedProjects = projects.filter(p => tasksByProject.has(p.id))
+
+  const toggleProject = (projectId: number) => {
+    setExpandedProjects(prev => {
+      const next = new Set(prev)
+      if (next.has(projectId)) next.delete(projectId)
+      else next.add(projectId)
+      return next
+    })
+  }
+
+  // Auto-expand all projects on first load
+  useEffect(() => {
+    if (projects.length > 0 && expandedProjects.size === 0) {
+      setExpandedProjects(new Set(projects.filter(p => tasksByProject.has(p.id)).map(p => p.id)))
+    }
+  }, [projects.length])
 
   const formatDate = (d: string | null) => {
     if (!d) return ''
@@ -116,6 +162,40 @@ export default function TaskList() {
   const isOverdue = (d: string | null) => {
     if (!d) return false
     return new Date(d) < new Date(new Date().toDateString())
+  }
+
+  // Simple markdown renderer
+  function renderMarkdown(text: string): string {
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    html = html.replace(/^### (.+)$/gm, '<h3 class="text-sm font-bold mt-2 mb-1">$1</h3>')
+    html = html.replace(/^## (.+)$/gm, '<h2 class="text-base font-bold mt-3 mb-1">$1</h2>')
+    html = html.replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mt-3 mb-1">$1</h1>')
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+    html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    html = html.replace(/`(.+?)`/g, '<code class="text-xs px-1 rounded" style="background:var(--bg-hover)">$1</code>')
+    html = html.replace(/\n/g, '<br>')
+    return html
+  }
+
+  // Dependency picker
+  const availableForDep = tasks.filter(t => t.id !== editingTask?.id)
+  const depSearchLower = depSearch.toLowerCase()
+  const filteredDepTasks = depSearch
+    ? availableForDep.filter(t => t.name.toLowerCase().includes(depSearchLower) || t.projectName.toLowerCase().includes(depSearchLower))
+    : availableForDep
+
+  function toggleDepId(id: number, mode: 'predecessor' | 'successor') {
+    const setter = mode === 'predecessor' ? setEditPredecessorIds : setEditSuccessorIds
+    const current = mode === 'predecessor' ? editPredecessorIds : editSuccessorIds
+    if (current.includes(id)) {
+      setter(current.filter(x => x !== id))
+    } else {
+      setter([...current, id])
+    }
   }
 
   return (
@@ -215,11 +295,12 @@ export default function TaskList() {
         </select>
       </div>
 
-      {/* Task Table */}
+      {/* Tree Grid — grouped by project */}
       <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
           <thead>
             <tr style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-primary)', borderBottomColor: 'var(--border)' }} className="border-b">
+              <th className="text-left py-3 px-4 w-8"></th>
               <th className="text-left py-3 px-4">Name</th>
               <th className="text-left py-3 px-4">Status</th>
               <th className="text-left py-3 px-4">Priority</th>
@@ -229,47 +310,78 @@ export default function TaskList() {
             </tr>
           </thead>
           <tbody>
-            {filteredTasks.map(task => (
-              <tr
-                key={task.id}
-                className="border-b cursor-pointer transition-colors"
-                style={{ borderColor: 'var(--border)', borderLeft: `3px solid ${task.priorityColor || 'var(--text-muted)'}` }}
-                onClick={() => openEdit(task)}
-                onMouseEnter={e => { if (!editingTask || editingTask.id !== task.id) e.currentTarget.style.backgroundColor = 'var(--bg-hover)' }}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <td className="py-3 px-4" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
-                <td className="py-3 px-4">{task.statusName}</td>
-                <td className="py-3 px-4 font-medium" style={{ color: task.priorityColor || 'var(--text-secondary)' }}>
-                  {task.priorityName}
-                </td>
-                <td className="py-3 px-4" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>
-                <td className="py-3 px-4">
-                  {task.dueDate ? (
-                    <span style={{
-                      color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)',
-                      fontWeight: isOverdue(task.dueDate) ? 600 : 400,
-                    }}>
-                      {formatDate(task.dueDate)}
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>—</span>
-                  )}
-                </td>
-                <td className="py-3 px-4 text-right">
-                  <button
-                    onClick={e => { e.stopPropagation(); handleDelete(task.id) }}
-                    className="text-xs"
-                    style={{ color: 'var(--danger)' }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredTasks.length === 0 && (
+            {sortedProjects.map(project => {
+              const group = tasksByProject.get(project.id)!
+              const isExpanded = expandedProjects.has(project.id)
+              return (
+                <tr key={`project-${project.id}`} style={{ backgroundColor: 'var(--bg-hover)' }}>
+                  <td colSpan={7} className="py-0">
+                    <table className="w-full text-sm">
+                      <tbody>
+                        <tr
+                          className="cursor-pointer transition-colors"
+                          style={{ backgroundColor: 'var(--bg-hover)' }}
+                          onClick={() => toggleProject(project.id)}
+                        >
+                          <td className="py-2 px-4 w-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                            {isExpanded ? '▼' : '▶'}
+                          </td>
+                          <td className="py-2 px-4 font-semibold" style={{ color: 'var(--text-primary)' }} colSpan={5}>
+                            {group.projectName}
+                            <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
+                              {group.tasks.length}
+                            </span>
+                          </td>
+                          <td className="py-2 px-4 text-right"></td>
+                        </tr>
+                        {isExpanded && group.tasks.map(task => (
+                          <tr
+                            key={task.id}
+                            className="border-t cursor-pointer transition-colors"
+                            style={{ borderColor: 'var(--border)', borderTopWidth: '0.5px', borderLeft: `3px solid ${task.priorityColor || 'var(--text-muted)'}` }}
+                            onClick={() => openEdit(task)}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            <td className="py-2.5 px-4 w-8"></td>
+                            <td className="py-2.5 px-4" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
+                            <td className="py-2.5 px-4">{task.statusName}</td>
+                            <td className="py-2.5 px-4 font-medium" style={{ color: task.priorityColor || 'var(--text-secondary)' }}>
+                              {task.priorityName}
+                            </td>
+                            <td className="py-2.5 px-4" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>
+                            <td className="py-2.5 px-4">
+                              {task.dueDate ? (
+                                <span style={{
+                                  color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)',
+                                  fontWeight: isOverdue(task.dueDate) ? 600 : 400,
+                                }}>
+                                  {formatDate(task.dueDate)}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)' }}>—</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-4 text-right">
+                              <button
+                                onClick={e => { e.stopPropagation(); handleDelete(task.id) }}
+                                className="text-xs"
+                                style={{ color: 'var(--danger)' }}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              )
+            })}
+            {sortedProjects.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td>
+                <td colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td>
               </tr>
             )}
           </tbody>
@@ -279,7 +391,7 @@ export default function TaskList() {
       {/* Edit Modal */}
       {editingTask && (
         <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="rounded-xl p-6 border w-full max-w-lg" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+          <div className="rounded-xl p-6 border w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
 
             <div className="space-y-3">
@@ -309,9 +421,101 @@ export default function TaskList() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
+                  <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                </div>
+              </div>
+
+              {/* Notes with Markdown */}
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
-                <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>Notes (Markdown)</label>
+                  <button
+                    onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
+                    className="text-xs px-2 py-0.5 rounded transition-colors"
+                    style={{ backgroundColor: showMarkdownPreview ? 'var(--accent)' : 'var(--bg-hover)', color: showMarkdownPreview ? '#fff' : 'var(--text-secondary)' }}
+                  >
+                    {showMarkdownPreview ? 'Edit' : 'Preview'}
+                  </button>
+                </div>
+                {showMarkdownPreview ? (
+                  <div
+                    className="w-full border rounded-lg px-3 py-2 text-sm min-h-[100px] prose prose-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(editNotes) }}
+                  />
+                ) : (
+                  <textarea
+                    value={editNotes}
+                    onChange={e => setEditNotes(e.target.value)}
+                    placeholder="Write notes in Markdown...&#10;&#10;## Heading&#10;Regular text with **bold** and *italic*&#10;- List item&#10;`code`"
+                    className="w-full border rounded-lg px-3 py-2 text-sm min-h-[100px] resize-y"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                )}
+              </div>
+
+              {/* Dependencies */}
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Dependencies</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Predecessors</span>
+                      <button
+                        onClick={() => { setShowDepPicker('predecessor'); setDepSearch('') }}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <div className="min-h-[32px] border rounded-lg p-1.5 text-xs space-y-1" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
+                      {editPredecessorIds.length === 0 ? (
+                        <span style={{ color: 'var(--text-muted)' }}>None</span>
+                      ) : (
+                        editPredecessorIds.map(id => {
+                          const t = tasks.find(x => x.id === id)
+                          return (
+                            <div key={id} className="flex items-center justify-between gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                              <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
+                              <button onClick={() => toggleDepId(id, 'predecessor')} className="text-xs" style={{ color: 'var(--danger)' }}>✕</button>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Successors</span>
+                      <button
+                        onClick={() => { setShowDepPicker('successor'); setDepSearch('') }}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                    <div className="min-h-[32px] border rounded-lg p-1.5 text-xs space-y-1" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
+                      {editSuccessorIds.length === 0 ? (
+                        <span style={{ color: 'var(--text-muted)' }}>None</span>
+                      ) : (
+                        editSuccessorIds.map(id => {
+                          const t = tasks.find(x => x.id === id)
+                          return (
+                            <div key={id} className="flex items-center justify-between gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                              <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
+                              <button onClick={() => toggleDepId(id, 'successor')} className="text-xs" style={{ color: 'var(--danger)' }}>✕</button>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -319,6 +523,63 @@ export default function TaskList() {
               <button onClick={closeEdit} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
               <button onClick={saveEdit} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dependency Picker Modal */}
+      {showDepPicker && (
+        <div className="fixed inset-0 flex items-center justify-center z-[60]" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="rounded-xl p-4 border w-full max-w-lg max-h-[60vh] flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {showDepPicker === 'predecessor' ? 'Select Predecessors' : 'Select Successors'}
+              </h3>
+              <button onClick={() => setShowDepPicker(null)} className="text-xs" style={{ color: 'var(--text-secondary)' }}>✕</button>
+            </div>
+            <input
+              value={depSearch}
+              onChange={e => setDepSearch(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-full border rounded-lg px-3 py-1.5 text-sm mb-3"
+              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            />
+            <div className="flex-1 overflow-y-auto space-y-1">
+              {filteredDepTasks.map(t => {
+                const selected = showDepPicker === 'predecessor'
+                  ? editPredecessorIds.includes(t.id)
+                  : editSuccessorIds.includes(t.id)
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => toggleDepId(t.id, showDepPicker)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm"
+                    style={{
+                      backgroundColor: selected ? 'var(--bg-hover)' : 'transparent',
+                      borderLeft: `3px solid ${t.priorityColor || 'var(--text-muted)'}`,
+                    }}
+                  >
+                    <input type="checkbox" checked={selected} readOnly className="rounded" />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
+                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                        {t.projectName} · {t.statusName} · {t.priorityName}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+              {filteredDepTasks.length === 0 && (
+                <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No tasks found.</p>
+              )}
+            </div>
+            <button
+              onClick={() => setShowDepPicker(null)}
+              className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold self-end"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

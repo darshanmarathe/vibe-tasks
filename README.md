@@ -8,9 +8,11 @@ Vibe Tasks helps you organize your work with an intuitive interface featuring ta
 
 - **Dashboard** — Summary cards, SVG bar chart (tasks by status), SVG donut chart (tasks by priority), and a calendar view with dots for tasks due each day
 - **Calendar Day Click** — Click any day to see tasks due that day in a 50/50 split view
-- **Task List** — Filterable table with Quick Add bar supporting natural language dates (`tomorrow`, `next week`, `in 3 days`, `next 2 weeks`, `next 1 month`, etc.)
-- **Task Edit Modal** — Click any task row to open an inline editor for name, status, priority, project, and due date
-- **Kanban Board** — Dynamically loads all custom statuses in order with drag-and-drop between columns
+- **Task List** — Project-wise tree grid (expandable/collapsible) with Quick Add bar supporting natural language dates (`tomorrow`, `next week`, `in 3 days`, etc.)
+- **Task Edit Modal** — Click any task row to open an inline editor for name, status, priority, project, due date, Markdown notes, and task dependencies
+- **Markdown Notes** — Add notes in Markdown format to any task with live preview toggle
+- **Task Dependencies** — Link predecessor and successor tasks via a searchable multi-select picker modal
+- **Kanban Board** — Dynamically loads all custom statuses in order with drag-and-drop between columns; click any card to view task details, Markdown notes preview, and dependency links
 - **Priority Colors** — Customizable color per priority, shown as a colored bar/indicator on Task List rows and Kanban cards
 - **Inbox** — Dedicated route showing all tasks with a prominent "Due in Next 2 Days" section, filterable by status and priority
 - **Collapsible Sidebar** — Toggle sidebar between expanded and icon-only collapsed mode for more screen space
@@ -123,7 +125,7 @@ vibe-tasks/
 |---|---|
 | **User** | `id`, `name`, `email` |
 | **Project** | `id`, `name`, `description` |
-| **Task** | `id`, `name`, `description`, `statusId`, `priorityId`, `projectId`, `dueDate` |
+| **Task** | `id`, `name`, `description`, `notes`, `dueDate`, `statusId`, `priorityId`, `projectId`, `predecessorIds`, `successorIds` |
 | **Status** | `id`, `name`, `ord` |
 | **Priority** | `id`, `name`, `color` |
 
