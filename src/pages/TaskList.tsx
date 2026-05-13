@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status, Priority, Project } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 import { parseDateFromText } from '../utils/dateParser'
 
 export default function TaskList() {
@@ -7,10 +7,12 @@ export default function TaskList() {
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [quickName, setQuickName] = useState('')
   const [quickStatus, setQuickStatus] = useState(0)
   const [quickPriority, setQuickPriority] = useState(0)
   const [quickProject, setQuickProject] = useState(0)
+  const [quickAssignedTo, setQuickAssignedTo] = useState(0)
   const [parsedDueDate, setParsedDueDate] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState(0)
   const [filterPriority, setFilterPriority] = useState(0)
@@ -20,9 +22,12 @@ export default function TaskList() {
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [editName, setEditName] = useState('')
+  const [editDesc, setEditDesc] = useState('')
   const [editStatus, setEditStatus] = useState(0)
   const [editPriority, setEditPriority] = useState(0)
   const [editProject, setEditProject] = useState(0)
+  const [editAssignedTo, setEditAssignedTo] = useState(0)
+  const [editCompletionPercent, setEditCompletionPercent] = useState(0)
   const [editDueDate, setEditDueDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
@@ -32,16 +37,18 @@ export default function TaskList() {
   const [depSearch, setDepSearch] = useState('')
 
   const loadData = useCallback(async () => {
-    const [t, s, p, pr] = await Promise.all([
+    const [t, s, p, pr, u] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
       window.electronAPI.getProjects(),
+      window.electronAPI.getUsers(),
     ])
     setTasks(t)
     setStatuses(s)
     setPriorities(p)
     setProjects(pr)
+    setUsers(u)
     if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
     if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
     if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
@@ -71,6 +78,9 @@ export default function TaskList() {
       projectId: prid,
       predecessorIds: '[]',
       successorIds: '[]',
+      archived: 0,
+      assignedTo: quickAssignedTo || null,
+      completionPercent: 0,
     })
     setQuickName('')
     setParsedDueDate(null)
@@ -82,12 +92,20 @@ export default function TaskList() {
     loadData()
   }
 
+  const handleArchive = async (id: number) => {
+    await window.electronAPI.archiveTask(id)
+    loadData()
+  }
+
   const openEdit = (task: TaskWithRelations) => {
     setEditingTask(task)
     setEditName(task.name)
+    setEditDesc(task.description || '')
     setEditStatus(task.statusId)
     setEditPriority(task.priorityId)
     setEditProject(task.projectId)
+    setEditAssignedTo(task.assignedTo || 0)
+    setEditCompletionPercent(task.completionPercent ?? 0)
     setEditDueDate(task.dueDate || '')
     setEditNotes(task.notes || '')
     setEditPredecessorIds(JSON.parse(task.predecessorIds || '[]'))
@@ -104,9 +122,12 @@ export default function TaskList() {
     if (!editingTask || !editName.trim()) return
     await window.electronAPI.updateTask(editingTask.id, {
       name: editName.trim(),
+      description: editDesc,
       statusId: editStatus,
       priorityId: editPriority,
       projectId: editProject,
+      assignedTo: editAssignedTo || null,
+      completionPercent: editCompletionPercent,
       dueDate: editDueDate || null,
       notes: editNotes,
       predecessorIds: JSON.stringify(editPredecessorIds),
@@ -254,6 +275,18 @@ export default function TaskList() {
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          <div>
+            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assign To</label>
+            <select
+              value={quickAssignedTo}
+              onChange={e => setQuickAssignedTo(Number(e.target.value))}
+              className="border rounded-lg px-3 py-2 text-sm"
+              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            >
+              <option value={0}>Unassigned</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
           <button
             onClick={handleQuickAdd}
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
@@ -305,7 +338,9 @@ export default function TaskList() {
               <th className="text-left py-3 px-4">Status</th>
               <th className="text-left py-3 px-4">Priority</th>
               <th className="text-left py-3 px-4">Project</th>
+              <th className="text-left py-3 px-4">Assigned To</th>
               <th className="text-left py-3 px-4">Due Date</th>
+              <th className="text-left py-3 px-4">%</th>
               <th className="text-right py-3 px-4">Actions</th>
             </tr>
           </thead>
@@ -315,7 +350,7 @@ export default function TaskList() {
               const isExpanded = expandedProjects.has(project.id)
               return (
                 <tr key={`project-${project.id}`} style={{ backgroundColor: 'var(--bg-hover)' }}>
-                  <td colSpan={7} className="py-0">
+                  <td colSpan={8} className="py-0">
                     <table className="w-full text-sm">
                       <tbody>
                         <tr
@@ -326,7 +361,7 @@ export default function TaskList() {
                           <td className="py-2 px-4 w-8 text-center" style={{ color: 'var(--text-muted)' }}>
                             {isExpanded ? '▼' : '▶'}
                           </td>
-                          <td className="py-2 px-4 font-semibold" style={{ color: 'var(--text-primary)' }} colSpan={5}>
+                          <td className="py-2 px-4 font-semibold" style={{ color: 'var(--text-primary)' }} colSpan={7}>
                             {group.projectName}
                             <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
                               {group.tasks.length}
@@ -350,6 +385,14 @@ export default function TaskList() {
                               {task.priorityName}
                             </td>
                             <td className="py-2.5 px-4" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>
+                            <td className="py-2.5 px-4" style={{ color: 'var(--text-secondary)' }}>
+                              {task.assignedToName ? (
+                                <span>{task.assignedToName} {task.assignedToEmail && (
+                                  <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                                    onClick={e => e.stopPropagation()} style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                                )}</span>
+                              ) : '—'}
+                            </td>
                             <td className="py-2.5 px-4">
                               {task.dueDate ? (
                                 <span style={{
@@ -362,7 +405,23 @@ export default function TaskList() {
                                 <span style={{ color: 'var(--text-muted)' }}>—</span>
                               )}
                             </td>
-                            <td className="py-2.5 px-4 text-right">
+                            <td className="py-2.5 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{task.completionPercent}%</span>
+                                <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                                  <div className="h-full rounded-full" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-4 text-right space-x-2">
+                              <button
+                                onClick={e => { e.stopPropagation(); handleArchive(task.id) }}
+                                className="text-xs"
+                                style={{ color: 'var(--text-muted)' }}
+                                title="Archive"
+                              >
+                                📦
+                              </button>
                               <button
                                 onClick={e => { e.stopPropagation(); handleDelete(task.id) }}
                                 className="text-xs"
@@ -381,7 +440,7 @@ export default function TaskList() {
             })}
             {sortedProjects.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td>
+                <td colSpan={9} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td>
               </tr>
             )}
           </tbody>
@@ -398,6 +457,10 @@ export default function TaskList() {
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Description</label>
+                <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm resize-y" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -425,6 +488,24 @@ export default function TaskList() {
                 <div>
                   <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
                   <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>
+                  <select value={editAssignedTo} onChange={e => setEditAssignedTo(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value={0}>Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Completion: {editCompletionPercent}%</label>
+                <div className="flex items-center gap-3">
+                  <input type="range" min="0" max="100" step="5" value={editCompletionPercent}
+                    onChange={e => setEditCompletionPercent(Number(e.target.value))}
+                    className="flex-1" style={{ accentColor: 'var(--accent)' }} />
+                  <div className="w-20 h-2 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${editCompletionPercent}%`, backgroundColor: editCompletionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                  </div>
                 </div>
               </div>
 

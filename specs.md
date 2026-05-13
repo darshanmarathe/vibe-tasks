@@ -69,8 +69,35 @@
 ### Release 1.1.3 ✅
   1. ✅ Kanban card click — opens detail modal showing task name, status, priority, project, due date, Markdown notes preview, and predecessor/successor dependencies
 
+
+  ### Release 1.2.0 ✅
+  1. ✅ Edit tasks in the inbox mode — click-to-edit modal with all fields
+  2. ✅ Line chart on dashboard — Tasks Due Per Day (next 30 days)
+  3. ✅ Theme from OS detection via prefers-color-scheme, persisted per user, Settings seed function
+  4. ✅ Dashboard > Recent Tasks > Edit option — click row to open edit modal
+  5. ✅ Theme changes pushed to Pomodoro window via IPC theme:changed channel
+  6. ✅ today keyword recognised, default dueDate set to today when no keyword matched
+  7. ✅ Inbox All Tasks table sortable — click-to-toggle-sort with ▲/▼ indicators
+  8. ✅ Task Description field added to all edit modals (Dashboard, TaskList, Inbox, Kanban detail)
+  9. ✅ Email icon (📧) on each card/row — mailto: with subject=task name, body=description
+  10. ✅ Archive capability — archive/unarchive, Archived page with Restore button
+  11. ✅ Pomodoro alarm loops every 3s with Stop Alarm button to dismiss
+  12. ✅ Single instance lock — second instance focuses existing window and quits
+
+
+  ### Release 1.2.1 ✅
+  1. ✅ Line chart removed from Dashboard, Tasks by Priority is now a full pie chart (no donut hole)
+  2. ✅ Quick Add form added to Dashboard where the line chart was
+  3. ✅ assignedTo column added to tasks — users selectable from Settings > Users, displayed on all task grids
+  4. ✅ Email icon (📧) on Kanban cards, Dashboard Recent Tasks, Inbox, TaskList grid — mailto: assigned user's email with subject=name, body=description
+  5. ✅ Archive/Unarchive — Archived page with Restore button; archive ✕ 📦 buttons on Dashboard, TaskList, Inbox, Kanban detail
+  6. ✅ Dashboard :: Tasks by Priority :: Pie chart now uses dynamic priority colors from database matching theme
+  7. Add a completion percentage feild to task from 0% to 100% on kanban board add a small progress bar to task cards and on the Task detail page On Task grids add a completion percentage column with progress bar
+  
+
    ## Bugs
 
    1. ✅ Pomodoro timer now inherits theme — uses IPC to read active theme from config, applies light/dark CSS variables
    2. ✅ Title bar overlay now matches active theme — reads theme from config on launch, updates dynamically when toggling
    3. ✅ App now opens in Maximized mode — `mainWindow.maximize()` called after window creation
+    4. ✅ Tasks by Priority :: Pie chart now uses Syncfusion AccumulationChart with dynamic priority colors

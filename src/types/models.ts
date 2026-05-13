@@ -33,6 +33,9 @@ export interface Task {
   projectId: number
   predecessorIds: string
   successorIds: string
+  archived: number
+  assignedTo: number | null
+  completionPercent: number
 }
 
 export interface TaskWithRelations extends Task {
@@ -42,6 +45,8 @@ export interface TaskWithRelations extends Task {
   projectName: string
   predecessorNames: string
   successorNames: string
+  assignedToName: string | null
+  assignedToEmail: string | null
 }
 
 export interface ElectronAPI {
@@ -71,10 +76,13 @@ export interface ElectronAPI {
   deletePriority: (id: number) => Promise<void>
 
   // Tasks
-  getTasks: () => Promise<TaskWithRelations[]>
+  getTasks: (includeArchived?: boolean) => Promise<TaskWithRelations[]>
+  getArchivedTasks: () => Promise<TaskWithRelations[]>
   createTask: (data: Omit<Task, 'id'>) => Promise<TaskWithRelations>
   updateTask: (id: number, data: Partial<Task>) => Promise<TaskWithRelations>
   deleteTask: (id: number) => Promise<void>
+  archiveTask: (id: number) => Promise<void>
+  unarchiveTask: (id: number) => Promise<void>
 
   // Pomodoro
   togglePomodoro: () => Promise<void>

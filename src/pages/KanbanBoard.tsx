@@ -100,6 +100,15 @@ export default function KanbanBoard() {
                     </div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{task.name}</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{task.projectName}</p>
+                    {task.assignedToName && (
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                        👤 {task.assignedToName}
+                        {task.assignedToEmail && (
+                          <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                            onClick={e => e.stopPropagation()} className="ml-1" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                        )}
+                      </p>
+                    )}
                     {task.dueDate && (
                       <p className="text-xs mt-1" style={{
                         color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-muted)',
@@ -108,6 +117,14 @@ export default function KanbanBoard() {
                         {isOverdue(task.dueDate) ? '⚠ ' : ''}{formatDate(task.dueDate)}
                       </p>
                     )}
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <span>{task.completionPercent}%</span>
+                        <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))}
                 {columnTasks.length === 0 && (
@@ -125,10 +142,14 @@ export default function KanbanBoard() {
       {detailTask && (
         <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setDetailTask(null)}>
           <div className="rounded-xl p-6 border w-full max-w-lg max-h-[80vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-2">
               <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{detailTask.name}</h2>
               <button onClick={() => setDetailTask(null)} className="text-sm" style={{ color: 'var(--text-secondary)' }}>✕</button>
             </div>
+
+            {detailTask.description && (
+              <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>{detailTask.description}</p>
+            )}
 
             <div className="flex flex-wrap gap-2 mb-4">
               <span className="text-xs px-2 py-1 rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
@@ -140,6 +161,11 @@ export default function KanbanBoard() {
               <span className="text-xs px-2 py-1 rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
                 {detailTask.projectName}
               </span>
+              {detailTask.assignedToName && (
+                <span className="text-xs px-2 py-1 rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                  👤 {detailTask.assignedToName}
+                </span>
+              )}
               {detailTask.dueDate && (
                 <span className="text-xs px-2 py-1 rounded-md" style={{
                   backgroundColor: 'var(--bg-hover)',
@@ -179,6 +205,45 @@ export default function KanbanBoard() {
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>None</p>
                 )}
               </div>
+            </div>
+
+            {/* Completion */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Completion</label>
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{detailTask.completionPercent}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="range" min="0" max="100" step="5" value={detailTask.completionPercent}
+                  onChange={async (e) => {
+                    const val = Number(e.target.value)
+                    await window.electronAPI.updateTask(detailTask.id, { completionPercent: val })
+                    setDetailTask({ ...detailTask, completionPercent: val })
+                    loadData()
+                  }}
+                  className="w-full"
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+              </div>
+              <div className="mt-1 h-2 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${detailTask.completionPercent}%`, backgroundColor: detailTask.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-2">
+              {detailTask.assignedToEmail && (
+                <a href={`mailto:${detailTask.assignedToEmail}?subject=${encodeURIComponent(detailTask.name)}&body=${encodeURIComponent(detailTask.description || '')}`}
+                  className="px-4 py-2 rounded-lg text-sm"
+                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                  title="Email assigned user">📧 Email</a>
+              )}
+              <button
+                onClick={async (e) => { e.stopPropagation(); await window.electronAPI.archiveTask(detailTask.id); setDetailTask(null); loadData() }}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
+              >
+                📦 Archive
+              </button>
             </div>
           </div>
         </div>

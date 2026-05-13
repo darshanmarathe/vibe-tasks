@@ -165,6 +165,7 @@
   <div class="controls">
     <button class="danger" id="resetBtn" title="Reset">↺</button>
     <button class="primary" id="toggleBtn" title="Start/Pause">▶</button>
+    <button id="stopAlarmBtn" title="Stop Alarm" style="display:none">🔇</button>
     <button id="settingsBtn" title="Settings">⚙</button>
   </div>
   <div class="settings" id="settings">
@@ -182,6 +183,14 @@
     } catch (e) { /* use default dark */ }
   })()
 
+  ;(function listenThemeChanges() {
+    try {
+      window.electronAPI.onThemeChanged((theme) => {
+        document.documentElement.setAttribute('data-theme', theme)
+      })
+    } catch (e) { /* ignore */ }
+  })()
+
   let focusMinutes = 25
   let breakMinutes = 5
   let secondsLeft = focusMinutes * 60
@@ -194,6 +203,7 @@
   const modeEl = document.getElementById('mode')
   const toggleBtn = document.getElementById('toggleBtn')
   const resetBtn = document.getElementById('resetBtn')
+  const stopAlarmBtn = document.getElementById('stopAlarmBtn')
   const settingsBtn = document.getElementById('settingsBtn')
   const settingsEl = document.getElementById('settings')
   const focusInput = document.getElementById('focusTime')
@@ -245,28 +255,48 @@
     } catch (e) { /* notification not available */ }
   }
 
+  let alarmLoop = null
+
   async function playXylophone() {
     try {
       const soundPath = await window.electronAPI.getSoundPath()
       if (!soundPath) { playChime(); return }
-      const audio = new Audio(soundPath)
-      audio.volume = 0.5
-      await audio.play()
+      function playOnce() {
+        const audio = new Audio(soundPath)
+        audio.volume = 0.5
+        audio.play().catch(() => {})
+        return audio
+      }
+      playOnce()
+      alarmLoop = setInterval(() => {
+        playOnce()
+      }, 3000)
     } catch (e) {
       playChime()
     }
   }
 
+  function stopAlarm() {
+    if (alarmLoop) {
+      clearInterval(alarmLoop)
+      alarmLoop = null
+    }
+  }
+
   function switchMode() {
+    stopAlarm()
+    stopAlarmBtn.style.display = 'none'
     if (isFocus) {
       sessionCount++
       sessionsEl.textContent = 'Sessions: ' + sessionCount
       playXylophone()
       showNotification('Focus Complete!', 'Time for a break. ☕')
+      stopAlarmBtn.style.display = ''
       setMode(false)
     } else {
       playXylophone()
       showNotification('Break Over!', 'Time to focus. 🎯')
+      stopAlarmBtn.style.display = ''
       setMode(true)
     }
     isRunning = false
@@ -296,11 +326,13 @@
     }
   }
 
-  function resetTimer() {
+  function   resetTimer() {
     clearInterval(interval)
     interval = null
     isRunning = false
     toggleBtn.textContent = '▶'
+    stopAlarm()
+    stopAlarmBtn.style.display = 'none'
     setMode(isFocus)
   }
 
@@ -312,6 +344,10 @@
 
   toggleBtn.addEventListener('click', toggleTimer)
   resetBtn.addEventListener('click', resetTimer)
+  stopAlarmBtn.addEventListener('click', () => {
+    stopAlarm()
+    stopAlarmBtn.style.display = 'none'
+  })
   settingsBtn.addEventListener('click', () => {
     settingsEl.classList.toggle('open')
   })

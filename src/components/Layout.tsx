@@ -7,6 +7,7 @@ const navItems = [
   { path: '/inbox', label: 'Inbox', icon: '📥' },
   { path: '/tasks', label: 'Tasks', icon: '📋' },
   { path: '/kanban', label: 'Kanban', icon: '📌' },
+  { path: '/archived', label: 'Archived', icon: '📦' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
   { path: '/about', label: 'About', icon: 'ℹ️' },
 ]

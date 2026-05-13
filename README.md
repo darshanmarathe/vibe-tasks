@@ -6,21 +6,24 @@ Vibe Tasks helps you organize your work with an intuitive interface featuring ta
 
 ## Features
 
-- **Dashboard** — Summary cards, SVG bar chart (tasks by status), SVG donut chart (tasks by priority), and a calendar view with dots for tasks due each day
+- **Dashboard** — Summary cards, SVG bar chart (tasks by status), SVG pie chart (tasks by priority with dynamic colors from database), Quick Add form, calendar view with day-click for task details, Recent Tasks table with edit-on-click and archive. Assigned user shown on all task rows with email link.
 - **Calendar Day Click** — Click any day to see tasks due that day in a 50/50 split view
-- **Task List** — Project-wise tree grid (expandable/collapsible) with Quick Add bar supporting natural language dates (`tomorrow`, `next week`, `in 3 days`, etc.)
-- **Task Edit Modal** — Click any task row to open an inline editor for name, status, priority, project, due date, Markdown notes, and task dependencies
+- **Task List** — Project-wise tree grid (expandable/collapsible) with Quick Add bar supporting natural language dates (`tomorrow`, `next week`, `in 3 days`, etc.), assign user to tasks, archive button, email icon with assigned user's email
+- **Task Edit Modal** — Click any task row to open an inline editor for name, description, status, priority, project, assigned user, due date, Markdown notes, and task dependencies
 - **Markdown Notes** — Add notes in Markdown format to any task with live preview toggle
 - **Task Dependencies** — Link predecessor and successor tasks via a searchable multi-select picker modal
-- **Kanban Board** — Dynamically loads all custom statuses in order with drag-and-drop between columns; click any card to view task details, Markdown notes preview, and dependency links
+- **Kanban Board** — Dynamically loads all custom statuses in order with drag-and-drop between columns; click any card to view task details, assigned user, Markdown notes preview, dependency links, email assigned user, and archive action
 - **Priority Colors** — Customizable color per priority, shown as a colored bar/indicator on Task List rows and Kanban cards
-- **Inbox** — Dedicated route showing all tasks with a prominent "Due in Next 2 Days" section, filterable by status and priority
+- **Inbox** — Dedicated route showing all tasks with a prominent "Due in Next 2 Days" section, sortable table with assigned user, email icon, archive, and delete
+- **Archive** — Archive/unarchive tasks; dedicated Archived page with Restore button; archive action on Dashboard, Task List, Inbox, and Kanban detail modal
+- **Email Integration** — 📧 icon on every task card/row opens mailto with assigned user's email, subject=task name, body=description
 - **Collapsible Sidebar** — Toggle sidebar between expanded and icon-only collapsed mode for more screen space
 - **Status Ordering** — ▲/▼ buttons in Settings to reorder statuses; Kanban reflects the order
 - **Settings** — Tabbed CRUD for Users, Projects, Statuses, and Priorities (with color picker)
-- **Pomodoro Timer** — Floating draggable window with minimize/close buttons, configurable intervals, xylophone sound on complete, and Electron desktop notifications
-- **Dark/Light Mode** — Theme toggle in sidebar, persisted to localStorage
+- **Pomodoro Timer** — Floating draggable window with minimize/close buttons, configurable intervals, xylophone alarm on repeat with Stop button, and Electron desktop notifications. Theme syncs live with main app.
+- **Dark/Light Mode** — Theme toggle in sidebar, OS detection via prefers-color-scheme, persisted to localStorage, dynamically pushed to Pomodoro window
 - **Customizable Database Location** — Choose where your SQLite database lives via Settings
+- **Single Instance** — Only one instance of Vibe Tasks runs at a time; second launch focuses existing window
 
 ## Screenshots
 
@@ -103,6 +106,7 @@ vibe-tasks/
 │   ├── main.tsx         # React entry
 │   ├── components/      # Shared components
 │   ├── pages/           # Page views
+│   │   ├── Archived.tsx
 │   │   ├── Dashboard.tsx
 │   │   ├── About.tsx
 │   │   ├── Inbox.tsx
@@ -125,7 +129,7 @@ vibe-tasks/
 |---|---|
 | **User** | `id`, `name`, `email` |
 | **Project** | `id`, `name`, `description` |
-| **Task** | `id`, `name`, `description`, `notes`, `dueDate`, `statusId`, `priorityId`, `projectId`, `predecessorIds`, `successorIds` |
+| **Task** | `id`, `name`, `description`, `notes`, `dueDate`, `statusId`, `priorityId`, `projectId`, `predecessorIds`, `successorIds`, `archived`, `assignedTo` |
 | **Status** | `id`, `name`, `ord` |
 | **Priority** | `id`, `name`, `color` |
 

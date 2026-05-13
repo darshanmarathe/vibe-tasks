@@ -119,10 +119,13 @@ function registerIpcHandlers() {
   ipcMain.handle('db:priorities:update', (_e, id, data) => priorityRepo.updatePriority(id, data))
   ipcMain.handle('db:priorities:delete', (_e, id) => priorityRepo.deletePriority(id))
 
-  ipcMain.handle('db:tasks:list', () => taskRepo.getTasks())
+  ipcMain.handle('db:tasks:list', (_e, includeArchived) => taskRepo.getTasks(includeArchived))
+  ipcMain.handle('db:tasks:archived', () => taskRepo.getArchivedTasks())
   ipcMain.handle('db:tasks:create', (_e, data) => taskRepo.createTask(data))
   ipcMain.handle('db:tasks:update', (_e, id, data) => taskRepo.updateTask(id, data))
   ipcMain.handle('db:tasks:delete', (_e, id) => taskRepo.deleteTask(id))
+  ipcMain.handle('db:tasks:archive', (_e, id) => taskRepo.archiveTask(id))
+  ipcMain.handle('db:tasks:unarchive', (_e, id) => taskRepo.unarchiveTask(id))
 
   ipcMain.handle('pomodoro:toggle', () => {
     if (pomodoroWindow) {
@@ -188,18 +191,33 @@ function registerIpcHandlers() {
         : { color: '#1e1e2e', symbolColor: '#cdd6f4', height: 40 }
       mainWindow.setTitleBarOverlay(overlay)
     }
+    if (pomodoroWindow && !pomodoroWindow.isDestroyed()) {
+      pomodoroWindow.webContents.send('theme:changed', theme)
+    }
   })
 }
 
-app.whenReady().then(async () => {
-  await initDatabase()
-  registerIpcHandlers()
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
   })
-})
+
+  app.whenReady().then(async () => {
+    await initDatabase()
+    registerIpcHandlers()
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

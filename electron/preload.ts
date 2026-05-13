@@ -21,10 +21,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updatePriority: (id: number, data: any) => ipcRenderer.invoke('db:priorities:update', id, data),
   deletePriority: (id: number) => ipcRenderer.invoke('db:priorities:delete', id),
 
-  getTasks: () => ipcRenderer.invoke('db:tasks:list'),
+  getTasks: (includeArchived?: boolean) => ipcRenderer.invoke('db:tasks:list', includeArchived),
+  getArchivedTasks: () => ipcRenderer.invoke('db:tasks:archived'),
   createTask: (data: any) => ipcRenderer.invoke('db:tasks:create', data),
   updateTask: (id: number, data: any) => ipcRenderer.invoke('db:tasks:update', id, data),
   deleteTask: (id: number) => ipcRenderer.invoke('db:tasks:delete', id),
+  archiveTask: (id: number) => ipcRenderer.invoke('db:tasks:archive', id),
+  unarchiveTask: (id: number) => ipcRenderer.invoke('db:tasks:unarchive', id),
 
   togglePomodoro: () => ipcRenderer.invoke('pomodoro:toggle'),
 

@@ -180,6 +180,24 @@ function runMigrations() {
     db.run("ALTER TABLE tasks ADD COLUMN successorIds TEXT DEFAULT '[]'")
   }
 
+  // Migration: add archived column to tasks if missing
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'archived')) {
+    db.run('ALTER TABLE tasks ADD COLUMN archived INTEGER DEFAULT 0')
+  }
+
+  // Migration: add assignedTo column to tasks if missing
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'assignedTo')) {
+    db.run('ALTER TABLE tasks ADD COLUMN assignedTo INTEGER REFERENCES users(id)')
+  }
+
+  // Migration: add completionPercent column to tasks if missing
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'completionPercent')) {
+    db.run('ALTER TABLE tasks ADD COLUMN completionPercent INTEGER DEFAULT 0')
+  }
+
   // Migration: add ord column to statuses if missing
   const statusCols = exec('PRAGMA table_info(statuses)')
   if (!statusCols.some((c: any) => c.name === 'ord')) {

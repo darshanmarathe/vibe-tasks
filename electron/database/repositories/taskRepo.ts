@@ -1,14 +1,33 @@
 import { getDatabase } from '../db'
 import type { Task, TaskWithRelations } from '../../src/types/models'
 
-export function getTasks(): TaskWithRelations[] {
+export function getTasks(includeArchived = false): TaskWithRelations[] {
   const db = getDatabase()
+  const where = includeArchived ? '' : ' WHERE t.archived = 0'
   const tasks = db.exec(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
+      u.name as assignedToName, u.email as assignedToEmail
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
     JOIN projects pr ON t.projectId = pr.id
+    LEFT JOIN users u ON t.assignedTo = u.id${where}
+    ORDER BY t.id DESC
+  `)
+  return tasks.map(t => enrichWithDependencyNames(t, db))
+}
+
+export function getArchivedTasks(): TaskWithRelations[] {
+  const db = getDatabase()
+  const tasks = db.exec(`
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
+      u.name as assignedToName, u.email as assignedToEmail
+    FROM tasks t
+    JOIN statuses s ON t.statusId = s.id
+    JOIN priorities p ON t.priorityId = p.id
+    JOIN projects pr ON t.projectId = pr.id
+    LEFT JOIN users u ON t.assignedTo = u.id
+    WHERE t.archived = 1
     ORDER BY t.id DESC
   `)
   return tasks.map(t => enrichWithDependencyNames(t, db))
@@ -16,16 +35,18 @@ export function getTasks(): TaskWithRelations[] {
 
 export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
   const db = getDatabase()
-  db.run('INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]'])
+  db.run('INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0])
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
   const task = db.getSingle(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
+      u.name as assignedToName, u.email as assignedToEmail
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
     JOIN projects pr ON t.projectId = pr.id
+    LEFT JOIN users u ON t.assignedTo = u.id
     WHERE t.id = ?
   `, [id])
   return enrichWithDependencyNames(task, db)
@@ -65,17 +86,22 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
   if (data.projectId !== undefined) { fields.push('projectId = ?'); values.push(data.projectId) }
   if (data.predecessorIds !== undefined) { fields.push('predecessorIds = ?'); values.push(data.predecessorIds) }
   if (data.successorIds !== undefined) { fields.push('successorIds = ?'); values.push(data.successorIds) }
+  if (data.archived !== undefined) { fields.push('archived = ?'); values.push(data.archived) }
+  if (data.assignedTo !== undefined) { fields.push('assignedTo = ?'); values.push(data.assignedTo) }
+  if (data.completionPercent !== undefined) { fields.push('completionPercent = ?'); values.push(data.completionPercent) }
   if (fields.length > 0) {
     values.push(id)
     db.run(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values)
     db.save()
   }
   const task = db.getSingle(`
-    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName
+    SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
+      u.name as assignedToName, u.email as assignedToEmail
     FROM tasks t
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
     JOIN projects pr ON t.projectId = pr.id
+    LEFT JOIN users u ON t.assignedTo = u.id
     WHERE t.id = ?
   `, [id])
   return enrichWithDependencyNames(task, db)
@@ -84,5 +110,17 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
 export function deleteTask(id: number): void {
   const db = getDatabase()
   db.run('DELETE FROM tasks WHERE id = ?', [id])
+  db.save()
+}
+
+export function archiveTask(id: number): void {
+  const db = getDatabase()
+  db.run('UPDATE tasks SET archived = 1 WHERE id = ?', [id])
+  db.save()
+}
+
+export function unarchiveTask(id: number): void {
+  const db = getDatabase()
+  db.run('UPDATE tasks SET archived = 0 WHERE id = ?', [id])
   db.save()
 }

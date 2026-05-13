@@ -3,6 +3,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import TaskList from './pages/TaskList'
+import Archived from './pages/Archived'
 import KanbanBoard from './pages/KanbanBoard'
 import Inbox from './pages/Inbox'
 import About from './pages/About'
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/kanban" element={<KanbanBoard />} />
+            <Route path="/archived" element={<Archived />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/about" element={<About />} />
           </Route>
