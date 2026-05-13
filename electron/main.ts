@@ -168,6 +168,8 @@ function registerIpcHandlers() {
       : path.join(app.getAppPath(), 'xylophone.mp3')
   })
 
+  ipcMain.handle('app:getVersion', () => app.getVersion())
+
   ipcMain.handle('theme:get', () => {
     try {
       const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))

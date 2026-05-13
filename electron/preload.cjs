@@ -36,4 +36,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickDbPath: () => ipcRenderer.invoke('db:pickPath'),
 
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
+
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
 })

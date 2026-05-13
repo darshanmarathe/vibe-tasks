@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 import { copyFileSync, mkdirSync, existsSync, readdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -68,7 +68,7 @@ function preExtractWinCodeSign() {
     if (existsSync(extractDir) && readdirSync(extractDir).length > 0) continue
     console.log(`  Pre-extracting ${entry}...`)
     if (!existsSync(extractDir)) mkdirSync(extractDir, { recursive: true })
-    execSync(`"${sevenZipPath}" x -snld- -bd "${archivePath}" -o"${extractDir}"`, { stdio: 'inherit' })
+    spawnSync(sevenZipPath, ['x', '-snld-', '-bd', archivePath, `-o${extractDir}`], { stdio: 'inherit', shell: false })
   }
 }
 

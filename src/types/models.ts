@@ -91,6 +91,9 @@ export interface ElectronAPI {
   getDbPath: () => Promise<string>
   pickDbPath: () => Promise<string | null>
 
+  // App
+  getVersion: () => Promise<string>
+
   // Theme
   setTheme: (theme: string) => Promise<void>
 }
