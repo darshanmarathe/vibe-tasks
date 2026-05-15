@@ -107,12 +107,8 @@ export default function Inbox() {
     return sortDir === 'asc' ? ' ▲' : ' ▼'
   }
 
-  const handleDelete = async (id: number) => {
-    await window.electronAPI.deleteTask(id)
-    loadData()
-  }
-
   const handleArchive = async (id: number) => {
+    if (!window.confirm('Archive this task?')) return
     await window.electronAPI.archiveTask(id)
     loadData()
   }
@@ -199,7 +195,7 @@ export default function Inbox() {
                     <span>{task.projectName}</span>
                     {task.assignedToName && <span>👤 {task.assignedToName}</span>}
                     {task.dueDate && <span style={{ color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)' }}>{formatDate(task.dueDate)}</span>}
-                    <span style={{ color: 'var(--text-muted)' }}>{task.completionPercent}%</span>
+                    <span>{task.completionPercent}%</span>
                   </div>
                 </div>
                 {task.assignedToEmail ? (
@@ -210,7 +206,6 @@ export default function Inbox() {
                     onClick={e => e.stopPropagation()} className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }} title="Email task">📧</a>
                 )}
                 <button onClick={e => { e.stopPropagation(); handleArchive(task.id) }} className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
-                <button onClick={e => { e.stopPropagation(); handleDelete(task.id) }} className="text-xs shrink-0" style={{ color: 'var(--danger)' }} title="Delete">✕</button>
               </div>
             ))}
           </div>
@@ -253,6 +248,14 @@ export default function Inbox() {
                   <td className="py-3 px-4">
                     {task.dueDate ? <span style={{ color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: isOverdue(task.dueDate) ? 600 : 400 }}>{formatDate(task.dueDate)}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                   </td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{task.completionPercent}%</span>
+                      <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                        <div className="h-full rounded-full" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                      </div>
+                    </div>
+                  </td>
                   <td className="py-3 px-4 text-right space-x-2">
                     {task.assignedToEmail ? (
                       <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
@@ -262,7 +265,6 @@ export default function Inbox() {
                         onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Email task">📧</a>
                     )}
                     <button onClick={e => { e.stopPropagation(); handleArchive(task.id) }} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(task.id) }} className="text-xs" style={{ color: 'var(--danger)' }} title="Delete">✕</button>
                   </td>
                 </tr>
               ))}

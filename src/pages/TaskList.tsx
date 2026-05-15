@@ -17,6 +17,7 @@ export default function TaskList() {
   const [filterStatus, setFilterStatus] = useState(0)
   const [filterPriority, setFilterPriority] = useState(0)
   const [filterProject, setFilterProject] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set())
 
   // Edit state
@@ -87,12 +88,8 @@ export default function TaskList() {
     loadData()
   }
 
-  const handleDelete = async (id: number) => {
-    await window.electronAPI.deleteTask(id)
-    loadData()
-  }
-
   const handleArchive = async (id: number) => {
+    if (!window.confirm('Archive this task?')) return
     await window.electronAPI.archiveTask(id)
     loadData()
   }
@@ -141,6 +138,7 @@ export default function TaskList() {
     if (filterStatus && t.statusId !== filterStatus) return false
     if (filterPriority && t.priorityId !== filterPriority) return false
     if (filterProject && t.projectId !== filterProject) return false
+    if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
@@ -297,8 +295,15 @@ export default function TaskList() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Search & Filters */}
       <div className="flex gap-3">
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search tasks..."
+          className="border rounded-lg px-3 py-2 text-sm flex-1"
+          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+        />
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(Number(e.target.value))}
@@ -350,7 +355,7 @@ export default function TaskList() {
               const isExpanded = expandedProjects.has(project.id)
               return (
                 <tr key={`project-${project.id}`} style={{ backgroundColor: 'var(--bg-hover)' }}>
-                  <td colSpan={8} className="py-0">
+                  <td colSpan={9} className="py-0">
                     <table className="w-full text-sm">
                       <tbody>
                         <tr
@@ -361,7 +366,7 @@ export default function TaskList() {
                           <td className="py-2 px-4 w-8 text-center" style={{ color: 'var(--text-muted)' }}>
                             {isExpanded ? '▼' : '▶'}
                           </td>
-                          <td className="py-2 px-4 font-semibold" style={{ color: 'var(--text-primary)' }} colSpan={7}>
+                          <td className="py-2 px-4 font-semibold" style={{ color: 'var(--text-primary)' }} colSpan={8}>
                             {group.projectName}
                             <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
                               {group.tasks.length}
@@ -413,7 +418,7 @@ export default function TaskList() {
                                 </div>
                               </div>
                             </td>
-                            <td className="py-2.5 px-4 text-right space-x-2">
+                            <td className="py-2.5 px-4 text-right">
                               <button
                                 onClick={e => { e.stopPropagation(); handleArchive(task.id) }}
                                 className="text-xs"
@@ -421,13 +426,6 @@ export default function TaskList() {
                                 title="Archive"
                               >
                                 📦
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); handleDelete(task.id) }}
-                                className="text-xs"
-                                style={{ color: 'var(--danger)' }}
-                              >
-                                Delete
                               </button>
                             </td>
                           </tr>

@@ -37,4 +37,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTheme: (theme: string) => ipcRenderer.invoke('theme:set', theme),
 
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
 })

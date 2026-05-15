@@ -7,13 +7,20 @@ export default function About() {
     window.electronAPI.getVersion().then(setVersion)
   }, [])
 
+  const openLink = (url: string) => (e: React.MouseEvent) => {
+    e.preventDefault(); window.electronAPI.openExternal(url)
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>About</h1>
 
       <div className="rounded-xl p-6 border space-y-6" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-4">
-          <img src="assets/icon.svg" alt="Vibe Tasks" width="48" height="48" />
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect width="48" height="48" rx="10" fill="var(--accent)" />
+            <text x="24" y="30" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="bold" fontFamily="system-ui">VT</text>
+          </svg>
           <div>
             <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Vibe Tasks</h2>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Version {version}</p>
@@ -28,7 +35,7 @@ export default function About() {
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>DM</div>
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  <a href="https://github.com/darshanmarathe" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={openLink('https://github.com/darshanmarathe')} style={{ color: 'var(--accent)' }}>
                     Darshan Marathe
                   </a>
                 </p>
@@ -39,13 +46,22 @@ export default function About() {
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>OC</div>
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={openLink('https://opencode.ai')} style={{ color: 'var(--accent)' }}>
                     OpenCode
                   </a>
                 </p>
                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AI-powered coding assistant</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
+          <h3 className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Links</h3>
+          <div className="space-y-2 text-sm">
+            <a href="#" onClick={openLink('https://github.com/darshanmarathe/vibe-tasks')} style={{ color: 'var(--accent)' }} className="block">
+              GitHub Repository
+            </a>
           </div>
         </div>
 

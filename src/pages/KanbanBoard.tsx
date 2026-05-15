@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
@@ -23,14 +23,32 @@ export default function KanbanBoard() {
   const [statuses, setStatuses] = useState<Status[]>([])
   const [draggedTask, setDraggedTask] = useState<TaskWithRelations | null>(null)
   const [detailTask, setDetailTask] = useState<TaskWithRelations | null>(null)
+  const [priorities, setPriorities] = useState<Priority[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [users, setUsers] = useState<User[]>([])
+
+  // Add task state
+  const [addingToColumn, setAddingToColumn] = useState<number | null>(null)
+  const [addName, setAddName] = useState('')
+  const [addDesc, setAddDesc] = useState('')
+  const [addPriority, setAddPriority] = useState(0)
+  const [addProject, setAddProject] = useState(0)
+  const [addAssignedTo, setAddAssignedTo] = useState(0)
+  const [addDueDate, setAddDueDate] = useState('')
 
   const loadData = useCallback(async () => {
-    const [t, s] = await Promise.all([
+    const [t, s, p, pr, u] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
+      window.electronAPI.getPriorities(),
+      window.electronAPI.getProjects(),
+      window.electronAPI.getUsers(),
     ])
     setTasks(t)
     setStatuses(s)
+    setPriorities(p)
+    setProjects(pr)
+    setUsers(u)
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
@@ -79,9 +97,23 @@ export default function KanbanBoard() {
             >
               <div className="px-4 py-3 border-b font-semibold text-sm flex items-center justify-between" style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                 <span>{status.name}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
-                  {columnTasks.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+                    {columnTasks.length}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAddingToColumn(status.id)
+                      setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
+                      setAddProject(projects[0]?.id || 0); setAddAssignedTo(0); setAddDueDate('')
+                    }}
+                    className="text-xs px-2 py-0.5 rounded-full transition-colors"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                    title="Add task"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -117,14 +149,16 @@ export default function KanbanBoard() {
                         {isOverdue(task.dueDate) ? '⚠ ' : ''}{formatDate(task.dueDate)}
                       </p>
                     )}
-                    <div className="mt-2">
-                      <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        <span>{task.completionPercent}%</span>
-                        <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                    {task.completionPercent > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          <span>{task.completionPercent}%</span>
+                          <div className="flex-1 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
                 {columnTasks.length === 0 && (
@@ -137,6 +171,74 @@ export default function KanbanBoard() {
           )
         })}
       </div>
+
+      {/* Add Task Modal */}
+      {addingToColumn !== null && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setAddingToColumn(null)}>
+          <div className="rounded-xl p-6 border w-full max-w-lg" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Add Task</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>
+                <input value={addName} onChange={e => setAddName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Description</label>
+                <textarea value={addDesc} onChange={e => setAddDesc(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm resize-y" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
+                  <select value={addPriority} onChange={e => setAddPriority(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
+                  <select value={addProject} onChange={e => setAddProject(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
+                  <input type="date" value={addDueDate} onChange={e => setAddDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>
+                  <select value={addAssignedTo} onChange={e => setAddAssignedTo(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value={0}>Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setAddingToColumn(null)} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
+              <button onClick={async () => {
+                if (!addName.trim()) return
+                await window.electronAPI.createTask({
+                  name: addName.trim(),
+                  description: addDesc,
+                  notes: '',
+                  dueDate: addDueDate || null,
+                  statusId: addingToColumn,
+                  priorityId: addPriority || priorities[0]?.id || 1,
+                  projectId: addProject || projects[0]?.id || 1,
+                  predecessorIds: '[]',
+                  successorIds: '[]',
+                  archived: 0,
+                  assignedTo: addAssignedTo || null,
+                  completionPercent: 0,
+                })
+                setAddingToColumn(null)
+                loadData()
+              }} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {detailTask && (
@@ -238,7 +340,7 @@ export default function KanbanBoard() {
                   title="Email assigned user">📧 Email</a>
               )}
               <button
-                onClick={async (e) => { e.stopPropagation(); await window.electronAPI.archiveTask(detailTask.id); setDetailTask(null); loadData() }}
+                onClick={async (e) => { e.stopPropagation(); if (!window.confirm('Archive this task?')) return; await window.electronAPI.archiveTask(detailTask.id); setDetailTask(null); loadData() }}
                 className="px-4 py-2 rounded-lg text-sm"
                 style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
               >

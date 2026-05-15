@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Notification, dialog, shell } from 'electron'
 import { initDatabase, getDbPath, setDbPath } from './database/db'
 import * as userRepo from './database/repositories/userRepo'
 import * as projectRepo from './database/repositories/projectRepo'
@@ -169,6 +169,7 @@ function registerIpcHandlers() {
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
+  ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
 
   ipcMain.handle('theme:get', () => {
     try {

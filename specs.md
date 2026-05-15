@@ -93,6 +93,21 @@
   5. ✅ Archive/Unarchive — Archived page with Restore button; archive ✕ 📦 buttons on Dashboard, TaskList, Inbox, Kanban detail
   6. ✅ Dashboard :: Tasks by Priority :: Pie chart now uses dynamic priority colors from database matching theme
   7. Add a completion percentage feild to task from 0% to 100% on kanban board add a small progress bar to task cards and on the Task detail page On Task grids add a completion percentage column with progress bar
+
+  ### Release 1.3.0 ✅
+  1. ✅ Kanban Board >> Dont Show the Progress bar when its on 0%
+  2. ✅ Add option to delete in Archive Page Select and delete 
+  3. ✅ Remove Delete button replace it with Archive button everywhere except on archive Page 
+  4. ✅ @Build.bat Make sure vibetasks.exe is not running if running kill it 
+  5. ✅ About Page :: Icon is not visible — replaced with inline SVG
+  6. ✅ Can we open browser from the author and opencode Links instead of new electron window — via shell.openExternal IPC
+  7. ✅ Add link to GitHub Link of Darshan Marathe
+  8. ✅ Add A link to GitHub Repository of VibeTasks 
+  9. ✅ Kanban board > Add Task Button > Which opens full form like edit form with save / cancel 
+  10. ✅ Archive button should have confirm option — window.confirm added to all archive buttons
+  11. ✅ add a search functionality in task menu  
+  13. ✅ Bug :: Task grid :: Rows are not occupying 100% — fixed colSpan from 8→9
+  14. ✅ Bug :: Inbox :: All Tasks :: Completion Percent not visible — added missing column
   
 
    ## Bugs

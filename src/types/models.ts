@@ -93,6 +93,7 @@ export interface ElectronAPI {
 
   // App
   getVersion: () => Promise<string>
+  openExternal: (url: string) => Promise<void>
 
   // Theme
   setTheme: (theme: string) => Promise<void>

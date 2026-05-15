@@ -156,6 +156,7 @@ export default function Dashboard() {
   }
 
   const handleArchive = async (id: number) => {
+    if (!window.confirm('Archive this task?')) return
     await window.electronAPI.archiveTask(id)
     loadData()
   }
