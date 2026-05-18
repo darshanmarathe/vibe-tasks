@@ -8,26 +8,66 @@ import * as projectRepo from './database/repositories/projectRepo'
 import * as statusRepo from './database/repositories/statusRepo'
 import * as priorityRepo from './database/repositories/priorityRepo'
 import * as taskRepo from './database/repositories/taskRepo'
+import * as noteRepo from './database/repositories/noteRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let mainWindow: BrowserWindow | null = null
 let pomodoroWindow: BrowserWindow | null = null
 const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
+const DEFAULT_THEME = 'dark'
+const DEFAULT_ZOOM_FACTOR = 1
+const MIN_ZOOM_FACTOR = 0.5
+const MAX_ZOOM_FACTOR = 3
+const ZOOM_STEP = 0.1
+
+type AppConfig = {
+  theme?: string
+  zoomFactor?: number
+}
 
 function preloadPath(file: string) {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'electron', file)
     : path.join(app.getAppPath(), 'electron', file)
 }
+function loadConfig(): AppConfig {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8')) as AppConfig
+  } catch {
+    return {}
+  }
+}
+
+function saveConfig(config: AppConfig) {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
+}
+
+function clampZoomFactor(value: number): number {
+  const rounded = Math.round(value * 10) / 10
+  return Math.max(MIN_ZOOM_FACTOR, Math.min(MAX_ZOOM_FACTOR, rounded))
+}
 
 function getThemeFromConfig(): string {
-  try {
-    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
-    return config.theme || 'dark'
-  } catch {
-    return 'dark'
+  const config = loadConfig()
+  return typeof config.theme === 'string' ? config.theme : DEFAULT_THEME
+}
+
+function getZoomFactorFromConfig(): number {
+  const config = loadConfig()
+  if (typeof config.zoomFactor !== 'number' || !Number.isFinite(config.zoomFactor)) {
+    return DEFAULT_ZOOM_FACTOR
   }
+  return clampZoomFactor(config.zoomFactor)
+}
+
+function setMainWindowZoom(zoomFactor: number) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const nextZoomFactor = clampZoomFactor(zoomFactor)
+  mainWindow.webContents.setZoomFactor(nextZoomFactor)
+  const config = loadConfig()
+  config.zoomFactor = nextZoomFactor
+  saveConfig(config)
 }
 
 function createWindow() {
@@ -51,6 +91,7 @@ function createWindow() {
   })
 
   mainWindow.maximize()
+  mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
@@ -58,10 +99,31 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
-
-  mainWindow.webContents.on('before-input-event', (_e, input) => {
+  mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F12') {
-      mainWindow.webContents.toggleDevTools()
+      mainWindow?.webContents.toggleDevTools()
+      return
+    }
+
+    if (input.type !== 'keyDown' || !(input.control || input.meta)) return
+
+    const currentZoomFactor = mainWindow?.webContents.getZoomFactor() ?? DEFAULT_ZOOM_FACTOR
+
+    if (input.key === '+' || input.key === '=' || input.code === 'NumpadAdd') {
+      event.preventDefault()
+      setMainWindowZoom(currentZoomFactor + ZOOM_STEP)
+      return
+    }
+
+    if (input.key === '-' || input.key === '_' || input.code === 'NumpadSubtract') {
+      event.preventDefault()
+      setMainWindowZoom(currentZoomFactor - ZOOM_STEP)
+      return
+    }
+
+    if (input.key === '0' || input.code === 'Numpad0') {
+      event.preventDefault()
+      setMainWindowZoom(DEFAULT_ZOOM_FACTOR)
     }
   })
 }
@@ -169,25 +231,52 @@ function registerIpcHandlers() {
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
+
+  // Notes
+  ipcMain.handle('notes:notebooks:list', () => noteRepo.getNotebooks())
+  ipcMain.handle('notes:notebooks:create', (_e, name) => noteRepo.createNotebook(name))
+  ipcMain.handle('notes:notebooks:rename', (_e, id, name) => noteRepo.renameNotebook(id, name))
+  ipcMain.handle('notes:notebooks:delete', (_e, id) => noteRepo.deleteNotebook(id))
+  ipcMain.handle('notes:list', (_e, notebookId) => {
+    console.log('[notes:list] called with:', { notebookId })
+    try {
+      const result = noteRepo.getNotes(notebookId)
+      console.log('[notes:list] result count:', result?.length)
+      return result
+    } catch (err) {
+      console.error('[notes:list] error:', err)
+      throw err
+    }
+  })
+  ipcMain.handle('notes:listAll', () => noteRepo.getAllNotes())
+  ipcMain.handle('notes:get', (_e, id) => noteRepo.getNoteById(id))
+  ipcMain.handle('notes:create', (_e, notebookId, title) => {
+    console.log('[notes:create] called with:', { notebookId, title })
+    try {
+      const result = noteRepo.createNote(notebookId, title)
+      console.log('[notes:create] result:', result)
+      return result
+    } catch (err) {
+      console.error('[notes:create] error:', err)
+      throw err
+    }
+  })
+  ipcMain.handle('notes:save', (_e, id, title, content) => noteRepo.saveNote(id, title, content))
+  ipcMain.handle('notes:trash', (_e, id) => noteRepo.trashNote(id))
+  ipcMain.handle('notes:restore', (_e, id) => noteRepo.restoreNote(id))
+  ipcMain.handle('notes:delete', (_e, id) => noteRepo.deleteNotePermanently(id))
+  ipcMain.handle('notes:trashed', () => noteRepo.getTrashedNotes())
+  ipcMain.handle('notes:search', (_e, query) => noteRepo.searchNotes(query))
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
 
   ipcMain.handle('theme:get', () => {
-    try {
-      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
-      return config.theme || 'dark'
-    } catch {
-      return 'dark'
-    }
+    return getThemeFromConfig()
   })
 
   ipcMain.handle('theme:set', (_e, theme: string) => {
-    try {
-      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'))
-      config.theme = theme
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2))
-    } catch {
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify({ theme }, null, 2))
-    }
+    const config = loadConfig()
+    config.theme = theme
+    saveConfig(config)
     if (mainWindow) {
       const overlay = theme === 'light'
         ? { color: '#f5f5f9', symbolColor: '#1e1e2e', height: 40 }

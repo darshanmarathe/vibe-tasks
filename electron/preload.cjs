@@ -39,4 +39,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
+
+  // Notes
+  getNotebooks: () => ipcRenderer.invoke('notes:notebooks:list'),
+  createNotebook: (name) => ipcRenderer.invoke('notes:notebooks:create', name),
+  renameNotebook: (id, name) => ipcRenderer.invoke('notes:notebooks:rename', id, name),
+  deleteNotebook: (id) => ipcRenderer.invoke('notes:notebooks:delete', id),
+  getNotes: (notebookId) => ipcRenderer.invoke('notes:list', notebookId),
+  getAllNotes: () => ipcRenderer.invoke('notes:listAll'),
+  getNoteById: (id) => ipcRenderer.invoke('notes:get', id),
+  createNote: (notebookId, title) => ipcRenderer.invoke('notes:create', notebookId, title),
+  saveNote: (id, title, content) => ipcRenderer.invoke('notes:save', id, title, content),
+  trashNote: (id) => ipcRenderer.invoke('notes:trash', id),
+  restoreNote: (id) => ipcRenderer.invoke('notes:restore', id),
+  deleteNotePermanently: (id) => ipcRenderer.invoke('notes:delete', id),
+  getTrashedNotes: () => ipcRenderer.invoke('notes:trashed'),
+  searchNotes: (query) => ipcRenderer.invoke('notes:search', query),
 })

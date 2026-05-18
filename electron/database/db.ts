@@ -29,7 +29,21 @@ function getConfiguredDbPath(): string {
   return config.customDbPath || getDefaultDbPath()
 }
 
-function exec(sql: string): any[] {
+function exec(sql: string, params?: any[]): any[] {
+  if (params && params.length > 0) {
+    const stmt = db.prepare(sql)
+    stmt.bind(params)
+    const rows: any[] = []
+    while (stmt.step()) {
+      const cols = stmt.getColumnNames()
+      const vals = stmt.get()
+      const obj: any = {}
+      cols.forEach((col: string, i: number) => { obj[col] = vals[i] })
+      rows.push(obj)
+    }
+    stmt.free()
+    return rows
+  }
   const results = db.exec(sql)
   const rows: any[] = []
   for (const r of results) {
@@ -207,4 +221,50 @@ function runMigrations() {
       db.run('UPDATE statuses SET ord = ? WHERE id = ?', [i * 10, s.id])
     })
   }
+
+  runNoteMigrations()
+}
+
+function runNoteMigrations() {
+  const tables = exec("SELECT name FROM sqlite_master WHERE type='table'")
+  const tableNames = tables.map((t: any) => t.name)
+
+  if (tableNames.includes('notebooks')) {
+    db.run('DROP TABLE IF EXISTS note_tags')
+    db.run('DROP TABLE IF EXISTS tags')
+    db.run('DROP TABLE IF EXISTS notes')
+    db.run('DROP TABLE IF EXISTS notebooks')
+  }
+
+  db.exec(`
+    CREATE TABLE notebooks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE notes (
+      id TEXT PRIMARY KEY,
+      notebook_id TEXT,
+      title TEXT DEFAULT 'Untitled',
+      content TEXT DEFAULT '',
+      is_trashed INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(notebook_id) REFERENCES notebooks(id) ON DELETE CASCADE
+    );
+    
+    CREATE TABLE tags (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL
+    );
+    
+    CREATE TABLE note_tags (
+      note_id TEXT,
+      tag_id TEXT,
+      PRIMARY KEY (note_id, tag_id),
+      FOREIGN KEY(note_id) REFERENCES notes(id) ON DELETE CASCADE,
+      FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    );
+  `)
 }

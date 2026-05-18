@@ -7,6 +7,7 @@ import Archived from './pages/Archived'
 import KanbanBoard from './pages/KanbanBoard'
 import Inbox from './pages/Inbox'
 import About from './pages/About'
+import Notes from './pages/Notes'
 import Settings from './pages/Settings/Settings'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/inbox" element={<Inbox />} />
+            <Route path="/notes" element={<Notes />} />
             <Route path="/kanban" element={<KanbanBoard />} />
             <Route path="/archived" element={<Archived />} />
             <Route path="/settings" element={<Settings />} />

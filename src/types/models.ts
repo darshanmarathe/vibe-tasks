@@ -95,8 +95,45 @@ export interface ElectronAPI {
   getVersion: () => Promise<string>
   openExternal: (url: string) => Promise<void>
 
+  // Notes
+  getNotebooks: () => Promise<Notebook[]>
+  createNotebook: (name: string) => Promise<Notebook>
+  renameNotebook: (id: string, name: string) => Promise<void>
+  deleteNotebook: (id: string) => Promise<void>
+  getNotes: (notebookId: string) => Promise<Note[]>
+  getAllNotes: () => Promise<Note[]>
+  getNoteById: (id: string) => Promise<Note | null>
+  createNote: (notebookId: string, title: string) => Promise<Note>
+  saveNote: (id: string, title: string, content: string) => Promise<void>
+  trashNote: (id: string) => Promise<void>
+  restoreNote: (id: string) => Promise<void>
+  deleteNotePermanently: (id: string) => Promise<void>
+  getTrashedNotes: () => Promise<Note[]>
+  searchNotes: (query: string) => Promise<Note[]>
+
   // Theme
   setTheme: (theme: string) => Promise<void>
+}
+
+export interface Notebook {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface Note {
+  id: string
+  notebook_id: string
+  title: string
+  content: string
+  is_trashed: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Tag {
+  id: string
+  name: string
 }
 
 declare global {

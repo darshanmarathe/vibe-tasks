@@ -5,6 +5,7 @@ import { useState } from 'react'
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/inbox', label: 'Inbox', icon: '📥' },
+  { path: '/notes', label: 'Notes', icon: '📝' },
   { path: '/tasks', label: 'Tasks', icon: '📋' },
   { path: '/kanban', label: 'Kanban', icon: '📌' },
   { path: '/archived', label: 'Archived', icon: '📦' },

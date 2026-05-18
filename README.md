@@ -16,6 +16,7 @@ Vibe Tasks helps you organize your work with an intuitive interface featuring ta
 - **Priority Colors** — Customizable color per priority, shown as a colored bar/indicator on Task List rows and Kanban cards. Progress bar hidden at 0%.
 - **Inbox** — Dedicated route showing all tasks with a prominent "Due in Next 2 Days" section, sortable table with assigned user, email icon, completion %, and archive
 - **Archive** — Archive/unarchive tasks with confirmation dialogs; dedicated Archived page with select-and-delete and Restore button
+- **Notes** — Full notes system with notebooks, dual-mode Markdown editor (edit/preview), auto-save (1s debounce), search across all notes, and trash management
 - **Email Integration** — 📧 icon on every task card/row opens mailto with assigned user's email, subject=task name, body=description
 - **Collapsible Sidebar** — Toggle sidebar between expanded and icon-only collapsed mode for more screen space
 - **Status Ordering** — ▲/▼ buttons in Settings to reorder statuses; Kanban reflects the order

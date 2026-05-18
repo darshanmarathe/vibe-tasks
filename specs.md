@@ -108,7 +108,11 @@
   11. ✅ add a search functionality in task menu  
   13. ✅ Bug :: Task grid :: Rows are not occupying 100% — fixed colSpan from 8→9
   14. ✅ Bug :: Inbox :: All Tasks :: Completion Percent not visible — added missing column
-  
+  15. ✅ Notes section with notebooks, dual-mode Markdown editor, auto-save, and search
+
+  ### Release 1.4.0 ✅
+  1. ✅ Added Ctrl + and Ctrl - for zooming in/out
+  2. ✅Added Notes Managerment section
 
    ## Bugs
 
