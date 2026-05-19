@@ -1,19 +1,29 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Placeholder from '@tiptap/extension-placeholder'
 import type { Notebook, Note } from '../types/models'
 
-function renderMarkdown(text: string): string {
-  if (!text) return '<p style="color:var(--text-muted)">Start writing...</p>'
-  let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-sm font-bold mt-2 mb-1" style="color:var(--text-primary)">$1</h3>')
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-base font-bold mt-3 mb-1" style="color:var(--text-primary)">$1</h2>')
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mt-3 mb-1" style="color:var(--text-primary)">$1</h1>')
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary)">$1</strong>')
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
-  html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc" style="color:var(--text-secondary)">$1</li>')
-  html = html.replace(/`(.+?)`/g, '<code class="text-xs px-1 rounded" style="background:var(--bg-hover);color:var(--accent)">$1</code>')
-  html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" style="color:var(--accent)">$1</a>')
-  html = html.replace(/\n/g, '<br>')
-  return html
+function MenuBar({ editor }: { editor: any }) {
+  if (!editor) return null
+  const btn = (label: string, action: () => void, active?: boolean) => (
+    <button onClick={action} className="px-2 py-1 rounded text-xs font-medium transition-colors" style={{ backgroundColor: active ? 'var(--accent)' : 'var(--bg-hover)', color: active ? '#fff' : 'var(--text-secondary)' }}>
+      {label}
+    </button>
+  )
+  return (
+    <div className="flex flex-wrap items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+      {btn('B', () => editor.chain().focus().toggleBold().run(), editor.isActive('bold'))}
+      {btn('I', () => editor.chain().focus().toggleItalic().run(), editor.isActive('italic'))}
+      {btn('H1', () => editor.chain().focus().toggleHeading({ level: 1 }).run(), editor.isActive('heading', { level: 1 }))}
+      {btn('H2', () => editor.chain().focus().toggleHeading({ level: 2 }).run(), editor.isActive('heading', { level: 2 }))}
+      {btn('H3', () => editor.chain().focus().toggleHeading({ level: 3 }).run(), editor.isActive('heading', { level: 3 }))}
+      {btn('•', () => editor.chain().focus().toggleBulletList().run(), editor.isActive('bulletList'))}
+      {btn('1.', () => editor.chain().focus().toggleOrderedList().run(), editor.isActive('orderedList'))}
+      {btn('<>', () => editor.chain().focus().toggleCodeBlock().run(), editor.isActive('codeBlock'))}
+      {btn('❄', () => editor.chain().focus().toggleStrike().run(), editor.isActive('strike'))}
+    </div>
+  )
 }
 
 export default function Notes() {
@@ -22,12 +32,29 @@ export default function Notes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [editTitle, setEditTitle] = useState('')
-  const [editContent, setEditContent] = useState('')
-  const [preview, setPreview] = useState(false)
   const [search, setSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Note[] | null>(null)
   const [newNotebookName, setNewNotebookName] = useState('')
   const autoSaveTimer = useRef<number | null>(null)
+  const isNewNote = useRef(false)
+  const skipAutoSave = useRef(false)
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: 'Start writing...' }),
+    ],
+    editorProps: {
+      attributes: {
+        class: 'tiptap focus:outline-none min-h-[300px] px-0',
+        style: 'color: var(--text-primary); font-size: 0.875rem; line-height: 1.7;',
+      },
+    },
+    onUpdate: () => {
+      if (skipAutoSave.current) { skipAutoSave.current = false; return }
+      triggerAutoSave()
+    },
+  })
 
   const loadNotebooks = useCallback(async () => {
     const nb = await window.electronAPI.getNotebooks()
@@ -49,34 +76,34 @@ export default function Notes() {
 
   const selectNote = (note: Note) => {
     if (autoSaveTimer.current) { clearTimeout(autoSaveTimer.current); autoSaveTimer.current = null }
+    isNewNote.current = false
     setSelectedNote(note)
     setEditTitle(note.title)
-    setEditContent(note.content)
-    setPreview(false)
-  }
-
-  const handleAutoSave = (title: string, content: string) => {
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = window.setTimeout(async () => {
-      if (selectedNote) {
-        await window.electronAPI.saveNote(selectedNote.id, title, content)
-        loadNotes(selectedNotebook!)
-      }
-    }, 1000)
+    if (editor) {
+      skipAutoSave.current = true
+      editor.commands.setContent(note.content || '<p></p>')
+    }
   }
 
   const handleCreateNote = async () => {
-    console.log('[Notes] handleCreateNote clicked, selectedNotebook:', selectedNotebook)
-    if (!selectedNotebook) { console.warn('[Notes] no notebook selected'); return }
-    console.log('[Notes] calling createNote IPC...')
+    if (!selectedNotebook) return
+    isNewNote.current = true
     const note = await window.electronAPI.createNote(selectedNotebook, 'Untitled')
-    console.log('[Notes] createNote returned:', note)
     if (note) {
       loadNotes(selectedNotebook)
-      selectNote(note)
-    } else {
-      console.error('[Notes] createNote returned null/undefined')
+      setSelectedNote(note)
+      setEditTitle(note.title)
+      if (editor) editor.commands.setContent('<p></p>')
     }
+  }
+
+  const triggerAutoSave = (title?: string) => {
+    if (!selectedNote || isNewNote.current) return
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = window.setTimeout(async () => {
+      await window.electronAPI.saveNote(selectedNote.id, title ?? editTitle, editor?.getHTML() || '')
+      loadNotes(selectedNotebook!)
+    }, 1000)
   }
 
   const handleCreateNotebook = async () => {
@@ -117,13 +144,8 @@ export default function Notes() {
       {/* Notebooks sidebar */}
       <div className="w-52 shrink-0 border-r flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
         <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <input
-            value={search}
-            onChange={e => handleSearch(e.target.value)}
-            placeholder="Search notes..."
-            className="w-full border rounded-lg px-2.5 py-1.5 text-xs"
-            style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-          />
+          <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Search notes..."
+            className="w-full border rounded-lg px-2.5 py-1.5 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {notebooks.map(nb => (
@@ -178,27 +200,16 @@ export default function Notes() {
         {selectedNote ? (
           <>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-              <input value={editTitle} onChange={e => { setEditTitle(e.target.value); handleAutoSave(e.target.value, editContent) }}
+              <input value={editTitle} onChange={e => { setEditTitle(e.target.value); triggerAutoSave(e.target.value) }}
                 className="text-lg font-semibold bg-transparent border-none outline-none flex-1 mr-4" style={{ color: 'var(--text-primary)' }} />
               <div className="flex items-center gap-2">
-                <button onClick={() => { handleTrashNote(selectedNote.id) }}
+                <button onClick={() => handleTrashNote(selectedNote.id)}
                   className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Trash</button>
-                <button onClick={() => setPreview(!preview)}
-                  className="text-xs px-2.5 py-1 rounded font-semibold transition-colors"
-                  style={{ backgroundColor: preview ? 'var(--accent)' : 'var(--bg-hover)', color: preview ? '#fff' : 'var(--text-secondary)' }}>
-                  {preview ? 'Edit' : 'Preview'}
-                </button>
               </div>
             </div>
+            {editor && <MenuBar editor={editor} />}
             <div className="flex-1 overflow-y-auto p-4">
-              {preview ? (
-                <div className="prose prose-sm max-w-none" style={{ color: 'var(--text-primary)' }}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(editContent) }} />
-              ) : (
-                <textarea value={editContent} onChange={e => { setEditContent(e.target.value); handleAutoSave(editTitle, e.target.value) }}
-                  className="w-full h-full resize-none border-none outline-none text-sm leading-relaxed" style={{ backgroundColor: 'transparent', color: 'var(--text-primary)' }}
-                  placeholder="Write in Markdown...&#10;&#10;## Heading&#10;**Bold** *Italic*&#10;- List item&#10;`code`" />
-              )}
+              <EditorContent editor={editor} />
             </div>
           </>
         ) : (

@@ -114,6 +114,10 @@
   1. ✅ Added Ctrl + and Ctrl - for zooming in/out
   2. ✅Added Notes Managerment section
 
+
+    ### Release 1.4.1 ✅
+  1. ✅ Notes WUSWUG Editor
+  2. ✅ Few notes bugs fixed
    ## Bugs
 
    1. ✅ Pomodoro timer now inherits theme — uses IPC to read active theme from config, applies light/dark CSS variables
