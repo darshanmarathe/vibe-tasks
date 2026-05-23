@@ -54,4 +54,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteNotePermanently: (id: string) => ipcRenderer.invoke('notes:delete', id),
   getTrashedNotes: () => ipcRenderer.invoke('notes:trashed'),
   searchNotes: (query: string) => ipcRenderer.invoke('notes:search', query),
+
+  // Mind Maps
+  getMindMaps: () => ipcRenderer.invoke('mindmap:list'),
+  getMindMap: (id: string) => ipcRenderer.invoke('mindmap:get', id),
+  createMindMap: (name: string) => ipcRenderer.invoke('mindmap:create', name),
+  renameMindMap: (id: string, name: string) => ipcRenderer.invoke('mindmap:rename', id, name),
+  deleteMindMap: (id: string) => ipcRenderer.invoke('mindmap:delete', id),
+  saveMindMap: (id: string, nodes: any[], edges: any[]) => ipcRenderer.invoke('mindmap:save', id, nodes, edges),
 })

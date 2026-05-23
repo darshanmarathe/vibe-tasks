@@ -118,6 +118,25 @@
     ### Release 1.4.1 ✅
   1. ✅ Notes WUSWUG Editor
   2. ✅ Few notes bugs fixed
+
+  ### Release 1.4.2 ✅
+  1. ✅ Mind Map — Interactive canvas with ReactFlow
+  2. ✅ Create, drag, connect nodes with colors and emoji
+  3. ✅ Auto-save nodes and edges to SQLite
+  4. ✅ Sidebar listing saved mind maps
+  5. ✅ Toolbar for adding nodes, editing labels/colors/emoji
+  6. ✅ CTRL+Click or drag to connect, Delete key to remove
+  7. ✅ Emoji picker — visual grid of 32 emojis for node icons
+  8. ✅ Context menu — right-click any node for Edit / Delete
+  
+   ### Release 1.4.3 ✅
+   1. ✅ MiniMap — corner overview panel with viewport highlight
+   2. ✅ Export — PNG, SVG, and Markdown outline
+   3. ✅ Undo / Redo — Ctrl+Z / Ctrl+Shift+Z with 50-step stack
+   4. ✅ Auto Layout — one-click dagre tree/radial layout
+   5. ✅ Expand / Collapse — collapse node branches with +N badge
+   6. ✅ Emoji visibility — 2x emoji size on nodes
+ 1. 
    ## Bugs
 
    1. ✅ Pomodoro timer now inherits theme — uses IPC to read active theme from config, applies light/dark CSS variables

@@ -267,4 +267,41 @@ function runNoteMigrations() {
       FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
   `)
+
+  runMindMapMigrations()
+}
+
+function runMindMapMigrations() {
+  const tables = exec("SELECT name FROM sqlite_master WHERE type='table'")
+  const tableNames = tables.map((t: any) => t.name)
+  if (tableNames.includes('mindmaps')) return
+
+  db.exec(`
+    CREATE TABLE mindmaps (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT 'Untitled Map',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE mindmap_nodes (
+      id TEXT PRIMARY KEY,
+      map_id TEXT NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT 'Node',
+      color TEXT DEFAULT '#89b4fa',
+      emoji TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      x REAL NOT NULL DEFAULT 0,
+      y REAL NOT NULL DEFAULT 0,
+      width REAL NOT NULL DEFAULT 200,
+      height REAL NOT NULL DEFAULT 80
+    );
+    CREATE TABLE mindmap_edges (
+      id TEXT PRIMARY KEY,
+      map_id TEXT NOT NULL REFERENCES mindmaps(id) ON DELETE CASCADE,
+      from_node TEXT NOT NULL,
+      to_node TEXT NOT NULL,
+      label TEXT DEFAULT '',
+      dashed INTEGER DEFAULT 0
+    );
+  `)
 }

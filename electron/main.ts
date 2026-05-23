@@ -9,6 +9,7 @@ import * as statusRepo from './database/repositories/statusRepo'
 import * as priorityRepo from './database/repositories/priorityRepo'
 import * as taskRepo from './database/repositories/taskRepo'
 import * as noteRepo from './database/repositories/noteRepo'
+import * as mindmapRepo from './database/repositories/mindmapRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -267,6 +268,14 @@ function registerIpcHandlers() {
   ipcMain.handle('notes:delete', (_e, id) => noteRepo.deleteNotePermanently(id))
   ipcMain.handle('notes:trashed', () => noteRepo.getTrashedNotes())
   ipcMain.handle('notes:search', (_e, query) => noteRepo.searchNotes(query))
+
+  // Mind Maps
+  ipcMain.handle('mindmap:list', () => mindmapRepo.getMindMaps())
+  ipcMain.handle('mindmap:get', (_e, id) => mindmapRepo.getMindMap(id))
+  ipcMain.handle('mindmap:create', (_e, name) => mindmapRepo.createMindMap(name))
+  ipcMain.handle('mindmap:rename', (_e, id, name) => mindmapRepo.renameMindMap(id, name))
+  ipcMain.handle('mindmap:delete', (_e, id) => mindmapRepo.deleteMindMap(id))
+  ipcMain.handle('mindmap:save', (_e, id, nodes, edges) => mindmapRepo.saveMindMap(id, nodes, edges))
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
 
   ipcMain.handle('theme:get', () => {

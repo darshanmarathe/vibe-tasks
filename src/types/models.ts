@@ -111,6 +111,14 @@ export interface ElectronAPI {
   getTrashedNotes: () => Promise<Note[]>
   searchNotes: (query: string) => Promise<Note[]>
 
+  // Mind Maps
+  getMindMaps: () => Promise<MindMap[]>
+  getMindMap: (id: string) => Promise<MindMapFull | null>
+  createMindMap: (name: string) => Promise<MindMap>
+  renameMindMap: (id: string, name: string) => Promise<void>
+  deleteMindMap: (id: string) => Promise<void>
+  saveMindMap: (id: string, nodes: MindMapNode[], edges: MindMapEdge[]) => Promise<void>
+
   // Theme
   setTheme: (theme: string) => Promise<void>
 }
@@ -134,6 +142,40 @@ export interface Note {
 export interface Tag {
   id: string
   name: string
+}
+
+export interface MindMap {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MindMapNode {
+  id: string
+  map_id: string
+  title: string
+  color: string
+  emoji: string
+  notes: string
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface MindMapEdge {
+  id: string
+  map_id: string
+  from_node: string
+  to_node: string
+  label: string
+  dashed: number
+}
+
+export interface MindMapFull extends MindMap {
+  nodes: MindMapNode[]
+  edges: MindMapEdge[]
 }
 
 declare global {
