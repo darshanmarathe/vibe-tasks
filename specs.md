@@ -136,7 +136,18 @@
    4. ✅ Auto Layout — one-click dagre tree/radial layout
    5. ✅ Expand / Collapse — collapse node branches with +N badge
    6. ✅ Emoji visibility — 2x emoji size on nodes
- 1. 
+  
+  ### Release 1.4.4 ✅
+  1. ✅ Node Notes — per-node textarea panel with auto-save
+  2. ✅ Node Images — file picker → base64 storage → inline display
+  3. ✅ Edge Labels — right-click edge → label input → renders on edge
+  4. ✅ Dashed / Styled Edges — right-click toggle solid/dashed
+  5. ✅ Search / Filter — toolbar input dims/highlights nodes
+  6. ✅ Markdown Import — parse heading hierarchy into nodes+edges
+  7. ✅ Wheel Zoom Speed — dropdown selector (0.5x–3x)
+  8. ✅ Bug fix — duplicate color/emoji pickers hidden when node selected to avoid confusion
+  9. ✅ Bug fix — context menu Notes now selects the node first before opening the panel
+  
    ## Bugs
 
    1. ✅ Pomodoro timer now inherits theme — uses IPC to read active theme from config, applies light/dark CSS variables

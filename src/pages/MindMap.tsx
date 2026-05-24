@@ -17,6 +17,7 @@ const EMOJIS = [
 
 function MindMapNode({ data, selected }: NodeProps) {
   const childCount = data.childCount || 0
+  const highlighted = data._highlight
   return (
     <div
       className="rounded-xl border-2 px-4 py-3 shadow-lg min-w-[160px] transition-shadow"
@@ -24,6 +25,8 @@ function MindMapNode({ data, selected }: NodeProps) {
         backgroundColor: data.color || '#89b4fa',
         borderColor: selected ? '#fff' : 'transparent',
         color: '#1e1e2e',
+        opacity: highlighted === false ? 0.3 : 1,
+        boxShadow: highlighted === true ? '0 0 0 3px var(--accent)' : undefined,
       }}
     >
       <div className="text-center">
@@ -36,6 +39,9 @@ function MindMapNode({ data, selected }: NodeProps) {
           </span>
         )}
       </div>
+      {data.image && (
+        <img src={data.image} alt="" className="mt-2 mx-auto max-w-[120px] max-h-[80px] rounded-lg object-cover" />
+      )}
       <Handle type="target" position={Position.Left} style={{ background: '#555', width: 8, height: 8 }} />
       <Handle type="source" position={Position.Right} style={{ background: '#555', width: 8, height: 8 }} />
     </div>
@@ -100,10 +106,21 @@ export default function MindMapPage() {
   const [nodeEmoji, setNodeEmoji] = useState('')
   const [emojiPickerOpen, setEmojiPickerOpen] = useState<'new' | string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null)
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null)
+  const [edgeLabelInput, setEdgeLabelInput] = useState('')
   const [exportOpen, setExportOpen] = useState(false)
   const [showMinimap, setShowMinimap] = useState(true)
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([])
   const [undoStack, setUndoStack] = useState<HistoryEntry[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showNotesPanel, setShowNotesPanel] = useState(false)
+  const [notesText, setNotesText] = useState('')
+  const [showMarkdownImport, setShowMarkdownImport] = useState(false)
+  const [markdownText, setMarkdownText] = useState('')
+  const [zoomSpeed, setZoomSpeed] = useState(1)
+  const [imageTargetNodeId, setImageTargetNodeId] = useState<string | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const notesTimer = useRef<number | null>(null)
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null)
   const autoSaveTimer = useRef<number | null>(null)
@@ -122,11 +139,13 @@ export default function MindMapPage() {
     setMapName(map.name)
     setUndoStack([])
     setRedoStack([])
+    setSearchQuery('')
+    setShowNotesPanel(false)
     setNodes(map.nodes.map((n: any) => ({
       id: n.id,
       type: 'mindMapNode',
       position: { x: n.x, y: n.y },
-      data: { label: n.title, color: n.color, emoji: n.emoji, notes: n.notes, collapsed: false },
+      data: { label: n.title, color: n.color, emoji: n.emoji, notes: n.notes, image: n.image || '', collapsed: false },
     })))
     setEdges(map.edges.map((e: any) => ({
       id: e.id,
@@ -189,6 +208,7 @@ export default function MindMapPage() {
       const nodeData = visibleNodes.map(n => ({
         id: n.id, map_id: selectedMapId,
         title: n.data.label, color: n.data.color, emoji: n.data.emoji || '', notes: n.data.notes || '',
+        image: n.data.image || '',
         x: n.position.x, y: n.position.y, width: n.width || 200, height: n.height || 80,
       }))
       const edgeData = (es || edges).map(e => ({
@@ -233,7 +253,7 @@ export default function MindMapPage() {
       id,
       type: 'mindMapNode',
       position: center,
-      data: { label: 'New Node', color: nodeColor, emoji: nodeEmoji, collapsed: false },
+      data: { label: 'New Node', color: nodeColor, emoji: nodeEmoji, collapsed: false, notes: '', image: '' },
     }
     setNodes(nds => {
       const next = [...nds, newNode]
@@ -242,7 +262,7 @@ export default function MindMapPage() {
     })
   }
 
-  const updateNodeData = (nodeId: string, data: Partial<{ label: string; color: string; emoji: string; notes: string }>) => {
+  const updateNodeData = (nodeId: string, data: Partial<{ label: string; color: string; emoji: string; notes: string; image: string }>) => {
     pushUndo()
     setNodes(nds => {
       const next = nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n)
@@ -294,7 +314,7 @@ export default function MindMapPage() {
     setContextMenu(null)
   }
 
-  const closeContextMenu = () => setContextMenu(null)
+  const closeContextMenu = () => { setContextMenu(null); setEdgeContextMenu(null) }
 
   // --- Auto Layout ---
   const autoLayout = () => {
@@ -335,8 +355,6 @@ export default function MindMapPage() {
     svg.setAttribute('width', '2000')
     svg.setAttribute('height', '2000')
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-    const minX = Math.min(...nodes.map(n => n.position.x)) - 50
-    const minY = Math.min(...nodes.map(n => n.position.y)) - 50
 
     edges.forEach(e => {
       const s = nodes.find(n => n.id === e.source)
@@ -456,8 +474,143 @@ export default function MindMapPage() {
     setContextMenu(null)
   }
 
-  // --- Edges ---
-  const [edgeLabelInput, setEdgeLabelInput] = useState('')
+  // --- Edge Label & Style ---
+  const openEdgeContext = (e: React.MouseEvent, edge: Edge) => {
+    e.preventDefault()
+    closeContextMenu()
+    setEdgeLabelInput(edge.label || '')
+    setEdgeContextMenu({ x: e.clientX, y: e.clientY, edgeId: edge.id })
+  }
+
+  const updateEdgeLabel = (label: string) => {
+    setEdges(eds => {
+      const next = eds.map(e => e.id === edgeContextMenu?.edgeId ? { ...e, label: label || undefined } : e)
+      triggerAutoSave(nodes, next)
+      return next
+    })
+  }
+
+  const toggleEdgeDashed = () => {
+    setEdges(eds => {
+      const next = eds.map(e => {
+        if (e.id !== edgeContextMenu?.edgeId) return e
+        const isDashed = e.style?.strokeDasharray ? true : false
+        return { ...e, style: isDashed ? undefined : { strokeDasharray: '5 5' } }
+      })
+      triggerAutoSave(nodes, next)
+      return next
+    })
+    setEdgeContextMenu(null)
+  }
+
+  // --- Search / Filter ---
+  const searchFilteredNodes = searchQuery
+    ? visibleNodes.map(n => {
+        const match = (n.data.label as string).toLowerCase().includes(searchQuery.toLowerCase())
+          || ((n.data.notes as string) || '').toLowerCase().includes(searchQuery.toLowerCase())
+        return { ...n, data: { ...n.data, _highlight: match ? true : false } }
+      })
+    : visibleNodes.map(n => ({ ...n, data: { ...n.data, _highlight: undefined } }))
+
+  // --- Node Notes ---
+  const handleOpenNotes = (nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId)
+    if (!node) return
+    setNodes(nds => nds.map(n => ({ ...n, selected: n.id === nodeId })))
+    setNotesText((node.data.notes as string) || '')
+    setShowNotesPanel(true)
+    setContextMenu(null)
+  }
+
+  const handleNotesChange = (val: string) => {
+    setNotesText(val)
+    if (notesTimer.current) clearTimeout(notesTimer.current)
+    notesTimer.current = window.setTimeout(() => {
+      if (selectedNode) updateNodeData(selectedNode.id, { notes: val })
+    }, 500)
+  }
+
+  // Keep notesText in sync when switching selected node
+  useEffect(() => {
+    if (showNotesPanel && selectedNode) {
+      setNotesText((selectedNode.data.notes as string) || '')
+    }
+  }, [selectedNode?.id])
+
+  // --- Node Images ---
+  const handleImageClick = () => {
+    if (!contextMenu) return
+    setImageTargetNodeId(contextMenu.nodeId)
+    setContextMenu(null)
+    setTimeout(() => imageInputRef.current?.click(), 50)
+  }
+
+  const handleImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !imageTargetNodeId) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      updateNodeData(imageTargetNodeId, { image: reader.result as string })
+      setImageTargetNodeId(null)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  // --- Markdown Import ---
+  const importMarkdown = () => {
+    pushUndo()
+    const lines = markdownText.split('\n').filter(l => l.trim())
+    const nodeMap = new Map<number, string>()
+    const newEdges: { from: string; to: string }[] = []
+    const newNodeList: Node[] = []
+    let stack: { id: string; level: number }[] = []
+    let idx = 0
+
+    for (const line of lines) {
+      const match = line.match(/^(#{1,6})\s+(.+)$/)
+      if (!match) continue
+      const level = match[1].length
+      const text = match[2].trim()
+      const id = `import_${idx++}`
+      const newNode: Node = {
+        id,
+        type: 'mindMapNode',
+        position: { x: 200 + (level - 1) * 250, y: idx * 100 },
+        data: { label: text, color: '#89b4fa', emoji: '', collapsed: false, notes: '', image: '' },
+      }
+      newNodeList.push(newNode)
+
+      while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop()
+      if (stack.length > 0) newEdges.push({ from: stack[stack.length - 1].id, to: id })
+      stack.push({ id, level })
+    }
+
+    setNodes(nds => {
+      const next = [...nds, ...newNodeList]
+      triggerAutoSave(next, edges)
+      return next
+    })
+    setEdges(eds => {
+      const newEdgeObjs = newEdges.map(e => ({
+        id: `e_${e.from}_${e.to}`,
+        source: e.from,
+        target: e.to,
+        markerEnd: { type: MarkerType.ArrowClosed },
+        animated: true,
+      }))
+      const next = [...eds, ...newEdgeObjs] as Edge[]
+      triggerAutoSave(nodes, next)
+      return next
+    })
+    setShowMarkdownImport(false)
+    setMarkdownText('')
+  }
+
+  // --- Zoom Speed ---
+  const handleZoomSpeedChange = (speed: number) => {
+    setZoomSpeed(speed)
+  }
 
   return (
     <div className="flex h-[calc(100vh-80px)] gap-0 -m-6">
@@ -494,7 +647,10 @@ export default function MindMapPage() {
             {/* Toolbar */}
             <div className="px-4 py-2 border-b flex items-center gap-3 flex-wrap" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
               <input value={mapName} onChange={e => setMapName(e.target.value)} onBlur={renameMap}
-                className="text-sm font-semibold bg-transparent border-none outline-none" style={{ color: 'var(--text-primary)', width: 200 }} />
+                className="text-sm font-semibold bg-transparent border-none outline-none" style={{ color: 'var(--text-primary)', width: 160 }} />
+              {/* Search */}
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="🔍 Search..."
+                className="border rounded px-2 py-1 text-xs w-28" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
               <div className="flex items-center gap-1 ml-auto">
                 {/* Undo/Redo */}
                 <button onClick={undo} title="Undo (Ctrl+Z)"
@@ -514,20 +670,37 @@ export default function MindMapPage() {
                 <button onClick={() => setShowMinimap(p => !p)} title="Toggle Minimap"
                   className="px-2 py-1 rounded text-xs" style={{ color: showMinimap ? 'var(--accent)' : 'var(--text-primary)' }}>🗺</button>
 
+                {/* Zoom Speed */}
+                <select value={zoomSpeed} onChange={e => handleZoomSpeedChange(Number(e.target.value))}
+                  className="border rounded px-1 py-1 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} title="Zoom Speed">
+                  <option value={0.5}>🐢 0.5x</option>
+                  <option value={1}>1x</option>
+                  <option value={2}>🐇 2x</option>
+                  <option value={3}>3x</option>
+                </select>
+
+                {/* Markdown Import */}
+                <button onClick={() => setShowMarkdownImport(true)} title="Import from Markdown"
+                  className="px-2 py-1 rounded text-xs" style={{ color: 'var(--text-primary)' }}>📥 MD</button>
+
                 <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
 
-                <input type="color" value={nodeColor} onChange={e => setNodeColor(e.target.value)}
-                  className="w-6 h-6 rounded cursor-pointer border-0" title="Node color" />
-                <div className="relative">
-                  <button onClick={() => setEmojiPickerOpen(emojiPickerOpen === 'new' ? null : 'new')}
-                    className="w-8 h-7 flex items-center justify-center border rounded text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
-                    {nodeEmoji || '😀'}
-                  </button>
-                  {emojiPickerOpen === 'new' && (
-                    <EmojiPicker value={nodeEmoji} onChange={setNodeEmoji} onClose={() => setEmojiPickerOpen(null)} />
-                  )}
-                </div>
-                <button onClick={addNode} className="px-2.5 py-1 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ Node</button>
+                {!selectedNode && (
+                  <>
+                    <input type="color" value={nodeColor} onChange={e => setNodeColor(e.target.value)}
+                      className="w-6 h-6 rounded cursor-pointer border-0" title="Node color" />
+                    <div className="relative">
+                      <button onClick={() => setEmojiPickerOpen(emojiPickerOpen === 'new' ? null : 'new')}
+                        className="w-8 h-7 flex items-center justify-center border rounded text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
+                        {nodeEmoji || '😀'}
+                      </button>
+                      {emojiPickerOpen === 'new' && (
+                        <EmojiPicker value={nodeEmoji} onChange={setNodeEmoji} onClose={() => setEmojiPickerOpen(null)} />
+                      )}
+                    </div>
+                    <button onClick={addNode} className="px-2.5 py-1 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ Node</button>
+                  </>
+                )}
 
                 {/* Export */}
                 <div className="relative">
@@ -547,7 +720,7 @@ export default function MindMapPage() {
                   <>
                     <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
                     <input value={selectedNode.data.label} onChange={e => updateNodeData(selectedNode.id, { label: e.target.value })}
-                      className="border rounded px-2 py-0.5 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)', width: 120 }} />
+                      className="border rounded px-2 py-0.5 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)', width: 100 }} />
                     <input type="color" value={selectedNode.data.color} onChange={e => updateNodeData(selectedNode.id, { color: e.target.value })}
                       className="w-5 h-5 rounded cursor-pointer border-0" />
                     <div className="relative">
@@ -559,6 +732,10 @@ export default function MindMapPage() {
                         <EmojiPicker value={selectedNode.data.emoji || ''} onChange={v => updateNodeData(selectedNode.id, { emoji: v })} onClose={() => setEmojiPickerOpen(null)} />
                       )}
                     </div>
+                    <button onClick={() => { setNotesText((selectedNode.data.notes as string) || ''); setShowNotesPanel(true) }}
+                      className="px-2 py-1 rounded text-xs" style={{ color: (selectedNode.data.notes as string) ? 'var(--accent)' : 'var(--text-muted)' }} title="Node Notes">
+                      📝 Notes
+                    </button>
                   </>
                 )}
               </div>
@@ -566,7 +743,7 @@ export default function MindMapPage() {
             {/* Flow canvas */}
             <div className="flex-1 relative" ref={reactFlowWrapper}>
               <ReactFlow
-                nodes={visibleNodes}
+                nodes={searchFilteredNodes}
                 edges={visibleEdges}
                 onNodesChange={onNodesChangeHandler}
                 onEdgesChange={onEdgesChangeHandler}
@@ -577,14 +754,14 @@ export default function MindMapPage() {
                   closeContextMenu()
                   setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id })
                 }}
-                onDoubleClickCapture={e => {
-                  if (contextMenu && (e.target as HTMLElement).closest('.react-flow__node')) return
-                  closeContextMenu()
-                }}
+                onEdgeContextMenu={openEdgeContext}
                 nodeTypes={nodeTypes}
                 fitView
                 deleteKeyCode="Delete"
                 onNodesDelete={deleteSelected}
+                zoomOnScroll={true}
+                minZoom={0.1}
+                maxZoom={4}
               >
                 {showMinimap && <MiniMap
                   nodeStrokeColor="var(--accent)"
@@ -595,39 +772,96 @@ export default function MindMapPage() {
                 <Controls />
                 <Background color="var(--border)" gap={20} />
               </ReactFlow>
+
+              {/* Hidden file input for images */}
+              <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelected} />
+
+              {/* Node Context Menu */}
               {contextMenu && (
                 <div
                   className="fixed z-50 py-1 rounded-lg shadow-xl border min-w-[150px]"
                   style={{ left: contextMenu.x, top: contextMenu.y, backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
                   onClick={closeContextMenu}
                 >
-                  <button
-                    onClick={() => {
-                      setNodes(nds => nds.map(n => ({ ...n, selected: n.id === contextMenu.nodeId })))
-                      closeContextMenu()
-                    }}
+                  <button onClick={() => { setNodes(nds => nds.map(n => ({ ...n, selected: n.id === contextMenu.nodeId }))); closeContextMenu() }}
                     className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
+                    style={{ color: 'var(--text-primary)' }}>
                     ✏️ Edit
                   </button>
-                  <button
-                    onClick={() => toggleCollapse(contextMenu.nodeId)}
+                  <button onClick={() => { handleOpenNotes(contextMenu.nodeId); closeContextMenu() }}
                     className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
+                    style={{ color: 'var(--text-primary)' }}>
+                    📝 Notes
+                  </button>
+                  <button onClick={handleImageClick}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}>
+                    🖼 Add Image
+                  </button>
+                  <button onClick={() => toggleCollapse(contextMenu.nodeId)}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}>
                     {nodes.find(n => n.id === contextMenu.nodeId)?.data.collapsed ? '🔓 Expand' : '🔒 Collapse'}
                   </button>
-                  <button
-                    onClick={() => deleteNodeById(contextMenu.nodeId)}
+                  <button onClick={() => deleteNodeById(contextMenu.nodeId)}
                     className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
-                    style={{ color: 'var(--danger)' }}
-                  >
+                    style={{ color: 'var(--danger)' }}>
                     🗑️ Delete
                   </button>
                 </div>
               )}
+
+              {/* Edge Context Menu */}
+              {edgeContextMenu && (
+                <div
+                  className="fixed z-50 py-1 rounded-lg shadow-xl border min-w-[180px]"
+                  style={{ left: edgeContextMenu.x, top: edgeContextMenu.y, backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="px-3 py-1.5">
+                    <input value={edgeLabelInput} onChange={e => setEdgeLabelInput(e.target.value)} placeholder="Edge label..."
+                      className="w-full border rounded px-2 py-1 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { updateEdgeLabel(edgeLabelInput); setEdgeContextMenu(null) }
+                      }} />
+                  </div>
+                  <button onClick={() => { updateEdgeLabel(edgeLabelInput); setEdgeContextMenu(null) }}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}>
+                    ✅ Set Label
+                  </button>
+                  <button onClick={toggleEdgeDashed}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}>
+                    {(() => {
+                      const edge = edges.find(e => e.id === edgeContextMenu.edgeId)
+                      return edge?.style?.strokeDasharray ? '➖ Solid Style' : '➖ Dashed Style'
+                    })()}
+                  </button>
+                  <button onClick={() => { setEdges(eds => { const next = eds.filter(e => e.id !== edgeContextMenu.edgeId); triggerAutoSave(nodes, next); return next }); setEdgeContextMenu(null) }}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--danger)' }}>
+                    🗑️ Delete Edge
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Notes Panel */}
+            {showNotesPanel && selectedNode && (
+              <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', maxHeight: 160 }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    📝 Notes — {selectedNode.data.label as string}
+                  </span>
+                  <button onClick={() => setShowNotesPanel(false)} className="text-xs" style={{ color: 'var(--text-muted)' }}>✕</button>
+                </div>
+                <textarea value={notesText} onChange={e => handleNotesChange(e.target.value)} rows={3}
+                  className="w-full border rounded px-2 py-1 text-xs resize-none"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  placeholder="Add notes for this node..." />
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
@@ -635,6 +869,33 @@ export default function MindMapPage() {
           </div>
         )}
       </div>
+
+      {/* Markdown Import Dialog */}
+      {showMarkdownImport && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="rounded-xl shadow-2xl border p-4 w-[500px] max-w-[90vw]" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>📥 Import from Markdown</span>
+              <button onClick={() => setShowMarkdownImport(false)} className="text-xs" style={{ color: 'var(--text-muted)' }}>✕</button>
+            </div>
+            <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+              Paste Markdown with headings (# ## ###). Each heading becomes a node, hierarchy creates connections.
+            </p>
+            <textarea value={markdownText} onChange={e => setMarkdownText(e.target.value)} rows={10}
+              className="w-full border rounded px-2 py-1 text-xs font-mono resize-none"
+              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              placeholder={`# Main Idea\n## Subtopic 1\n### Detail A\n### Detail B\n## Subtopic 2`} />
+            <div className="flex gap-2 mt-3 justify-end">
+              <button onClick={() => setShowMarkdownImport(false)}
+                className="px-3 py-1.5 rounded text-xs" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>Cancel</button>
+              <button onClick={importMarkdown} disabled={!markdownText.trim()}
+                className="px-3 py-1.5 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff', opacity: markdownText.trim() ? 1 : 0.5 }}>Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </div>
   )
 }

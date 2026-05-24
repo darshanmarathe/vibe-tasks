@@ -72,16 +72,16 @@ Interactive mind mapping canvas built with @xyflow/react (ReactFlow). Local-firs
 | 6 | ✅ **Emoji Visibility** | Emoji displayed at 2x size on nodes |
 
 
-### P2 — Power Features
+### P2 — Power Features ✅
 | # | Feature | Description |
 |---|---------|-------------|
-| 6 | **Node Notes** | Per-node rich text (TipTap) for detailed descriptions; expandable panel |
-| 7 | **Node Images** | Attach images to nodes (drag-drop or file picker), stored as base64 |
-| 8 | **Edge Labels** | Text labels on edges (already in schema — add UI) |
-| 9 | **Dashed / Styled Edges** | Toggle edge style (dashed, dotted, thick, colored) via context menu or toolbar |
-| 10 | **Search / Filter** | Search bar to highlight/filter nodes by label, notes, or tags |
-| 11 | **Markdown Import** | Convert Markdown headings/lists into mind map nodes |
-| 12 | **Wheel Zoom Speed** | Configurable zoom sensitivity |
+| 6 | ✅ **Node Notes** | Per-node textarea panel (bottom of canvas), auto-save with 500ms debounce |
+| 7 | ✅ **Node Images** | File picker via context menu → stored as base64, displayed inline in node |
+| 8 | ✅ **Edge Labels** | Right-click edge → input label + Set Label button, shows text on edge center |
+| 9 | ✅ **Dashed / Styled Edges** | Right-click edge → toggle Solid/Dashed, renders with strokeDasharray |
+| 10 | ✅ **Search / Filter** | 🔍 Search input in toolbar; dims non-matching nodes, highlights matches |
+| 11 | ✅ **Markdown Import** | Modal with textarea; parses `# heading` hierarchy into nodes+edges |
+| 12 | ✅ **Wheel Zoom Speed** | Toolbar dropdown: 0.5x / 1x / 2x / 3x, bounds 0.1–4 zoom |
 
 ### P3 — Advanced
 | # | Feature | Description |
@@ -116,7 +116,7 @@ Interactive mind mapping canvas built with @xyflow/react (ReactFlow). Local-firs
 |---------|----------|
 | 1.4.2 | ✅ Core canvas, nodes, edges, auto-save, emoji picker, context menu |
 | 1.4.3 | ✅ MiniMap, Export (PNG/SVG/MD), Undo/Redo, Auto Layout, Expand/Collapse |
-| 1.4.4 | Edge Labels, Node Notes, Search/Filter |
+| 1.4.4 | ✅ Edge Labels, Dashed/Styled Edges, Node Notes, Node Images, Search/Filter, Markdown Import, Zoom Speed |
 | 1.5.0 | Markdown Import/Export, Templates, Themes, ZEN Mode |
 | 1.5.1 | Pitch Mode, Relationships, Boundaries, Multi-select |
 | 1.6.0 | Task/Note integration, Dashboard widget, Full-text search |
