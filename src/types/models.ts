@@ -100,8 +100,9 @@ export interface ElectronAPI {
   createNotebook: (name: string) => Promise<Notebook>
   renameNotebook: (id: string, name: string) => Promise<void>
   deleteNotebook: (id: string) => Promise<void>
-  getNotes: (notebookId: string) => Promise<Note[]>
-  getAllNotes: () => Promise<Note[]>
+  setNotebookColor: (id: string, color: string) => Promise<void>
+  getNotes: (notebookId: string, sortBy?: string) => Promise<Note[]>
+  getAllNotes: (sortBy?: string) => Promise<Note[]>
   getNoteById: (id: string) => Promise<Note | null>
   createNote: (notebookId: string, title: string) => Promise<Note>
   saveNote: (id: string, title: string, content: string) => Promise<void>
@@ -110,6 +111,21 @@ export interface ElectronAPI {
   deleteNotePermanently: (id: string) => Promise<void>
   getTrashedNotes: () => Promise<Note[]>
   searchNotes: (query: string) => Promise<Note[]>
+  togglePin: (id: string) => Promise<void>
+  getBacklinks: (title: string, excludeId: string) => Promise<{ id: string; title: string; notebook_id: string }[]>
+  getAllTags: () => Promise<TagWithCount[]>
+  getNoteTags: (noteId: string) => Promise<Tag[]>
+  addTagToNote: (noteId: string, tagId: string) => Promise<void>
+  removeTagFromNote: (noteId: string, tagId: string) => Promise<void>
+  createTag: (name: string) => Promise<Tag>
+  getNotesByTag: (tagId: string) => Promise<Note[]>
+  deleteTag: (id: string) => Promise<void>
+  searchNoteTitles: (query: string) => Promise<{ id: string; title: string; notebook_id: string }[]>
+  exportNoteAsMarkdown: (id: string) => Promise<void>
+  openNotesHelp: () => Promise<void>
+  getRecentNotes: (limit?: number) => Promise<NoteWithNotebook[]>
+  getNoteByTitle: (title: string) => Promise<Note | null>
+  duplicateNote: (id: string) => Promise<Note>
 
   // Mind Maps
   getMindMaps: () => Promise<MindMap[]>
@@ -126,7 +142,12 @@ export interface ElectronAPI {
 export interface Notebook {
   id: string
   name: string
+  color: string
   created_at: string
+}
+
+export interface NoteWithNotebook extends Note {
+  notebook_name: string
 }
 
 export interface Note {
@@ -135,6 +156,7 @@ export interface Note {
   title: string
   content: string
   is_trashed: number
+  is_pinned: number
   created_at: string
   updated_at: string
 }
@@ -142,6 +164,10 @@ export interface Note {
 export interface Tag {
   id: string
   name: string
+}
+
+export interface TagWithCount extends Tag {
+  count: number
 }
 
 export interface MindMap {

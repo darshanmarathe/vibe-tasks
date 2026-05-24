@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook } from '../types/models'
 import { parseDateFromText } from '../utils/dateParser'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { useNavigate } from 'react-router-dom'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
+  const [recentNotes, setRecentNotes] = useState<NoteWithNotebook[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -33,18 +36,20 @@ export default function Dashboard() {
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
 
   const loadData = useCallback(async () => {
-    const [t, s, p, pr, u] = await Promise.all([
+    const [t, s, p, pr, u, rn] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
       window.electronAPI.getProjects(),
       window.electronAPI.getUsers(),
+      window.electronAPI.getRecentNotes(10),
     ])
     setTasks(t)
     setStatuses(s)
     setPriorities(p)
     setProjects(pr)
     setUsers(u)
+    setRecentNotes(rn)
     if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
     if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
     if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
@@ -482,6 +487,33 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Recent Notes */}
+      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Notes</h2>
+          <button onClick={() => navigate('/notes')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Notes</button>
+        </div>
+        {recentNotes.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No notes yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {recentNotes.map(note => {
+              const readingTime = Math.max(1, Math.ceil((note.content?.split(/\s+/).filter(Boolean).length || 0) / 200))
+              return (
+                <div key={note.id} onClick={() => navigate('/notes')}
+                  className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                  <p className="font-medium truncate">{note.title}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {note.notebook_name} · {readingTime} min read · {new Date(note.updated_at).toLocaleDateString()}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 

@@ -226,24 +226,15 @@ function runMigrations() {
 }
 
 function runNoteMigrations() {
-  const tables = exec("SELECT name FROM sqlite_master WHERE type='table'")
-  const tableNames = tables.map((t: any) => t.name)
-
-  if (tableNames.includes('notebooks')) {
-    db.run('DROP TABLE IF EXISTS note_tags')
-    db.run('DROP TABLE IF EXISTS tags')
-    db.run('DROP TABLE IF EXISTS notes')
-    db.run('DROP TABLE IF EXISTS notebooks')
-  }
-
   db.exec(`
-    CREATE TABLE notebooks (
+    CREATE TABLE IF NOT EXISTS notebooks (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      color TEXT DEFAULT '',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     
-    CREATE TABLE notes (
+    CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       notebook_id TEXT,
       title TEXT DEFAULT 'Untitled',
@@ -254,12 +245,12 @@ function runNoteMigrations() {
       FOREIGN KEY(notebook_id) REFERENCES notebooks(id) ON DELETE CASCADE
     );
     
-    CREATE TABLE tags (
+    CREATE TABLE IF NOT EXISTS tags (
       id TEXT PRIMARY KEY,
       name TEXT UNIQUE NOT NULL
     );
     
-    CREATE TABLE note_tags (
+    CREATE TABLE IF NOT EXISTS note_tags (
       note_id TEXT,
       tag_id TEXT,
       PRIMARY KEY (note_id, tag_id),
@@ -267,6 +258,18 @@ function runNoteMigrations() {
       FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
     );
   `)
+
+  // Migration: add is_pinned column if missing
+  const noteCols = exec('PRAGMA table_info(notes)')
+  if (!noteCols.some((c: any) => c.name === 'is_pinned')) {
+    db.run('ALTER TABLE notes ADD COLUMN is_pinned INTEGER DEFAULT 0')
+  }
+
+  // Migration: add color column to notebooks if missing
+  const nbCols = exec('PRAGMA table_info(notebooks)')
+  if (!nbCols.some((c: any) => c.name === 'color')) {
+    db.run("ALTER TABLE notebooks ADD COLUMN color TEXT DEFAULT ''")
+  }
 
   runMindMapMigrations()
 }

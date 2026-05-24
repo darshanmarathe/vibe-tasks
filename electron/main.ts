@@ -3,6 +3,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { app, BrowserWindow, ipcMain, Notification, dialog, shell } from 'electron'
 import { initDatabase, getDbPath, setDbPath } from './database/db'
+import TurndownService from 'turndown'
 import * as userRepo from './database/repositories/userRepo'
 import * as projectRepo from './database/repositories/projectRepo'
 import * as statusRepo from './database/repositories/statusRepo'
@@ -238,10 +239,10 @@ function registerIpcHandlers() {
   ipcMain.handle('notes:notebooks:create', (_e, name) => noteRepo.createNotebook(name))
   ipcMain.handle('notes:notebooks:rename', (_e, id, name) => noteRepo.renameNotebook(id, name))
   ipcMain.handle('notes:notebooks:delete', (_e, id) => noteRepo.deleteNotebook(id))
-  ipcMain.handle('notes:list', (_e, notebookId) => {
+  ipcMain.handle('notes:list', (_e, notebookId, sortBy) => {
     console.log('[notes:list] called with:', { notebookId })
     try {
-      const result = noteRepo.getNotes(notebookId)
+      const result = noteRepo.getNotes(notebookId, sortBy)
       console.log('[notes:list] result count:', result?.length)
       return result
     } catch (err) {
@@ -249,7 +250,7 @@ function registerIpcHandlers() {
       throw err
     }
   })
-  ipcMain.handle('notes:listAll', () => noteRepo.getAllNotes())
+  ipcMain.handle('notes:listAll', (_e, sortBy) => noteRepo.getAllNotes(sortBy))
   ipcMain.handle('notes:get', (_e, id) => noteRepo.getNoteById(id))
   ipcMain.handle('notes:create', (_e, notebookId, title) => {
     console.log('[notes:create] called with:', { notebookId, title })
@@ -268,6 +269,46 @@ function registerIpcHandlers() {
   ipcMain.handle('notes:delete', (_e, id) => noteRepo.deleteNotePermanently(id))
   ipcMain.handle('notes:trashed', () => noteRepo.getTrashedNotes())
   ipcMain.handle('notes:search', (_e, query) => noteRepo.searchNotes(query))
+  ipcMain.handle('notes:togglePin', (_e, id) => noteRepo.togglePin(id))
+  ipcMain.handle('notes:backlinks', (_e, title, excludeId) => noteRepo.getBacklinks(title, excludeId))
+  ipcMain.handle('notes:tags:all', () => noteRepo.getAllTags())
+  ipcMain.handle('notes:tags:getForNote', (_e, noteId) => noteRepo.getNoteTags(noteId))
+  ipcMain.handle('notes:tags:add', (_e, noteId, tagId) => noteRepo.addTagToNote(noteId, tagId))
+  ipcMain.handle('notes:tags:remove', (_e, noteId, tagId) => noteRepo.removeTagFromNote(noteId, tagId))
+  ipcMain.handle('notes:tags:create', (_e, name) => noteRepo.createTag(name))
+  ipcMain.handle('notes:tags:notesByTag', (_e, tagId) => noteRepo.getNotesByTag(tagId))
+  ipcMain.handle('notes:tags:delete', (_e, id) => noteRepo.deleteTag(id))
+  ipcMain.handle('notes:searchTitles', (_e, query) => noteRepo.searchNoteTitles(query))
+  ipcMain.handle('notes:recent', (_e, limit) => noteRepo.getRecentNotes(limit || 10))
+  ipcMain.handle('notes:getByTitle', (_e, title) => noteRepo.getNoteByTitle(title))
+  ipcMain.handle('notes:duplicate', (_e, id) => noteRepo.duplicateNote(id))
+  ipcMain.handle('notes:notebooks:setColor', (_e, id, color) => noteRepo.setNotebookColor(id, color))
+
+  ipcMain.handle('notes:openHelp', () => {
+    const helpPath = app.isPackaged
+      ? path.join(__dirname, '../dist/notes-help.html')
+      : path.join(__dirname, '../public/notes-help.html')
+    const helpWin = new BrowserWindow({
+      width: 900,
+      height: 700,
+      title: 'Notes Help',
+      autoHideMenuBar: true,
+    })
+    helpWin.loadFile(helpPath)
+  })
+
+  ipcMain.handle('notes:exportMarkdown', async (_e, noteId) => {
+    const note = noteRepo.getNoteById(noteId)
+    if (!note) throw new Error('Note not found')
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      defaultPath: `${note.title.replace(/[<>:"/\\|?*]/g, '_')}.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }]
+    })
+    if (result.canceled || !result.filePath) return
+    const turndown = new TurndownService()
+    const markdown = turndown.turndown(note.content || '')
+    fs.writeFileSync(result.filePath, `# ${note.title}\n\n${markdown}`, 'utf-8')
+  })
 
   // Mind Maps
   ipcMain.handle('mindmap:list', () => mindmapRepo.getMindMaps())

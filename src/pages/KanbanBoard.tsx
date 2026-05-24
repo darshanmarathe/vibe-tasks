@@ -27,6 +27,9 @@ export default function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
 
+  // Filter state
+  const [filterProject, setFilterProject] = useState(0)
+
   // Add task state
   const [addingToColumn, setAddingToColumn] = useState<number | null>(null)
   const [addName, setAddName] = useState('')
@@ -83,9 +86,20 @@ export default function KanbanBoard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Kanban Board</h1>
 
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Project:</label>
+        <select value={filterProject} onChange={e => setFilterProject(Number(e.target.value))}
+          className="border rounded-lg px-3 py-1.5 text-sm"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+          <option value={0}>All Projects</option>
+          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+
       <div className="flex gap-4 h-[calc(100vh-160px)] overflow-x-auto">
         {statuses.map(status => {
-          const columnTasks = tasks.filter(t => t.statusId === status.id)
+          const filtered = filterProject ? tasks.filter(t => t.projectId === filterProject) : tasks
+          const columnTasks = filtered.filter(t => t.statusId === status.id)
 
           return (
             <div

@@ -5,11 +5,11 @@ import { useState } from 'react'
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: '📊' },
   { path: '/inbox', label: 'Inbox', icon: '📥' },
-  { path: '/notes', label: 'Notes', icon: '📝' },
-  { path: '/mindmap', label: 'Mind Map', icon: '🧠' },
   { path: '/tasks', label: 'Tasks', icon: '📋' },
   { path: '/kanban', label: 'Kanban', icon: '📌' },
   { path: '/archived', label: 'Archived', icon: '📦' },
+  { path: '/notes', label: 'Notes', icon: '📝' },
+  { path: '/mindmap', label: 'Mind Map', icon: '🧠' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
   { path: '/about', label: 'About', icon: 'ℹ️' },
 ]
@@ -48,25 +48,27 @@ export default function Layout() {
           </button>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-x-hidden">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-secondary)]'
-                }`
-              }
-              style={({ isActive }) => ({
-                backgroundColor: isActive ? 'var(--bg-hover)' : 'transparent',
-              })}
-              title={collapsed ? item.label : undefined}
-            >
-              <span className="text-base">{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
+          {navItems.map((item, i) => (
+            <div key={item.path}>
+              {(i === 5 || i === 7) && <div className="border-t my-2" style={{ borderColor: 'var(--border)', marginLeft: collapsed ? '0' : '-0.5rem', marginRight: collapsed ? '0' : '-0.5rem' }} />}
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? 'text-[var(--text-primary)]'
+                      : 'text-[var(--text-secondary)]'
+                  }`
+                }
+                style={({ isActive }) => ({
+                  backgroundColor: isActive ? 'var(--bg-hover)' : 'transparent',
+                })}
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="text-base">{item.icon}</span>
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            </div>
           ))}
         </nav>
         <div className="px-2 pb-4 space-y-1">
