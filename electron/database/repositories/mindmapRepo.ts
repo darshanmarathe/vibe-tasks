@@ -40,9 +40,9 @@ export function deleteMindMap(id: string): void {
 export function saveMindMapNodes(mapId: string, nodes: any[]): void {
   const d = getDatabase()
   d.run('DELETE FROM mindmap_nodes WHERE map_id = ?', [mapId])
-  const insert = d.db.prepare('INSERT INTO mindmap_nodes (id, map_id, title, color, emoji, notes, x, y, width, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+  const insert = d.db.prepare('INSERT INTO mindmap_nodes (id, map_id, title, color, emoji, notes, x, y, width, height, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
   for (const n of nodes) {
-    insert.run([n.id, mapId, n.title || 'Node', n.color || '#89b4fa', n.emoji || '', n.notes || '', n.x || 0, n.y || 0, n.width || 200, n.height || 80])
+    insert.run([n.id, mapId, n.title || 'Node', n.color || '#89b4fa', n.emoji || '', n.notes || '', n.x || 0, n.y || 0, n.width || 200, n.height || 80, n.image || ''])
   }
   insert.free()
   d.save()

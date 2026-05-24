@@ -274,7 +274,11 @@ function runNoteMigrations() {
 function runMindMapMigrations() {
   const tables = exec("SELECT name FROM sqlite_master WHERE type='table'")
   const tableNames = tables.map((t: any) => t.name)
-  if (tableNames.includes('mindmaps')) return
+  if (tableNames.includes('mindmaps')) {
+    // Migrate: add image column if missing
+    try { db.exec('ALTER TABLE mindmap_nodes ADD COLUMN image TEXT DEFAULT ""') } catch {}
+    return
+  }
 
   db.exec(`
     CREATE TABLE mindmaps (
@@ -293,7 +297,8 @@ function runMindMapMigrations() {
       x REAL NOT NULL DEFAULT 0,
       y REAL NOT NULL DEFAULT 0,
       width REAL NOT NULL DEFAULT 200,
-      height REAL NOT NULL DEFAULT 80
+      height REAL NOT NULL DEFAULT 80,
+      image TEXT DEFAULT ''
     );
     CREATE TABLE mindmap_edges (
       id TEXT PRIMARY KEY,
