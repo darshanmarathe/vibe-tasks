@@ -9,6 +9,8 @@ import Inbox from './pages/Inbox'
 import About from './pages/About'
 import Notes from './pages/Notes'
 import MindMap from './pages/MindMap'
+import Habits from './pages/Habits'
+import WeeklyReview from './pages/WeeklyReview'
 import Settings from './pages/Settings/Settings'
 
 export default function App() {
@@ -23,6 +25,8 @@ export default function App() {
             <Route path="/inbox" element={<Inbox />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/mindmap" element={<MindMap />} />
+            <Route path="/habits" element={<Habits />} />
+            <Route path="/weekly-review" element={<WeeklyReview />} />
             <Route path="/kanban" element={<KanbanBoard />} />
             <Route path="/archived" element={<Archived />} />
             <Route path="/settings" element={<Settings />} />

@@ -35,8 +35,9 @@ export function getArchivedTasks(): TaskWithRelations[] {
 
 export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
   const db = getDatabase()
-  db.run('INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0])
+  const now = new Date().toISOString()
+  db.run('INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null])
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
   const task = db.getSingle(`
@@ -89,6 +90,11 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
   if (data.archived !== undefined) { fields.push('archived = ?'); values.push(data.archived) }
   if (data.assignedTo !== undefined) { fields.push('assignedTo = ?'); values.push(data.assignedTo) }
   if (data.completionPercent !== undefined) { fields.push('completionPercent = ?'); values.push(data.completionPercent) }
+  if (data.completionPercent !== undefined) {
+    const now = new Date().toISOString()
+    fields.push('completed_at = ?')
+    values.push(data.completionPercent === 100 ? now : null)
+  }
   if (fields.length > 0) {
     values.push(id)
     db.run(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values)

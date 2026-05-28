@@ -135,6 +135,19 @@ export interface ElectronAPI {
   deleteMindMap: (id: string) => Promise<void>
   saveMindMap: (id: string, nodes: MindMapNode[], edges: MindMapEdge[]) => Promise<void>
 
+  // Habits
+  getHabits: () => Promise<Habit[]>
+  getHabit: (id: number) => Promise<Habit | null>
+  createHabit: (data: Omit<Habit, 'id' | 'currentStreak' | 'longestStreak' | 'loggedToday'>) => Promise<Habit>
+  updateHabit: (id: number, data: Partial<Habit>) => Promise<Habit | null>
+  deleteHabit: (id: number) => Promise<void>
+  logHabit: (habitId: number, date: string, completed: boolean) => Promise<Habit>
+  getHabitLogs: (habitId: number, startDate: string, endDate: string) => Promise<HabitLog[]>
+  getHabitYearLogs: (habitId: number, year: number) => Promise<HabitLog[]>
+  getHabitStats: (habitId: number) => Promise<HabitStats>
+  getWeeklyReview: () => Promise<WeeklyReview>
+  logPomodoroSession: (durationMinutes: number) => Promise<void>
+
   // Theme
   setTheme: (theme: string) => Promise<void>
 }
@@ -202,6 +215,45 @@ export interface MindMapEdge {
 export interface MindMapFull extends MindMap {
   nodes: MindMapNode[]
   edges: MindMapEdge[]
+}
+
+export interface Habit {
+  id: number
+  name: string
+  description: string
+  frequency: 'daily' | 'weekly'
+  reminder_time: string | null
+  color: string
+  emoji: string
+  created_at: string
+  sort_order: number
+  currentStreak: number
+  longestStreak: number
+  loggedToday: boolean
+}
+
+export interface HabitLog {
+  id: number
+  habit_id: number
+  date: string
+  completed: number
+  created_at: string
+}
+
+export interface HabitStats {
+  currentStreak: number
+  longestStreak: number
+  totalLogs: number
+  completionRate: number
+}
+
+export interface WeeklyReview {
+  totalTasks: number
+  completedTasks: number
+  habitsTracked: number
+  notesWritten: number
+  pomodoroSessions: number
+  weekStart: string
 }
 
 declare global {

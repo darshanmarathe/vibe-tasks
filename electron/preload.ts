@@ -78,4 +78,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameMindMap: (id: string, name: string) => ipcRenderer.invoke('mindmap:rename', id, name),
   deleteMindMap: (id: string) => ipcRenderer.invoke('mindmap:delete', id),
   saveMindMap: (id: string, nodes: any[], edges: any[]) => ipcRenderer.invoke('mindmap:save', id, nodes, edges),
+
+  // Habits
+  getHabits: () => ipcRenderer.invoke('habits:list'),
+  getHabit: (id: number) => ipcRenderer.invoke('habits:get', id),
+  createHabit: (data: any) => ipcRenderer.invoke('habits:create', data),
+  updateHabit: (id: number, data: any) => ipcRenderer.invoke('habits:update', id, data),
+  deleteHabit: (id: number) => ipcRenderer.invoke('habits:delete', id),
+  logHabit: (habitId: number, date: string, completed: boolean) => ipcRenderer.invoke('habits:log', habitId, date, completed),
+  getHabitLogs: (habitId: number, startDate: string, endDate: string) => ipcRenderer.invoke('habits:logs', habitId, startDate, endDate),
+  getHabitYearLogs: (habitId: number, year: number) => ipcRenderer.invoke('habits:yearLogs', habitId, year),
+  getHabitStats: (habitId: number) => ipcRenderer.invoke('habits:stats', habitId),
+  getWeeklyReview: () => ipcRenderer.invoke('habits:weeklyReview'),
+  logPomodoroSession: (durationMinutes: number) => ipcRenderer.invoke('habits:pomodoroLog', durationMinutes),
 })

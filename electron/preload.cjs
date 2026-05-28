@@ -79,4 +79,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameMindMap: (id, name) => ipcRenderer.invoke('mindmap:rename', id, name),
   deleteMindMap: (id) => ipcRenderer.invoke('mindmap:delete', id),
   saveMindMap: (id, nodes, edges) => ipcRenderer.invoke('mindmap:save', id, nodes, edges),
+
+  // Habits
+  getHabits: () => ipcRenderer.invoke('habits:list'),
+  getHabit: (id) => ipcRenderer.invoke('habits:get', id),
+  createHabit: (data) => ipcRenderer.invoke('habits:create', data),
+  updateHabit: (id, data) => ipcRenderer.invoke('habits:update', id, data),
+  deleteHabit: (id) => ipcRenderer.invoke('habits:delete', id),
+  logHabit: (habitId, date, completed) => ipcRenderer.invoke('habits:log', habitId, date, completed),
+  getHabitLogs: (habitId, startDate, endDate) => ipcRenderer.invoke('habits:logs', habitId, startDate, endDate),
+  getHabitYearLogs: (habitId, year) => ipcRenderer.invoke('habits:yearLogs', habitId, year),
+  getHabitStats: (habitId) => ipcRenderer.invoke('habits:stats', habitId),
+  getWeeklyReview: () => ipcRenderer.invoke('habits:weeklyReview'),
+  logPomodoroSession: (durationMinutes) => ipcRenderer.invoke('habits:pomodoroLog', durationMinutes),
 })

@@ -9,7 +9,9 @@ const navItems = [
   { path: '/kanban', label: 'Kanban', icon: '📌' },
   { path: '/archived', label: 'Archived', icon: '📦' },
   { path: '/notes', label: 'Notes', icon: '📝' },
+  { path: '/habits', label: 'Habits', icon: '✅' },
   { path: '/mindmap', label: 'Mind Map', icon: '🧠' },
+  { path: '/weekly-review', label: 'Review', icon: '📊' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
   { path: '/about', label: 'About', icon: 'ℹ️' },
 ]
@@ -50,7 +52,7 @@ export default function Layout() {
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-x-hidden">
           {navItems.map((item, i) => (
             <div key={item.path}>
-              {(i === 5 || i === 7) && <div className="border-t my-2" style={{ borderColor: 'var(--border)', marginLeft: collapsed ? '0' : '-0.5rem', marginRight: collapsed ? '0' : '-0.5rem' }} />}
+              {(i === 6 || i === 9) && <div className="border-t my-2" style={{ borderColor: 'var(--border)', marginLeft: collapsed ? '0' : '-0.5rem', marginRight: collapsed ? '0' : '-0.5rem' }} />}
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>

@@ -272,6 +272,46 @@ function runNoteMigrations() {
   }
 
   runMindMapMigrations()
+  runHabitMigrations()
+}
+
+function runHabitMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      frequency TEXT NOT NULL DEFAULT 'daily',
+      reminder_time TEXT,
+      color TEXT DEFAULT '#89b4fa',
+      emoji TEXT DEFAULT '✅',
+      created_at TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS habit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      habit_id INTEGER NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      completed INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      UNIQUE(habit_id, date)
+    );
+
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      completed_at TEXT NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 25
+    );
+  `)
+
+  const taskCols = exec('PRAGMA table_info(tasks)')
+  if (!taskCols.some((c: any) => c.name === 'created_at')) {
+    db.run('ALTER TABLE tasks ADD COLUMN created_at TEXT')
+  }
+  if (!taskCols.some((c: any) => c.name === 'completed_at')) {
+    db.run('ALTER TABLE tasks ADD COLUMN completed_at TEXT')
+  }
 }
 
 function runMindMapMigrations() {

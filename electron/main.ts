@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { app, BrowserWindow, ipcMain, Notification, dialog, shell } from 'electron'
-import { initDatabase, getDbPath, setDbPath } from './database/db'
+import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
 import TurndownService from 'turndown'
 import * as userRepo from './database/repositories/userRepo'
 import * as projectRepo from './database/repositories/projectRepo'
@@ -11,6 +11,7 @@ import * as priorityRepo from './database/repositories/priorityRepo'
 import * as taskRepo from './database/repositories/taskRepo'
 import * as noteRepo from './database/repositories/noteRepo'
 import * as mindmapRepo from './database/repositories/mindmapRepo'
+import * as habitRepo from './database/repositories/habitRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -319,6 +320,19 @@ function registerIpcHandlers() {
   ipcMain.handle('mindmap:save', (_e, id, nodes, edges) => mindmapRepo.saveMindMap(id, nodes, edges))
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
 
+  // Habits
+  ipcMain.handle('habits:list', () => habitRepo.getHabits())
+  ipcMain.handle('habits:get', (_e, id) => habitRepo.getHabit(id))
+  ipcMain.handle('habits:create', (_e, data) => habitRepo.createHabit(data))
+  ipcMain.handle('habits:update', (_e, id, data) => habitRepo.updateHabit(id, data))
+  ipcMain.handle('habits:delete', (_e, id) => habitRepo.deleteHabit(id))
+  ipcMain.handle('habits:log', (_e, habitId, date, completed) => habitRepo.logHabit(habitId, date, completed))
+  ipcMain.handle('habits:logs', (_e, habitId, startDate, endDate) => habitRepo.getHabitLogs(habitId, startDate, endDate))
+  ipcMain.handle('habits:yearLogs', (_e, habitId, year) => habitRepo.getYearLogs(habitId, year))
+  ipcMain.handle('habits:stats', (_e, habitId) => habitRepo.getHabitStats(habitId))
+  ipcMain.handle('habits:weeklyReview', () => habitRepo.getWeeklyReview())
+  ipcMain.handle('habits:pomodoroLog', (_e, durationMinutes) => habitRepo.logPomodoroSession(durationMinutes))
+
   ipcMain.handle('theme:get', () => {
     return getThemeFromConfig()
   })
@@ -353,12 +367,29 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     await initDatabase()
     registerIpcHandlers()
+    setupHabitReminders()
     createWindow()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
   })
+}
+
+function setupHabitReminders() {
+  setInterval(() => {
+    const now = new Date()
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const habits = habitRepo.getHabits()
+    for (const habit of habits) {
+      if (habit.reminder_time === timeStr && !habit.loggedToday) {
+        new Notification({
+          title: 'Habit Reminder',
+          body: `Don't forget to: ${habit.name}`,
+        }).show()
+      }
+    }
+  }, 60000)
 }
 
 app.on('window-all-closed', () => {
