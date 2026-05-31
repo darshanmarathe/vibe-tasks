@@ -15,29 +15,7 @@
   - Captures into Inbox with timestamp
   - Auto-links to active task if one is selected
 
-## Release 1.5.0 — Habit Tracker & Streaks
-
-- **Habit Tracker** — Define daily/weekly habits with check-off
-  - Streak counter (consecutive days completed)
-  - Calendar heatmap view per habit
-  - Reminder notifications at configurable times
-- **Weekly Review** — End-of-week summary of:
-  - Tasks completed vs created
-  - Habits tracked
-  - Notes written
-  - Pomodoro sessions completed
-
-## Release 1.6.0 — Time Tracking & Focus Mode
-
-- **Manual Time Tracking** — Start/stop timer per task
-  - Total time logged shown on task rows
-  - Daily/weekly time reports
-- **Focus Mode** — Minimal UI overlay showing only the current task
-  - Block distracting notifications
-  - Full-screen mode with progress bar
-  - Integrates with Pomodoro timer
-
-## Release 1.7.0 — Goals & OKRs
+## Release 1.5.0 — Goals & OKRs
 
 - **Goals (Objectives)** — High-level outcome with a deadline
   - Each goal contains multiple Key Results (measurable, 0–100%)
@@ -45,7 +23,7 @@
 - **Progress Dashboard** — View goal completion at a glance
   - Radar/spider chart for balanced progress
 
-## Release 1.8.0 — Journal & Daily Log
+## Release 1.6.0 — Journal & Daily Log
 
 - **Daily Journal** — One page per day with:
   - Mood rating (emoji picker)
@@ -54,7 +32,7 @@
   - Auto-populated: tasks completed, pomodoro count
 - **On This Day** — Shows past journal entries from same date
 
-## Release 1.9.0 — Calendar Sync & Recurring Tasks
+## Release 1.7.0 — Calendar Sync & Recurring Tasks
 
 - **Recurring Tasks** — Daily, weekly, monthly, custom interval
   - Auto-create next instance on completion
@@ -64,7 +42,7 @@
   - Local calendar view with external events overlay
   - Drag external events into tasks
 
-## Release 2.0.0 — Data Portability & Collaboration
+## Release 1.8.0 — Data Portability & Collaboration
 
 - **Full Backup & Restore** — One-click export of entire DB
   - Auto-backup on configurable schedule
@@ -75,14 +53,14 @@
   - Image preview inline in notes/editor
 - **Share Tasks** — Share as a snapshot HTML file or text snippet
 
-## Release 2.1.0 — Spaced Repetition (Flashcards)
+## Release 1.9.0 — Spaced Repetition (Flashcards)
 
 - **Flashcards** — Create cards from notes or manually
   - Queue-based review (like Anki)
   - Supports text and code snippets
   - Daily review target with streak
 
-## Release 2.2.0 — Advanced Analytics
+## Release 1.10.0 — Advanced Analytics
 
 - **Productivity Score** — Weighted metric based on:
   - Tasks completed vs overdue
@@ -122,7 +100,9 @@
 | 1.2.0 | Inbox edit, line chart, OS theme detection, archive, pomodoro improvements |
 | 1.2.1 | Pie chart, Quick Add on dashboard, assigned to, completion %, email integration |
 | 1.3.0 | Notes system (TipTap WYSIWYG), Kanban add task, archive confirm, search, build fixes |
+| 1.5.0 | Habit Tracker (CRUD, streaks, heatmap, reminders), Weekly Review |
+| 1.6.0 | Time Tracking (start/stop timer, per-task time, reports), Focus Mode overlay |
 
 ---
 
-*Last updated: May 2026*
+*Last updated: June 2026*

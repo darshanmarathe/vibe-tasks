@@ -17,8 +17,11 @@ import * as timeRepo from './database/repositories/timeRepo'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let mainWindow: BrowserWindow | null = null
+let splashWindow: BrowserWindow | null = null
 let pomodoroWindow: BrowserWindow | null = null
 let focusWindow: BrowserWindow | null = null
+const SPLASH_MIN_DURATION_MS = 3000
+let splashShownAt = 0
 const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
 const DEFAULT_THEME = 'dark'
 const DEFAULT_ZOOM_FACTOR = 1
@@ -75,6 +78,49 @@ function setMainWindowZoom(zoomFactor: number) {
   saveConfig(config)
 }
 
+function splashHtmlPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'electron', 'splash.html')
+    : path.join(app.getAppPath(), 'electron', 'splash.html')
+}
+
+function closeSplashWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close()
+  }
+  splashWindow = null
+}
+
+function createSplashWindow() {
+  const theme = getThemeFromConfig()
+  splashWindow = new BrowserWindow({
+    width: 480,
+    height: 320,
+    frame: false,
+    resizable: false,
+    center: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  splashWindow.once('ready-to-show', () => splashWindow?.show())
+  splashWindow.loadFile(splashHtmlPath(), {
+    query: { theme, version: app.getVersion() },
+  })
+}
+
+function revealMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.show()
+  mainWindow.focus()
+  closeSplashWindow()
+}
+
 function createWindow() {
   const theme = getThemeFromConfig()
   const overlay = theme === 'light'
@@ -86,6 +132,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
+    show: false,
     webPreferences: {
       preload: preloadPath('preload.cjs'),
       contextIsolation: true,
@@ -97,6 +144,7 @@ function createWindow() {
 
   mainWindow.maximize()
   mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
+  mainWindow.once('ready-to-show', revealMainWindow)
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
@@ -440,10 +488,14 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(async () => {
+    splashShownAt = Date.now()
+    createSplashWindow()
     await initDatabase()
     registerIpcHandlers()
     setupHabitReminders()
-    createWindow()
+
+    const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - (Date.now() - splashShownAt))
+    setTimeout(() => createWindow(), remaining)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
