@@ -1,6 +1,6 @@
 # Time Tracking & Focus Mode — Specifications & Roadmap
 
-> **Status:** Planning phase (Release 1.6.0)
+> **Status:** Shipped (Release 1.6.0)
 > **See:** `roadmap.md` for overall product roadmap
 
 ---

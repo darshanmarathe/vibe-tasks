@@ -1,7 +1,53 @@
 # Journal & Daily Log — Specifications & Roadmap
 
-> **Status:** Planning phase (Release 1.6.0)
+> **Status:** Shipped (Release 1.6.2)
 > **See:** [`roadmap.md`](roadmap.md) for overall product roadmap
+
+---
+
+## Log
+
+> Handoff log for AI/human continuations. Update after each work session.
+
+### 2026-05-31 — Phases 1–4 implemented
+
+**Done:**
+- **Phase 1 — Backend:** `journal_entries` table + migration in [`electron/database/db.ts`](electron/database/db.ts) (`runJournalMigrations()`). Full repo at [`electron/database/repositories/journalRepo.ts`](electron/database/repositories/journalRepo.ts): `getEntry`, `upsertEntry`, `deleteEntry`, `getEntriesInRange`, `getOnThisDay`, `getDailyStats`, `countJournalDaysSince`.
+- **Phase 1 — IPC:** Handlers in [`electron/main.ts`](electron/main.ts): `journal:get`, `journal:upsert`, `journal:delete`, `journal:range`, `journal:onThisDay`, `journal:dailyStats`. Exposed in [`electron/preload.ts`](electron/preload.ts) + [`electron/preload.cjs`](electron/preload.cjs).
+- **Phase 1 — Types:** `JournalEntry`, `JournalDailyStats`, `OnThisDayEntry` + `ElectronAPI` methods in [`src/types/models.ts`](src/types/models.ts). `WeeklyReview.journalDays` added.
+- **Phase 2 — UI:** [`src/pages/DailyJournal.tsx`](src/pages/DailyJournal.tsx) (date nav, debounced auto-save, localStorage `vibe-journal-date`), [`src/components/MoodPicker.tsx`](src/components/MoodPicker.tsx), [`src/components/JournalStatsPanel.tsx`](src/components/JournalStatsPanel.tsx).
+- **Phase 3 — On This Day:** [`src/components/OnThisDayPanel.tsx`](src/components/OnThisDayPanel.tsx) + `getOnThisDay()` in repo (MM-DD match, excludes current date).
+- **Phase 4 — Integration:** Sidebar + route (`/journal`), Dashboard “Today’s Journal” card, Weekly Review `journalDays` stat (query in [`habitRepo.getWeeklyReview()`](electron/database/repositories/habitRepo.ts)).
+
+**Not done (Phase 5 — stretch):**
+- Journal history heatmap / mood trend chart
+- Export journal range to Markdown
+
+**Notes for next session:**
+- Auto-stats use UTC day bounds (`dateT00:00:00.000Z` … `dateT23:59:59.999Z`) — same as time tracking; local-time adjustment may be needed later.
+- `upsertEntry` only writes when user has content (mood or any text field); empty days stay without a DB row.
+- `preload.cjs` is hand-maintained — keep in sync with `preload.ts` when adding IPC.
+- Release checklist below is partially complete; manual QA still needed.
+
+### 2026-05-31 — Version bump 1.6.2
+
+**Done:**
+- `package.json` / `package-lock.json` → `1.6.2`
+- [`roadmap.md`](roadmap.md): Journal moved to completed features; planned 1.6.0 section removed
+- [`specs.md`](specs.md): Release 1.6.2 changelog added
+
+### 2026-05-31 — Wins, Losses & Summary Report
+
+**Done:**
+- Added `wins` and `losses` columns to `journal_entries` (migration + fresh schema in [`electron/database/db.ts`](electron/database/db.ts)).
+- Updated [`journalRepo.ts`](electron/database/repositories/journalRepo.ts): `wins`/`losses` in CRUD; new `getSummaryReport(start, end, criteria)`.
+- New [`src/components/JournalSummaryReport.tsx`](src/components/JournalSummaryReport.tsx): date range, quick presets (7d/30d/month), 11 inclusion criteria checkboxes, overview cards, consolidated wins/losses lists, daily breakdown, Markdown export.
+- [`DailyJournal.tsx`](src/pages/DailyJournal.tsx): Wins & Losses fields (one per line); tab switcher **Daily Entry | Summary Report**.
+- IPC: `journal:summaryReport` → `getJournalSummaryReport` in preload + types.
+
+**Notes:**
+- Wins/losses are multi-line text; summary report splits on newlines for aggregated lists.
+- Summary only includes days that match at least one selected criterion.
 
 ---
 
@@ -231,10 +277,10 @@ export interface OnThisDayEntry {
 
 ## Release Checklist
 
-- [ ] Migration runs cleanly on existing databases (no data loss)
+- [x] Migration runs cleanly on existing databases (no data loss)
 - [ ] Journal CRUD covered manually: create, edit, delete, date navigation
 - [ ] Auto-stats match manual counts for tasks/pomodoros on a test day
 - [ ] On This Day shows prior-year entries and hides when none exist
-- [ ] Dashboard card reflects today's entry
-- [ ] Sidebar nav + route registered
-- [ ] `ElectronAPI` types match preload surface
+- [x] Dashboard card reflects today's entry
+- [x] Sidebar nav + route registered
+- [x] `ElectronAPI` types match preload surface

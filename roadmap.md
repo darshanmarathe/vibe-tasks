@@ -23,15 +23,6 @@
 - **Progress Dashboard** — View goal completion at a glance
   - Radar/spider chart for balanced progress
 
-## Release 1.6.0 — Journal & Daily Log
-
-- **Daily Journal** — One page per day with:
-  - Mood rating (emoji picker)
-  - What went well / what to improve
-  - Quick notes section
-  - Auto-populated: tasks completed, pomodoro count
-- **On This Day** — Shows past journal entries from same date
-
 ## Release 1.7.0 — Calendar Sync & Recurring Tasks
 
 - **Recurring Tasks** — Daily, weekly, monthly, custom interval
@@ -102,6 +93,7 @@
 | 1.3.0 | Notes system (TipTap WYSIWYG), Kanban add task, archive confirm, search, build fixes |
 | 1.5.0 | Habit Tracker (CRUD, streaks, heatmap, reminders), Weekly Review |
 | 1.6.0 | Time Tracking (start/stop timer, per-task time, reports), Focus Mode overlay |
+| 1.6.2 | Daily Journal (mood, wins/losses, summary report), On This Day, native splash screen |
 
 ---
 

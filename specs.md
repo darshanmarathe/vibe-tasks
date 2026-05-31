@@ -169,3 +169,11 @@
   11. ✅ Dashboard — Today's Focus Time card with per-task breakdown bars
   12. ✅ Pomodoro integration — session complete auto-stops running timer and logs duration
   13. ✅ time_entries table with indexes — migration added to DB init chain
+
+  ### Release 1.6.2 ✅
+  1. ✅ Daily Journal — mood picker, went well / to improve, wins & losses, quick notes
+  2. ✅ On This Day — past entries for same calendar date in previous years
+  3. ✅ Journal Summary Report — date range, inclusion criteria, Markdown export
+  4. ✅ Dashboard journal card and Weekly Review journal-days stat
+  5. ✅ Native splash screen (3s branding on cold start)
+  6. ✅ journal_entries table with wins/losses columns — migration in DB init chain

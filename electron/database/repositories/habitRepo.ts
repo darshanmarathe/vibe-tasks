@@ -153,7 +153,12 @@ export function getWeeklyReview(): any {
     [weekAgo.toISOString()]
   )?.count || 0
 
-  return { totalTasks, completedTasks, habitsTracked, notesWritten, pomodoroSessions, weekStart: weekAgoStr }
+  const journalDays = db.getSingle(
+    'SELECT COUNT(DISTINCT date) as count FROM journal_entries WHERE date >= ?',
+    [weekAgoStr]
+  )?.count ?? 0
+
+  return { totalTasks, completedTasks, habitsTracked, notesWritten, pomodoroSessions, journalDays, weekStart: weekAgoStr }
 }
 
 export function logPomodoroSession(durationMinutes: number): void {

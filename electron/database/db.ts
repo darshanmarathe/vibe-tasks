@@ -330,6 +330,34 @@ function runTimeMigrations() {
     CREATE INDEX IF NOT EXISTS idx_time_entries_task  ON time_entries(task_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_start ON time_entries(start_time);
   `)
+
+  runJournalMigrations()
+}
+
+function runJournalMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      date          TEXT NOT NULL UNIQUE,
+      mood          INTEGER,
+      went_well     TEXT DEFAULT '',
+      to_improve    TEXT DEFAULT '',
+      wins          TEXT DEFAULT '',
+      losses        TEXT DEFAULT '',
+      quick_notes   TEXT DEFAULT '',
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
+  `)
+
+  const journalCols = exec('PRAGMA table_info(journal_entries)')
+  if (!journalCols.some((c: any) => c.name === 'wins')) {
+    db.run("ALTER TABLE journal_entries ADD COLUMN wins TEXT DEFAULT ''")
+  }
+  if (!journalCols.some((c: any) => c.name === 'losses')) {
+    db.run("ALTER TABLE journal_entries ADD COLUMN losses TEXT DEFAULT ''")
+  }
 }
 
 function runMindMapMigrations() {

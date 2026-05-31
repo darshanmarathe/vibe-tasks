@@ -13,6 +13,7 @@ import * as noteRepo from './database/repositories/noteRepo'
 import * as mindmapRepo from './database/repositories/mindmapRepo'
 import * as habitRepo from './database/repositories/habitRepo'
 import * as timeRepo from './database/repositories/timeRepo'
+import * as journalRepo from './database/repositories/journalRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -438,6 +439,15 @@ function registerIpcHandlers() {
   ipcMain.handle('time:delete',       (_e, id)             => timeRepo.deleteEntry(id))
   ipcMain.handle('time:update',       (_e, id, data)       => timeRepo.updateEntry(id, data))
   ipcMain.handle('time:totalToday',   (_e, date)           => timeRepo.getTotalFocusToday(date))
+
+  // Journal
+  ipcMain.handle('journal:get',        (_e, date)              => journalRepo.getEntry(date))
+  ipcMain.handle('journal:upsert',     (_e, date, data)        => journalRepo.upsertEntry(date, data))
+  ipcMain.handle('journal:delete',     (_e, date)              => journalRepo.deleteEntry(date))
+  ipcMain.handle('journal:range',      (_e, start, end)        => journalRepo.getEntriesInRange(start, end))
+  ipcMain.handle('journal:onThisDay',  (_e, month, day, exclude) => journalRepo.getOnThisDay(month, day, exclude))
+  ipcMain.handle('journal:dailyStats', (_e, date)              => journalRepo.getDailyStats(date))
+  ipcMain.handle('journal:summaryReport', (_e, start, end, criteria) => journalRepo.getSummaryReport(start, end, criteria))
 
   // Focus Mode
   ipcMain.handle('focus:toggle', () => {

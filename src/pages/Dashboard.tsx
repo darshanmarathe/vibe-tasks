@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry } from '../types/models'
+import { moodEmoji } from '../components/MoodPicker'
 import { parseDateFromText } from '../utils/dateParser'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [users, setUsers] = useState<User[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [todayFocus, setTodayFocus] = useState<DailyReportEntry[]>([])
+  const [todayJournal, setTodayJournal] = useState<JournalEntry | null>(null)
   const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
 
   // Quick Add state
@@ -43,7 +45,7 @@ export default function Dashboard() {
 
   const loadData = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0]
-    const [t, s, p, pr, u, rn, focus] = await Promise.all([
+    const [t, s, p, pr, u, rn, focus, journal] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
@@ -51,6 +53,7 @@ export default function Dashboard() {
       window.electronAPI.getUsers(),
       window.electronAPI.getRecentNotes(10),
       window.electronAPI.getDailyReport(today),
+      window.electronAPI.getJournalEntry(today),
     ])
     setTasks(t)
     setStatuses(s)
@@ -59,6 +62,7 @@ export default function Dashboard() {
     setUsers(u)
     setRecentNotes(rn)
     setTodayFocus(focus)
+    setTodayJournal(journal)
     const times = await Promise.all(
       t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
     )
@@ -243,6 +247,36 @@ export default function Dashboard() {
         ) : (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
         )}
+      </div>
+
+      {/* Today's Journal card */}
+      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>📔 Today&apos;s Journal</h2>
+            {todayJournal ? (
+              <>
+                <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  {todayJournal.mood ? <>Mood: {moodEmoji(todayJournal.mood)} · </> : null}
+                  Saved {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                </p>
+                <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
+                  {todayJournal.wentWell.trim() || todayJournal.quickNotes.trim() || 'Entry started'}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No journal entry yet today.</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/journal')}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
+            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
+          >
+            Open Journal
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">

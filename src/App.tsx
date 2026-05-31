@@ -14,6 +14,7 @@ import Habits from './pages/Habits'
 import WeeklyReview from './pages/WeeklyReview'
 import Settings from './pages/Settings/Settings'
 import TimeReports from './pages/TimeReports'
+import DailyJournal from './pages/DailyJournal'
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/archived" element={<Archived />} />
               <Route path="/time-reports" element={<TimeReports />} />
+              <Route path="/journal" element={<DailyJournal />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/about" element={<About />} />
             </Route>

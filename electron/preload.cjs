@@ -106,6 +106,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTimeEntry:    (id, data)      => ipcRenderer.invoke('time:update', id, data),
   getTotalFocusToday: (date)          => ipcRenderer.invoke('time:totalToday', date),
 
+  // Journal
+  getJournalEntry:     (date)                    => ipcRenderer.invoke('journal:get', date),
+  upsertJournalEntry:  (date, data)              => ipcRenderer.invoke('journal:upsert', date, data),
+  deleteJournalEntry:  (date)                    => ipcRenderer.invoke('journal:delete', date),
+  getJournalRange:     (start, end)              => ipcRenderer.invoke('journal:range', start, end),
+  getJournalOnThisDay: (month, day, excludeDate) => ipcRenderer.invoke('journal:onThisDay', month, day, excludeDate),
+  getJournalDailyStats:(date)                   => ipcRenderer.invoke('journal:dailyStats', date),
+  getJournalSummaryReport:(start, end, criteria) => ipcRenderer.invoke('journal:summaryReport', start, end, criteria),
+
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 })

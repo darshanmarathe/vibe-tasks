@@ -164,6 +164,15 @@ export interface ElectronAPI {
   updateTimeEntry: (id: number, data: Partial<TimeEntry>) => Promise<TimeEntry>
   getTotalFocusToday: (date: string) => Promise<number>
 
+  // Journal
+  getJournalEntry: (date: string) => Promise<JournalEntry | null>
+  upsertJournalEntry: (date: string, data: Partial<Pick<JournalEntry, 'mood' | 'wentWell' | 'toImprove' | 'wins' | 'losses' | 'quickNotes'>>) => Promise<JournalEntry | null>
+  deleteJournalEntry: (date: string) => Promise<void>
+  getJournalRange: (start: string, end: string) => Promise<JournalEntry[]>
+  getJournalOnThisDay: (month: number, day: number, excludeDate?: string) => Promise<OnThisDayEntry[]>
+  getJournalDailyStats: (date: string) => Promise<JournalDailyStats>
+  getJournalSummaryReport: (start: string, end: string, criteria: JournalSummaryCriteria) => Promise<JournalSummaryReport>
+
   // Focus Mode
   toggleFocus: () => Promise<void>
 }
@@ -269,6 +278,7 @@ export interface WeeklyReview {
   habitsTracked: number
   notesWritten: number
   pomodoroSessions: number
+  journalDays: number
   weekStart: string
 }
 
@@ -299,6 +309,72 @@ export interface WeeklyReportDay {
   date: string
   totalSeconds: number
   byTask: { taskId: number; taskName: string; totalSeconds: number }[]
+}
+
+export interface JournalEntry {
+  id: number
+  date: string
+  mood: number | null
+  wentWell: string
+  toImprove: string
+  wins: string
+  losses: string
+  quickNotes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface JournalDailyStats {
+  date: string
+  tasksCompleted: number
+  tasksCompletedList: { id: number; name: string }[]
+  pomodoroSessions: number
+  habitsCompleted: number
+  habitsTotal: number
+  focusTimeSeconds: number
+  notesWritten: number
+}
+
+export interface OnThisDayEntry {
+  date: string
+  mood: number | null
+  wentWell: string
+  yearsAgo: number
+}
+
+export interface JournalSummaryCriteria {
+  includeMood: boolean
+  includeWentWell: boolean
+  includeToImprove: boolean
+  includeWins: boolean
+  includeLosses: boolean
+  includeQuickNotes: boolean
+  includeTasksCompleted: boolean
+  includePomodoros: boolean
+  includeHabits: boolean
+  includeFocusTime: boolean
+  includeNotesWritten: boolean
+}
+
+export interface JournalSummaryDay {
+  date: string
+  entry: JournalEntry | null
+  stats: JournalDailyStats | null
+}
+
+export interface JournalSummaryReport {
+  startDate: string
+  endDate: string
+  daysJournaled: number
+  averageMood: number | null
+  totalPomodoroSessions: number
+  totalTasksCompleted: number
+  totalFocusTimeSeconds: number
+  totalNotesWritten: number
+  totalHabitsCompleted: number
+  allWins: { date: string; text: string }[]
+  allLosses: { date: string; text: string }[]
+  days: JournalSummaryDay[]
 }
 
 declare global {

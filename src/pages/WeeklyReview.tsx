@@ -58,6 +58,13 @@ export default function WeeklyReviewPage() {
             suffix="sessions"
             color="var(--critical)"
           />
+          <StatCard
+            icon="📔"
+            label="Journal Days"
+            value={data.journalDays}
+            suffix="days"
+            color="var(--accent-hover)"
+          />
         </div>
       )}
 
@@ -72,6 +79,7 @@ export default function WeeklyReviewPage() {
             <li>• Tracked habits on {data.habitsTracked} different days</li>
             <li>• Wrote {data.notesWritten} new notes</li>
             <li>• Completed {data.pomodoroSessions} pomodoro sessions</li>
+            <li>• Journaled on {data.journalDays} days</li>
           </ul>
         </div>
       )}
