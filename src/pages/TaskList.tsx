@@ -3,6 +3,7 @@ import type { TaskWithRelations, Status, Priority, Project, User } from '../type
 import { parseDateFromText } from '../utils/dateParser'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge, formatElapsedShort } from '../components/TimerBadge'
+import BulkAddModal from '../components/BulkAddModal'
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
@@ -18,6 +19,7 @@ export default function TaskList() {
   const [quickProject, setQuickProject] = useState(0)
   const [quickAssignedTo, setQuickAssignedTo] = useState(0)
   const [parsedDueDate, setParsedDueDate] = useState<string | null>(null)
+  const [showBulkAdd, setShowBulkAdd] = useState(false)
   const [filterStatus, setFilterStatus] = useState(0)
   const [filterPriority, setFilterPriority] = useState(0)
   const [filterProject, setFilterProject] = useState(0)
@@ -307,8 +309,31 @@ export default function TaskList() {
           >
             Add
           </button>
+          <button
+            onClick={() => setShowBulkAdd(true)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            title="Bulk add multiple tasks"
+          >
+            Bulk Add
+          </button>
         </div>
       </div>
+
+      {showBulkAdd && (
+        <BulkAddModal
+          statuses={statuses}
+          priorities={priorities}
+          projects={projects}
+          users={users}
+          defaultStatus={quickStatus}
+          defaultPriority={quickPriority}
+          defaultProject={quickProject}
+          defaultAssignedTo={quickAssignedTo}
+          onClose={() => setShowBulkAdd(false)}
+          onDone={loadData}
+        />
+      )}
 
       {/* Search & Filters */}
       <div className="flex gap-3">

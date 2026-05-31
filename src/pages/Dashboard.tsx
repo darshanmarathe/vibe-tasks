@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useNavigate } from 'react-router-dom'
 import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
 import { useTimer } from '../contexts/TimerContext'
+import BulkAddModal from '../components/BulkAddModal'
 export default function Dashboard() {
   const navigate = useNavigate()
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [quickProject, setQuickProject] = useState(0)
   const [quickAssignedTo, setQuickAssignedTo] = useState(0)
   const [parsedDueDate, setParsedDueDate] = useState<string | null>(null)
+  const [showBulkAdd, setShowBulkAdd] = useState(false)
 
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
@@ -291,7 +293,17 @@ export default function Dashboard() {
 
       {/* Quick Add */}
       <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Quick Add Task</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Add Task</h2>
+          <button
+            onClick={() => setShowBulkAdd(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+            title="Bulk add multiple tasks"
+          >
+            Bulk Add
+          </button>
+        </div>
         <div className="flex gap-3 items-end">
           <div className="flex-1">
             <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Task Name</label>
@@ -349,6 +361,21 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      {showBulkAdd && (
+        <BulkAddModal
+          statuses={statuses}
+          priorities={priorities}
+          projects={projects}
+          users={users}
+          defaultStatus={quickStatus}
+          defaultPriority={quickPriority}
+          defaultProject={quickProject}
+          defaultAssignedTo={quickAssignedTo}
+          onClose={() => setShowBulkAdd(false)}
+          onDone={loadData}
+        />
+      )}
 
       {/* Calendar view — 50/50 split */}
       {(() => {
