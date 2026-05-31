@@ -150,6 +150,22 @@ export interface ElectronAPI {
 
   // Theme
   setTheme: (theme: string) => Promise<void>
+
+  // Time Tracking
+  startTimer: (taskId: number, note?: string) => Promise<TimeEntry>
+  stopTimer: (entryId: number) => Promise<TimeEntry>
+  stopRunningTimer: () => Promise<TimeEntry | null>
+  getRunningTimer: () => Promise<TimeEntry | null>
+  getTaskTime: (taskId: number, range?: TimeRange) => Promise<number>
+  getDailyReport: (date: string) => Promise<DailyReportEntry[]>
+  getWeeklyReport: (startDate: string) => Promise<WeeklyReportDay[]>
+  getTimeEntries: (taskId: number) => Promise<TimeEntry[]>
+  deleteTimeEntry: (id: number) => Promise<void>
+  updateTimeEntry: (id: number, data: Partial<TimeEntry>) => Promise<TimeEntry>
+  getTotalFocusToday: (date: string) => Promise<number>
+
+  // Focus Mode
+  toggleFocus: () => Promise<void>
 }
 
 export interface Notebook {
@@ -254,6 +270,35 @@ export interface WeeklyReview {
   notesWritten: number
   pomodoroSessions: number
   weekStart: string
+}
+
+export interface TimeEntry {
+  id: number
+  task_id: number
+  task_name?: string
+  start_time: string
+  end_time: string | null
+  duration_seconds: number | null
+  note: string
+  created_at: string
+}
+
+export interface TimeRange {
+  start: string
+  end: string
+}
+
+export interface DailyReportEntry {
+  taskId: number
+  taskName: string
+  totalSeconds: number
+  entries: TimeEntry[]
+}
+
+export interface WeeklyReportDay {
+  date: string
+  totalSeconds: number
+  byTask: { taskId: number; taskName: string; totalSeconds: number }[]
 }
 
 declare global {

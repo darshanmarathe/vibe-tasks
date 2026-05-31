@@ -289,6 +289,10 @@
     if (isFocus) {
       sessionCount++
       sessionsEl.textContent = 'Sessions: ' + sessionCount
+      // Log pomodoro session + auto-stop any running time tracker
+      try {
+        window.electronAPI.sessionComplete(focusMinutes)
+      } catch (e) { /* not critical */ }
       playXylophone()
       showNotification('Focus Complete!', 'Time for a break. ☕')
       stopAlarmBtn.style.display = ''

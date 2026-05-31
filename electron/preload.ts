@@ -91,4 +91,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHabitStats: (habitId: number) => ipcRenderer.invoke('habits:stats', habitId),
   getWeeklyReview: () => ipcRenderer.invoke('habits:weeklyReview'),
   logPomodoroSession: (durationMinutes: number) => ipcRenderer.invoke('habits:pomodoroLog', durationMinutes),
+
+  // Time Tracking
+  startTimer:       (taskId, note)       => ipcRenderer.invoke('time:start', taskId, note),
+  stopTimer:        (entryId)            => ipcRenderer.invoke('time:stop', entryId),
+  stopRunningTimer: ()                   => ipcRenderer.invoke('time:stopRunning'),
+  getRunningTimer:  ()                   => ipcRenderer.invoke('time:running'),
+  getTaskTime:      (taskId, range)      => ipcRenderer.invoke('time:taskTime', taskId, range),
+  getDailyReport:   (date)               => ipcRenderer.invoke('time:dailyReport', date),
+  getWeeklyReport:  (startDate)          => ipcRenderer.invoke('time:weeklyReport', startDate),
+  getTimeEntries:   (taskId)             => ipcRenderer.invoke('time:entries', taskId),
+  deleteTimeEntry:  (id)                 => ipcRenderer.invoke('time:delete', id),
+  updateTimeEntry:  (id, data)           => ipcRenderer.invoke('time:update', id, data),
+  getTotalFocusToday: (date)             => ipcRenderer.invoke('time:totalToday', date),
+
+  // Focus Mode
+  toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 })

@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry } from '../types/models'
 import { parseDateFromText } from '../utils/dateParser'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { useNavigate } from 'react-router-dom'
-
+import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
+import { useTimer } from '../contexts/TimerContext'
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
   const [recentNotes, setRecentNotes] = useState<NoteWithNotebook[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
@@ -13,6 +15,8 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [todayFocus, setTodayFocus] = useState<DailyReportEntry[]>([])
+  const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
 
   // Quick Add state
   const [quickName, setQuickName] = useState('')
@@ -36,13 +40,15 @@ export default function Dashboard() {
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
 
   const loadData = useCallback(async () => {
-    const [t, s, p, pr, u, rn] = await Promise.all([
+    const today = new Date().toISOString().split('T')[0]
+    const [t, s, p, pr, u, rn, focus] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
       window.electronAPI.getProjects(),
       window.electronAPI.getUsers(),
       window.electronAPI.getRecentNotes(10),
+      window.electronAPI.getDailyReport(today),
     ])
     setTasks(t)
     setStatuses(s)
@@ -50,12 +56,20 @@ export default function Dashboard() {
     setProjects(pr)
     setUsers(u)
     setRecentNotes(rn)
+    setTodayFocus(focus)
+    const times = await Promise.all(
+      t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
+    )
+    setTaskTimes(new Map(times))
     if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
     if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
     if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const todayFocusTotal = todayFocus.reduce((s, g) => s + g.totalSeconds, 0)
+  const topFocusTasks = [...todayFocus].sort((a, b) => b.totalSeconds - a.totalSeconds).slice(0, 3)
 
   const byStatus = (name: string) => tasks.filter(t => t.statusName === name).length
   const byPriority = (name: string) => tasks.filter(t => t.priorityName === name).length
@@ -199,6 +213,34 @@ export default function Dashboard() {
             <p className="text-3xl font-bold mt-1" style={{ color: card.color }}>{card.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* Today's Focus Time card */}
+      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>⏱ Today's Focus Time</h2>
+          <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+            {todayFocusTotal > 0 ? formatElapsedShort(todayFocusTotal) : '—'}
+          </span>
+        </div>
+        {topFocusTasks.length > 0 ? (
+          <div className="space-y-2">
+            {topFocusTasks.map(g => {
+              const pct = todayFocusTotal > 0 ? (g.totalSeconds / todayFocusTotal) * 100 : 0
+              return (
+                <div key={g.taskId} className="flex items-center gap-3">
+                  <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{g.taskName}</span>
+                  <div className="w-24 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }} />
+                  </div>
+                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatElapsedShort(g.totalSeconds)}</span>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-6">
@@ -434,6 +476,7 @@ export default function Dashboard() {
                 <th className="text-left py-2">Assigned To</th>
                 <th className="text-left py-2">Due</th>
                 <th className="text-left py-2">%</th>
+                <th className="text-left py-2">Time</th>
                 <th className="text-right py-2">Actions</th>
               </tr>
             </thead>
@@ -469,19 +512,29 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </td>
-                  <td className="py-2 text-right space-x-1">
-                    {task.assignedToEmail && (
-                      <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
-                        onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                  <td className="py-2">
+                    {(taskTimes.get(task.id) ?? 0) > 0 ? (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>🔥 {formatElapsedShort(taskTimes.get(task.id)!)}</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
                     )}
-                    <button
-                      onClick={e => { e.stopPropagation(); handleArchive(task.id) }}
-                      className="text-xs"
-                      style={{ color: 'var(--text-muted)' }}
-                      title="Archive"
-                    >
-                      📦
-                    </button>
+                  </td>
+                  <td className="py-2 text-right">
+                    <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {task.assignedToEmail && (
+                        <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                          onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                      )}
+                      {runningEntry?.task_id === task.id ? (
+                        <div className="flex items-center gap-1">
+                          <TimerBadge elapsed={elapsed} />
+                          <button onClick={() => stopTimer()} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }} title="Stop timer">⏹</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startTimer(task.id)} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')} title="Start timer">▶</button>
+                      )}
+                      <button onClick={() => handleArchive(task.id)} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
+                    </div>
                   </td>
                 </tr>
               ))}

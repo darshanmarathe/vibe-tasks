@@ -39,7 +39,7 @@ execSync('npx vite build', { cwd: root, stdio: 'inherit' })
 
 // Step 2: Copy preload & HTML files to dist-electron
 console.log('[2/3] Copying preload & asset files...')
-const filesToCopy = ['preload.cjs', 'pomodoroPreload.cjs', 'pomodoro.html']
+const filesToCopy = ['preload.cjs', 'pomodoroPreload.cjs', 'pomodoro.html', 'focusPreload.cjs', 'focus.html']
 for (const file of filesToCopy) {
   const src = join(root, 'electron', file)
   const dest = join(distElectron, file)

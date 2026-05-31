@@ -12,11 +12,13 @@ import * as taskRepo from './database/repositories/taskRepo'
 import * as noteRepo from './database/repositories/noteRepo'
 import * as mindmapRepo from './database/repositories/mindmapRepo'
 import * as habitRepo from './database/repositories/habitRepo'
+import * as timeRepo from './database/repositories/timeRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let mainWindow: BrowserWindow | null = null
 let pomodoroWindow: BrowserWindow | null = null
+let focusWindow: BrowserWindow | null = null
 const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
 const DEFAULT_THEME = 'dark'
 const DEFAULT_ZOOM_FACTOR = 1
@@ -159,6 +161,37 @@ function createPomodoroWindow() {
 
   pomodoroWindow.on('closed', () => {
     pomodoroWindow = null
+  })
+}
+
+function createFocusWindow() {
+  if (focusWindow) {
+    focusWindow.focus()
+    return
+  }
+
+  focusWindow = new BrowserWindow({
+    width: 240,
+    height: 380,
+    alwaysOnTop: true,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: preloadPath('focusPreload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  const focusPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'electron', 'focus.html')
+    : path.join(app.getAppPath(), 'electron', 'focus.html')
+  focusWindow.loadFile(focusPath)
+
+  focusWindow.on('closed', () => {
+    focusWindow = null
   })
 }
 
@@ -332,6 +365,48 @@ function registerIpcHandlers() {
   ipcMain.handle('habits:stats', (_e, habitId) => habitRepo.getHabitStats(habitId))
   ipcMain.handle('habits:weeklyReview', () => habitRepo.getWeeklyReview())
   ipcMain.handle('habits:pomodoroLog', (_e, durationMinutes) => habitRepo.logPomodoroSession(durationMinutes))
+
+  // Time Tracking
+  ipcMain.handle('time:start', (_e, taskId, note) => {
+    const entry = timeRepo.startTimer(taskId, note)
+    focusWindow?.webContents.send('focus:timerUpdate', entry)
+    return entry
+  })
+  ipcMain.handle('time:stop', (_e, entryId) => {
+    const entry = timeRepo.stopTimer(entryId)
+    focusWindow?.webContents.send('focus:timerUpdate', null)
+    return entry
+  })
+  ipcMain.handle('time:stopRunning', () => {
+    const entry = timeRepo.stopRunningTimer()
+    focusWindow?.webContents.send('focus:timerUpdate', null)
+    return entry
+  })
+  ipcMain.handle('time:running',      ()                   => timeRepo.getRunningTimer())
+  ipcMain.handle('time:taskTime',     (_e, taskId, range)  => timeRepo.getTaskTime(taskId, range))
+  ipcMain.handle('time:dailyReport',  (_e, date)           => timeRepo.getDailyReport(date))
+  ipcMain.handle('time:weeklyReport', (_e, startDate)      => timeRepo.getWeeklyReport(startDate))
+  ipcMain.handle('time:entries',      (_e, taskId)         => timeRepo.getAllTimeEntries(taskId))
+  ipcMain.handle('time:delete',       (_e, id)             => timeRepo.deleteEntry(id))
+  ipcMain.handle('time:update',       (_e, id, data)       => timeRepo.updateEntry(id, data))
+  ipcMain.handle('time:totalToday',   (_e, date)           => timeRepo.getTotalFocusToday(date))
+
+  // Focus Mode
+  ipcMain.handle('focus:toggle', () => {
+    if (focusWindow) { focusWindow.close() } else { createFocusWindow() }
+  })
+  ipcMain.handle('focus:close',    () => { focusWindow?.close() })
+  ipcMain.handle('focus:minimize', () => { focusWindow?.minimize() })
+
+  // Pomodoro session complete — logs habit session + stops running timer
+  ipcMain.handle('pomodoro:sessionComplete', (_e, durationMinutes) => {
+    habitRepo.logPomodoroSession(durationMinutes)
+    const running = timeRepo.getRunningTimer()
+    if (running) {
+      timeRepo.stopTimer(running.id)
+      focusWindow?.webContents.send('focus:timerUpdate', null)
+    }
+  })
 
   ipcMain.handle('theme:get', () => {
     return getThemeFromConfig()

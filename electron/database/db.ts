@@ -312,6 +312,24 @@ function runHabitMigrations() {
   if (!taskCols.some((c: any) => c.name === 'completed_at')) {
     db.run('ALTER TABLE tasks ADD COLUMN completed_at TEXT')
   }
+
+  runTimeMigrations()
+}
+
+function runTimeMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS time_entries (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      task_id          INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+      start_time       TEXT NOT NULL,
+      end_time         TEXT,
+      duration_seconds INTEGER,
+      note             TEXT DEFAULT '',
+      created_at       TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_time_entries_task  ON time_entries(task_id);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_start ON time_entries(start_time);
+  `)
 }
 
 function runMindMapMigrations() {

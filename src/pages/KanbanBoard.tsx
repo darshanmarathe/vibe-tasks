@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
+import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
+import { useTimer } from '../contexts/TimerContext'
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
@@ -26,6 +28,8 @@ export default function KanbanBoard() {
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
+  const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
 
   // Filter state
   const [filterProject, setFilterProject] = useState(0)
@@ -52,6 +56,10 @@ export default function KanbanBoard() {
     setPriorities(p)
     setProjects(pr)
     setUsers(u)
+    const times = await Promise.all(
+      t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
+    )
+    setTaskTimes(new Map(times))
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
@@ -173,6 +181,34 @@ export default function KanbanBoard() {
                         </div>
                       </div>
                     )}
+                    {(taskTimes.get(task.id) ?? 0) > 0 && (
+                      <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                        🔥 {formatElapsedShort(taskTimes.get(task.id)!)}
+                      </p>
+                    )}
+                    {/* Timer button */}
+                    <div className="mt-2 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      {runningEntry?.task_id === task.id ? (
+                        <>
+                          <TimerBadge elapsed={elapsed} className="text-xs" />
+                          <button
+                            onClick={() => stopTimer()}
+                            className="text-xs px-1.5 py-0.5 rounded ml-auto"
+                            style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }}
+                            title="Stop timer"
+                          >⏹</button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => startTimer(task.id)}
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                          title="Start timer"
+                        >▶ Track</button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {columnTasks.length === 0 && (

@@ -10,6 +10,8 @@
 Two tightly coupled features:
 
 1. **Manual Time Tracking** — Start/stop a timer per task, log duration, show reports
+  1. Show Projects Dropdown 
+  2. Based on selected Project show list of tasks
 2. **Focus Mode** — Distraction-free overlay that keeps you on-task, integrates with both time tracking and the existing Pomodoro timer
 
 ---

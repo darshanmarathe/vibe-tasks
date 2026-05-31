@@ -154,3 +154,18 @@
    2. ✅ Title bar overlay now matches active theme — reads theme from config on launch, updates dynamically when toggling
    3. ✅ App now opens in Maximized mode — `mainWindow.maximize()` called after window creation
     4. ✅ Tasks by Priority :: Pie chart now uses Syncfusion AccumulationChart with dynamic priority colors
+
+  ### Release 1.6.0 ✅
+  1. ✅ Time Tracking — Start/stop timer per task with live MM:SS counter on task rows
+  2. ✅ TimerContext — Global React context with restart recovery (rehydrates from DB on app launch)
+  3. ✅ TimerBadge component — Reusable HH:MM:SS / MM:SS display, used across all views
+  4. ✅ Global timer bar in sidebar — shows running task name, elapsed time, ⏹ stop and 🎯 focus buttons
+  5. ✅ 🔥 Logged time badge on Tasks page — shows total time logged per task (e.g. 🔥 1h 23m)
+  6. ✅ 🔥 Logged time badge on Inbox — upcoming cards + All Tasks table column
+  7. ✅ 🔥 Logged time badge on Dashboard — Recent Tasks table column
+  8. ✅ 🔥 Logged time badge on Kanban — shown on each card below completion bar
+  9. ✅ Focus Mode overlay — always-on-top frameless window with task name, elapsed time, progress bar toward 2h daily goal
+  10. ✅ Time Reports page — daily/weekly views, edit/delete entries, CSV export
+  11. ✅ Dashboard — Today's Focus Time card with per-task breakdown bars
+  12. ✅ Pomodoro integration — session complete auto-stops running timer and logs duration
+  13. ✅ time_entries table with indexes — migration added to DB init chain

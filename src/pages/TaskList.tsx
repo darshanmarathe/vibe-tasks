@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 import { parseDateFromText } from '../utils/dateParser'
+import { useTimer } from '../contexts/TimerContext'
+import { TimerBadge, formatElapsedShort } from '../components/TimerBadge'
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
@@ -8,6 +10,8 @@ export default function TaskList() {
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
+  const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
   const [quickName, setQuickName] = useState('')
   const [quickStatus, setQuickStatus] = useState(0)
   const [quickPriority, setQuickPriority] = useState(0)
@@ -55,7 +59,18 @@ export default function TaskList() {
     if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
   }, [])
 
+  const loadTaskTimes = useCallback(async (taskList: TaskWithRelations[]) => {
+    const entries = await Promise.all(
+      taskList.map(t => window.electronAPI.getTaskTime(t.id).then(secs => [t.id, secs] as [number, number]))
+    )
+    setTaskTimes(new Map(entries))
+  }, [])
+
   useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    if (tasks.length > 0) loadTaskTimes(tasks)
+  }, [tasks.length])
 
   const handleNameChange = (val: string) => {
     setQuickName(val)
@@ -419,14 +434,47 @@ export default function TaskList() {
                               </div>
                             </td>
                             <td className="py-2.5 px-4 text-right">
-                              <button
-                                onClick={e => { e.stopPropagation(); handleArchive(task.id) }}
-                                className="text-xs"
-                                style={{ color: 'var(--text-muted)' }}
-                                title="Archive"
-                              >
-                                📦
-                              </button>
+                              <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                {/* Logged time badge */}
+                                {(taskTimes.get(task.id) ?? 0) > 0 && (
+                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    🔥 {formatElapsedShort(taskTimes.get(task.id)!)}
+                                  </span>
+                                )}
+                                {/* Timer button */}
+                                {runningEntry?.task_id === task.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <TimerBadge elapsed={elapsed} />
+                                    <button
+                                      onClick={() => stopTimer()}
+                                      className="text-xs px-1.5 py-0.5 rounded transition-colors"
+                                      style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }}
+                                      title="Stop timer"
+                                    >
+                                      ⏹
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => startTimer(task.id)}
+                                    className="text-xs px-1.5 py-0.5 rounded transition-colors"
+                                    style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                                    title="Start timer"
+                                  >
+                                    ▶
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleArchive(task.id)}
+                                  className="text-xs"
+                                  style={{ color: 'var(--text-muted)' }}
+                                  title="Archive"
+                                >
+                                  📦
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

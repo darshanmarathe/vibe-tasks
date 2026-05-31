@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
+import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
+import { useTimer } from '../contexts/TimerContext'
 
 type SortKey = 'name' | 'statusName' | 'priorityName' | 'projectName' | 'dueDate'
 type SortDir = 'asc' | 'desc'
@@ -28,6 +30,8 @@ export default function Inbox() {
   const [filterPriority, setFilterPriority] = useState(0)
   const [sortKey, setSortKey] = useState<SortKey>('dueDate')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
+  const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
 
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
@@ -55,6 +59,10 @@ export default function Inbox() {
     setPriorities(p)
     setProjects(pr)
     setUsers(u)
+    const times = await Promise.all(
+      t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
+    )
+    setTaskTimes(new Map(times))
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
@@ -196,6 +204,9 @@ export default function Inbox() {
                     {task.assignedToName && <span>👤 {task.assignedToName}</span>}
                     {task.dueDate && <span style={{ color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)' }}>{formatDate(task.dueDate)}</span>}
                     <span>{task.completionPercent}%</span>
+                    {(taskTimes.get(task.id) ?? 0) > 0 && (
+                      <span style={{ color: 'var(--text-muted)' }}>🔥 {formatElapsedShort(taskTimes.get(task.id)!)}</span>
+                    )}
                   </div>
                 </div>
                 {task.assignedToEmail ? (
@@ -204,6 +215,14 @@ export default function Inbox() {
                 ) : (
                   <a href={`mailto:?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
                     onClick={e => e.stopPropagation()} className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }} title="Email task">📧</a>
+                )}
+                {runningEntry?.task_id === task.id ? (
+                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    <TimerBadge elapsed={elapsed} />
+                    <button onClick={() => stopTimer()} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }} title="Stop timer">⏹</button>
+                  </div>
+                ) : (
+                  <button onClick={e => { e.stopPropagation(); startTimer(task.id) }} className="text-xs px-1.5 py-0.5 rounded shrink-0" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')} title="Start timer">▶</button>
                 )}
                 <button onClick={e => { e.stopPropagation(); handleArchive(task.id) }} className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
               </div>
@@ -229,6 +248,7 @@ export default function Inbox() {
                 <th className="text-left py-3 px-4">Assigned To</th>
                 <th className="text-left py-3 px-4 cursor-pointer select-none" onClick={() => toggleSort('dueDate')} style={{ color: sortKey === 'dueDate' ? 'var(--accent)' : 'inherit' }}>Due{sortArrow('dueDate')}</th>
                 <th className="text-left py-3 px-4">%</th>
+                <th className="text-left py-3 px-4">Time</th>
                 <th className="text-right py-3 px-4">Actions</th>
               </tr>
             </thead>
@@ -256,20 +276,37 @@ export default function Inbox() {
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right space-x-2">
-                    {task.assignedToEmail ? (
-                      <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
-                        onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                  <td className="py-3 px-4">
+                    {(taskTimes.get(task.id) ?? 0) > 0 ? (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>🔥 {formatElapsedShort(taskTimes.get(task.id)!)}</span>
                     ) : (
-                      <a href={`mailto:?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
-                        onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Email task">📧</a>
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
                     )}
-                    <button onClick={e => { e.stopPropagation(); handleArchive(task.id) }} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      {task.assignedToEmail ? (
+                        <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                          onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                      ) : (
+                        <a href={`mailto:?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                          onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Email task">📧</a>
+                      )}
+                      {runningEntry?.task_id === task.id ? (
+                        <div className="flex items-center gap-1">
+                          <TimerBadge elapsed={elapsed} />
+                          <button onClick={() => stopTimer()} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }} title="Stop timer">⏹</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => startTimer(task.id)} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')} title="Start timer">▶</button>
+                      )}
+                      <button onClick={() => handleArchive(task.id)} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {otherTasks.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center" style={{ color: 'var(--text-secondary)' }}>No tasks found.</td></tr>
               )}
             </tbody>
           </table>

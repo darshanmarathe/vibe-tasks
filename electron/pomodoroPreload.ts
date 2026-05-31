@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onThemeChanged: (callback: (theme: string) => void) => {
     ipcRenderer.on('theme:changed', (_event, theme) => callback(theme))
   },
+  sessionComplete: (durationMinutes: number) => ipcRenderer.invoke('pomodoro:sessionComplete', durationMinutes),
 })
