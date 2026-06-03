@@ -6,6 +6,7 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table'
 import type { Notebook, Note, TagWithCount } from '../types/models'
+import LinkInput from '../components/LinkInput'
 
 function WikiLinkPopup({ data, onSelect, onClose }: {
   data: { items: { id: string; title: string }[]; idx: number; left: number; top: number } | null
@@ -642,6 +643,7 @@ export default function Notes() {
                 </span>
               ))}
               <TagInput noteId={selectedNote.id} onTagsChange={reloadTags} />
+              <LinkInput linkedType="note" linkedId={selectedNote.id} onLinksChange={reloadTags} />
             </div>
             {editor && <MenuBar editor={editor} />}
             <div className="flex-1 overflow-y-auto p-4">

@@ -115,6 +115,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getJournalDailyStats:(date)                   => ipcRenderer.invoke('journal:dailyStats', date),
   getJournalSummaryReport:(start, end, criteria) => ipcRenderer.invoke('journal:summaryReport', start, end, criteria),
 
+  // Links
+  getLinks: (filters) => ipcRenderer.invoke('links:list', filters),
+  getLink: (id) => ipcRenderer.invoke('links:get', id),
+  createLink: (data) => ipcRenderer.invoke('links:create', data),
+  updateLink: (id, data) => ipcRenderer.invoke('links:update', id, data),
+  deleteLink: (id) => ipcRenderer.invoke('links:delete', id),
+  getLinkCategories: () => ipcRenderer.invoke('links:categories:list'),
+  createLinkCategory: (name) => ipcRenderer.invoke('links:categories:create', name),
+  deleteLinkCategory: (id) => ipcRenderer.invoke('links:categories:delete', id),
+
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 })

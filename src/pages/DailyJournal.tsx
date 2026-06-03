@@ -4,6 +4,7 @@ import MoodPicker from '../components/MoodPicker'
 import JournalStatsPanel from '../components/JournalStatsPanel'
 import OnThisDayPanel from '../components/OnThisDayPanel'
 import JournalSummaryReport from '../components/JournalSummaryReport'
+import LinkInput from '../components/LinkInput'
 
 const JOURNAL_DATE_KEY = 'vibe-journal-date'
 
@@ -177,6 +178,11 @@ export default function DailyJournal() {
                     />
                   </div>
                 ))}
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Links</label>
+                  <LinkInput linkedType="journal" linkedId={date} />
+                </div>
 
                 <OnThisDayPanel entries={onThisDay} onSelectDate={setDate} />
               </div>

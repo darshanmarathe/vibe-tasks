@@ -4,6 +4,7 @@ import { parseDateFromText } from '../utils/dateParser'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge, formatElapsedShort } from '../components/TimerBadge'
 import BulkAddModal from '../components/BulkAddModal'
+import LinkInput from '../components/LinkInput'
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
@@ -607,6 +608,11 @@ export default function TaskList() {
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   />
                 )}
+              </div>
+
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Links</label>
+                <LinkInput linkedType="task" linkedId={editingTask.id} />
               </div>
 
               {/* Dependencies */}

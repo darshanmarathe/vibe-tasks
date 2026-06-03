@@ -14,6 +14,7 @@ import * as mindmapRepo from './database/repositories/mindmapRepo'
 import * as habitRepo from './database/repositories/habitRepo'
 import * as timeRepo from './database/repositories/timeRepo'
 import * as journalRepo from './database/repositories/journalRepo'
+import * as linkRepo from './database/repositories/linkRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -379,6 +380,15 @@ function registerIpcHandlers() {
     })
     helpWin.loadFile(helpPath)
   })
+
+  ipcMain.handle('links:list', (_e, filters) => linkRepo.getLinks(filters))
+  ipcMain.handle('links:get', (_e, id) => linkRepo.getLink(id))
+  ipcMain.handle('links:create', (_e, data) => linkRepo.createLink(data))
+  ipcMain.handle('links:update', (_e, id, data) => linkRepo.updateLink(id, data))
+  ipcMain.handle('links:delete', (_e, id) => linkRepo.deleteLink(id))
+  ipcMain.handle('links:categories:list', () => linkRepo.getCategories())
+  ipcMain.handle('links:categories:create', (_e, name) => linkRepo.createCategory(name))
+  ipcMain.handle('links:categories:delete', (_e, id) => linkRepo.deleteCategory(id))
 
   ipcMain.handle('notes:exportMarkdown', async (_e, noteId) => {
     const note = noteRepo.getNoteById(noteId)

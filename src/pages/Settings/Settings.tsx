@@ -4,12 +4,14 @@ import ProjectsTab from './ProjectsTab'
 import StatusTab from './StatusTab'
 import PriorityTab from './PriorityTab'
 import DatabaseTab from './DatabaseTab'
+import LinkCategoriesTab from './LinkCategoriesTab'
 
 const tabs = [
   { id: 'users', label: 'Users' },
   { id: 'projects', label: 'Projects' },
   { id: 'statuses', label: 'Statuses' },
   { id: 'priorities', label: 'Priorities' },
+  { id: 'linkCategories', label: 'Link Categories' },
   { id: 'database', label: 'Database' },
 ]
 
@@ -41,6 +43,7 @@ export default function Settings() {
         {activeTab === 'projects' && <ProjectsTab />}
         {activeTab === 'statuses' && <StatusTab />}
         {activeTab === 'priorities' && <PriorityTab />}
+        {activeTab === 'linkCategories' && <LinkCategoriesTab />}
         {activeTab === 'database' && <DatabaseTab />}
       </div>
     </div>

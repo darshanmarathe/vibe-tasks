@@ -7,6 +7,7 @@ import '@xyflow/react/dist/style.css'
 import { toPng } from 'html-to-image'
 import dagre from 'dagre'
 import type { MindMap } from '../types/models'
+import LinkInput from '../components/LinkInput'
 
 const EMOJIS = [
   '😀', '😎', '🚀', '💡', '⭐', '🎯', '❤️', '🔥',
@@ -849,17 +850,20 @@ export default function MindMapPage() {
 
             {/* Notes Panel */}
             {showNotesPanel && selectedNode && (
-              <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', maxHeight: 160 }}>
+              <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)', maxHeight: 280 }}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
                     📝 Notes — {selectedNode.data.label as string}
                   </span>
                   <button onClick={() => setShowNotesPanel(false)} className="text-xs" style={{ color: 'var(--text-muted)' }}>✕</button>
                 </div>
-                <textarea value={notesText} onChange={e => handleNotesChange(e.target.value)} rows={3}
+                <textarea value={notesText} onChange={e => handleNotesChange(e.target.value)} rows={2}
                   className="w-full border rounded px-2 py-1 text-xs resize-none"
                   style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   placeholder="Add notes for this node..." />
+                <div className="mt-2">
+                  <LinkInput linkedType="mindmap" linkedId={selectedNode.id} />
+                </div>
               </div>
             )}
           </>

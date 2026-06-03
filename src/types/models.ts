@@ -173,6 +173,16 @@ export interface ElectronAPI {
   getJournalDailyStats: (date: string) => Promise<JournalDailyStats>
   getJournalSummaryReport: (start: string, end: string, criteria: JournalSummaryCriteria) => Promise<JournalSummaryReport>
 
+  // Links
+  getLinks: (filters?: { categoryId?: number; linkedType?: string; linkedId?: number | string; displayOnDashboard?: number }) => Promise<Link[]>
+  getLink: (id: number) => Promise<Link | null>
+  createLink: (data: { url: string; text?: string; category_id?: number; display_on_dashboard?: number; linked_type?: string; linked_id?: number | string }) => Promise<Link>
+  updateLink: (id: number, data: Partial<Link>) => Promise<Link>
+  deleteLink: (id: number) => Promise<void>
+  getLinkCategories: () => Promise<LinkCategory[]>
+  createLinkCategory: (name: string) => Promise<LinkCategory>
+  deleteLinkCategory: (id: number) => Promise<void>
+
   // Focus Mode
   toggleFocus: () => Promise<void>
 }
@@ -206,6 +216,23 @@ export interface Tag {
 
 export interface TagWithCount extends Tag {
   count: number
+}
+
+export interface LinkCategory {
+  id: number
+  name: string
+  is_hardcoded: number
+}
+
+export interface Link {
+  id: number
+  url: string
+  text: string
+  category_id: number
+  display_on_dashboard: number
+  linked_type: string | null
+  linked_id: number | string | null
+  created_at: string
 }
 
 export interface MindMap {

@@ -23,6 +23,14 @@
 - **Progress Dashboard** — View goal completion at a glance
   - Radar/spider chart for balanced progress
 
+## Release 1.6.5 Links 
+  - **Links** — Add and manage links within tasks, notes, Mindmaps, journals
+  - Also add a separate link management interface 
+  - Link should have Link, Text, Display_on_Dashboard (boolen)
+  - Categories like General, Tasks, Notes, Mindmaps, Journals (Hardcoded)
+  - I Should be able to add additional categories
+  - May be UI wise create a common widget
+
 ## Release 1.7.0 — Calendar Sync & Recurring Tasks
 
 - **Recurring Tasks** — Daily, weekly, monthly, custom interval

@@ -223,6 +223,7 @@ function runMigrations() {
   }
 
   runNoteMigrations()
+  runLinkMigrations()
 }
 
 function runNoteMigrations() {
@@ -398,4 +399,30 @@ function runMindMapMigrations() {
       dashed INTEGER DEFAULT 0
     );
   `)
+}
+
+function runLinkMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS link_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      is_hardcoded INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL,
+      text TEXT DEFAULT '',
+      category_id INTEGER REFERENCES link_categories(id),
+      display_on_dashboard INTEGER NOT NULL DEFAULT 0,
+      linked_type TEXT,
+      linked_id TEXT,
+      created_at TEXT NOT NULL
+    );
+  `)
+
+  const catCount = exec('SELECT COUNT(*) as count FROM link_categories')
+  if (catCount[0].count === 0) {
+    db.run(`INSERT OR IGNORE INTO link_categories (name, is_hardcoded) VALUES ('General',1), ('Tasks',1), ('Notes',1), ('Mindmaps',1), ('Journals',1)`)
+  }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry, Link } from '../types/models'
 import { moodEmoji } from '../components/MoodPicker'
 import { parseDateFromText } from '../utils/dateParser'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [todayFocus, setTodayFocus] = useState<DailyReportEntry[]>([])
   const [todayJournal, setTodayJournal] = useState<JournalEntry | null>(null)
   const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
+  const [dashboardLinks, setDashboardLinks] = useState<Link[]>([])
 
   // Quick Add state
   const [quickName, setQuickName] = useState('')
@@ -45,7 +46,7 @@ export default function Dashboard() {
 
   const loadData = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0]
-    const [t, s, p, pr, u, rn, focus, journal] = await Promise.all([
+    const [t, s, p, pr, u, rn, focus, journal, dlinks] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
@@ -54,6 +55,7 @@ export default function Dashboard() {
       window.electronAPI.getRecentNotes(10),
       window.electronAPI.getDailyReport(today),
       window.electronAPI.getJournalEntry(today),
+      window.electronAPI.getLinks({ displayOnDashboard: 1 }),
     ])
     setTasks(t)
     setStatuses(s)
@@ -63,6 +65,7 @@ export default function Dashboard() {
     setRecentNotes(rn)
     setTodayFocus(focus)
     setTodayJournal(journal)
+    setDashboardLinks(dlinks)
     const times = await Promise.all(
       t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
     )
@@ -221,61 +224,91 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Today's Focus Time card */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>⏱ Today's Focus Time</h2>
-          <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-            {todayFocusTotal > 0 ? formatElapsedShort(todayFocusTotal) : '—'}
-          </span>
-        </div>
-        {topFocusTasks.length > 0 ? (
-          <div className="space-y-2">
-            {topFocusTasks.map(g => {
-              const pct = todayFocusTotal > 0 ? (g.totalSeconds / todayFocusTotal) * 100 : 0
-              return (
-                <div key={g.taskId} className="flex items-center gap-3">
-                  <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{g.taskName}</span>
-                  <div className="w-24 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }} />
-                  </div>
-                  <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatElapsedShort(g.totalSeconds)}</span>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
-        )}
-      </div>
-
-      {/* Today's Journal card */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>📔 Today&apos;s Journal</h2>
-            {todayJournal ? (
-              <>
-                <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                  {todayJournal.mood ? <>Mood: {moodEmoji(todayJournal.mood)} · </> : null}
-                  Saved {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                </p>
-                <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
-                  {todayJournal.wentWell.trim() || todayJournal.quickNotes.trim() || 'Entry started'}
-                </p>
-              </>
+      <div className="grid grid-cols-2 gap-6">
+        {/* Left column: Focus Time + Journal */}
+        <div className="space-y-6">
+          {/* Today's Focus Time card */}
+          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>⏱ Today's Focus Time</h2>
+              <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                {todayFocusTotal > 0 ? formatElapsedShort(todayFocusTotal) : '—'}
+              </span>
+            </div>
+            {topFocusTasks.length > 0 ? (
+              <div className="space-y-2">
+                {topFocusTasks.map(g => {
+                  const pct = todayFocusTotal > 0 ? (g.totalSeconds / todayFocusTotal) * 100 : 0
+                  return (
+                    <div key={g.taskId} className="flex items-center gap-3">
+                      <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{g.taskName}</span>
+                      <div className="w-24 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }} />
+                      </div>
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatElapsedShort(g.totalSeconds)}</span>
+                    </div>
+                  )
+                })}
+              </div>
             ) : (
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No journal entry yet today.</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/journal')}
-            className="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
-            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
-          >
-            Open Journal
-          </button>
+
+          {/* Today's Journal card */}
+          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>📔 Today&apos;s Journal</h2>
+                {todayJournal ? (
+                  <>
+                    <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      {todayJournal.mood ? <>Mood: {moodEmoji(todayJournal.mood)} · </> : null}
+                      Saved {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                    <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
+                      {todayJournal.wentWell.trim() || todayJournal.quickNotes.trim() || 'Entry started'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No journal entry yet today.</p>
+                )}
+              </div>
+              <button onClick={() => navigate('/journal')}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>
+                Open Journal
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right column: Quick Links */}
+        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>🔗 Quick Links</h2>
+            <button onClick={() => navigate('/links')}
+              className="text-xs px-3 py-1.5 rounded font-semibold"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Manage</button>
+          </div>
+          {dashboardLinks.length === 0 ? (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No dashboard links yet. Add links from the Links page or link them from tasks, notes, etc.</p>
+          ) : (
+            <div className="space-y-2">
+              {dashboardLinks.map(link => (
+                <button key={link.id} onClick={() => window.electronAPI.openExternal(link.url)}
+                  className="flex items-center gap-2 rounded-lg p-2 border transition-colors hover:opacity-80 text-sm w-full text-left"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <span className="truncate flex-1">{link.text || link.url}</span>
+                  {(link as any).category_name && (
+                    <span className="text-xs px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                      {(link as any).category_name}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
