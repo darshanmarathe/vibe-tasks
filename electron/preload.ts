@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteTask: (id: number) => ipcRenderer.invoke('db:tasks:delete', id),
   archiveTask: (id: number) => ipcRenderer.invoke('db:tasks:archive', id),
   unarchiveTask: (id: number) => ipcRenderer.invoke('db:tasks:unarchive', id),
+  getRecurringTasks: () => ipcRenderer.invoke('db:tasks:recurring'),
+  generateNextOccurrence: (id: number) => ipcRenderer.invoke('db:tasks:generate-next', id),
+
+  // Data Portability
+  exportJson: () => ipcRenderer.invoke('db:export-json'),
+  importJson: () => ipcRenderer.invoke('db:import-json'),
+  exportTasksCsv: () => ipcRenderer.invoke('db:export-csv'),
+  importTasksCsv: () => ipcRenderer.invoke('db:import-csv'),
+  exportTaskShare: (taskId: number) => ipcRenderer.invoke('db:export-task-share', taskId),
+  importShareLink: () => ipcRenderer.invoke('db:import-share-link'),
 
   togglePomodoro: () => ipcRenderer.invoke('pomodoro:toggle'),
 
@@ -123,6 +133,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLinkCategories: () => ipcRenderer.invoke('links:categories:list'),
   createLinkCategory: (name: string) => ipcRenderer.invoke('links:categories:create', name),
   deleteLinkCategory: (id: number) => ipcRenderer.invoke('links:categories:delete', id),
+
+  // Flashcards
+  getFlashcardDecks: () => ipcRenderer.invoke('flashcard:decks:list'),
+  createFlashcardDeck: (name: string, description?: string) => ipcRenderer.invoke('flashcard:decks:create', name, description),
+  updateFlashcardDeck: (id: number, data: any) => ipcRenderer.invoke('flashcard:decks:update', id, data),
+  deleteFlashcardDeck: (id: number) => ipcRenderer.invoke('flashcard:decks:delete', id),
+  getFlashcards: (deckId: number) => ipcRenderer.invoke('flashcard:list', deckId),
+  createFlashcard: (deckId: number, front: string, back: string) => ipcRenderer.invoke('flashcard:create', deckId, front, back),
+  updateFlashcard: (id: number, data: any) => ipcRenderer.invoke('flashcard:update', id, data),
+  deleteFlashcard: (id: number) => ipcRenderer.invoke('flashcard:delete', id),
+  reviewFlashcard: (id: number, quality: number) => ipcRenderer.invoke('flashcard:review', id, quality),
+  getDueFlashcards: (deckId?: number) => ipcRenderer.invoke('flashcard:due', deckId),
 
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),

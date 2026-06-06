@@ -328,6 +328,12 @@ export default function KanbanBoard() {
                   archived: 0,
                   assignedTo: addAssignedTo || null,
                   completionPercent: 0,
+                  recurrence_type: 'none',
+                  recurrence_interval: 1,
+                  recurrence_days_of_week: null,
+                  recurrence_end_date: null,
+                  recurrence_count: null,
+                  recurrence_parent_id: null,
                 })
                 setAddingToColumn(null)
                 loadData()

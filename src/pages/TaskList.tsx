@@ -43,6 +43,11 @@ export default function TaskList() {
   const [editSuccessorIds, setEditSuccessorIds] = useState<number[]>([])
   const [showDepPicker, setShowDepPicker] = useState<'predecessor' | 'successor' | null>(null)
   const [depSearch, setDepSearch] = useState('')
+  const [editRecurrenceType, setEditRecurrenceType] = useState('none')
+  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(1)
+  const [editRecurrenceDaysOfWeek, setEditRecurrenceDaysOfWeek] = useState('')
+  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState('')
+  const [editRecurrenceCount, setEditRecurrenceCount] = useState<number | null>(null)
 
   const loadData = useCallback(async () => {
     const [t, s, p, pr, u] = await Promise.all([
@@ -100,6 +105,12 @@ export default function TaskList() {
       archived: 0,
       assignedTo: quickAssignedTo || null,
       completionPercent: 0,
+      recurrence_type: 'none',
+      recurrence_interval: 1,
+      recurrence_days_of_week: null,
+      recurrence_end_date: null,
+      recurrence_count: null,
+      recurrence_parent_id: null,
     })
     setQuickName('')
     setParsedDueDate(null)
@@ -125,6 +136,11 @@ export default function TaskList() {
     setEditNotes(task.notes || '')
     setEditPredecessorIds(JSON.parse(task.predecessorIds || '[]'))
     setEditSuccessorIds(JSON.parse(task.successorIds || '[]'))
+    setEditRecurrenceType(task.recurrence_type || 'none')
+    setEditRecurrenceInterval(task.recurrence_interval ?? 1)
+    setEditRecurrenceDaysOfWeek(task.recurrence_days_of_week || '')
+    setEditRecurrenceEndDate(task.recurrence_end_date || '')
+    setEditRecurrenceCount(task.recurrence_count ?? null)
     setShowMarkdownPreview(false)
   }
 
@@ -147,6 +163,11 @@ export default function TaskList() {
       notes: editNotes,
       predecessorIds: JSON.stringify(editPredecessorIds),
       successorIds: JSON.stringify(editSuccessorIds),
+      recurrence_type: editRecurrenceType,
+      recurrence_interval: editRecurrenceInterval,
+      recurrence_days_of_week: editRecurrenceDaysOfWeek || null,
+      recurrence_end_date: editRecurrenceEndDate || null,
+      recurrence_count: editRecurrenceCount ?? null,
     })
     closeEdit()
     loadData()
@@ -410,7 +431,12 @@ export default function TaskList() {
                             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                           >
                             <td className="py-2.5 px-4 w-8"></td>
-                            <td className="py-2.5 px-4" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
+                            <td className="py-2.5 px-4" style={{ color: 'var(--text-primary)' }}>
+                              {task.name}
+                              {task.recurrence_type && task.recurrence_type !== 'none' && (
+                                <span className="ml-1.5 text-xs" title={`Recurring ${task.recurrence_type}`}>🔄</span>
+                              )}
+                            </td>
                             <td className="py-2.5 px-4">{task.statusName}</td>
                             <td className="py-2.5 px-4 font-medium" style={{ color: task.priorityColor || 'var(--text-secondary)' }}>
                               {task.priorityName}
@@ -524,6 +550,11 @@ export default function TaskList() {
         showDepPicker={showDepPicker} setShowDepPicker={setShowDepPicker}
         depSearch={depSearch} setDepSearch={setDepSearch}
         allTasks={tasks}
+        editRecurrenceType={editRecurrenceType} setEditRecurrenceType={setEditRecurrenceType}
+        editRecurrenceInterval={editRecurrenceInterval} setEditRecurrenceInterval={setEditRecurrenceInterval}
+        editRecurrenceDaysOfWeek={editRecurrenceDaysOfWeek} setEditRecurrenceDaysOfWeek={setEditRecurrenceDaysOfWeek}
+        editRecurrenceEndDate={editRecurrenceEndDate} setEditRecurrenceEndDate={setEditRecurrenceEndDate}
+        editRecurrenceCount={editRecurrenceCount} setEditRecurrenceCount={setEditRecurrenceCount}
       />
     </div>
   )

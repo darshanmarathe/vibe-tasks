@@ -147,6 +147,12 @@ export default function BulkAddModal({
           archived: 0,
           assignedTo: bulkAssignedTo || null,
           completionPercent: 0,
+          recurrence_type: 'none',
+          recurrence_interval: 1,
+          recurrence_days_of_week: null,
+          recurrence_end_date: null,
+          recurrence_count: null,
+          recurrence_parent_id: null,
         })
         added++
       } catch (e: any) {

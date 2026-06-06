@@ -212,6 +212,32 @@ function runMigrations() {
     db.run('ALTER TABLE tasks ADD COLUMN completionPercent INTEGER DEFAULT 0')
   }
 
+  // Migration: add recurrence columns to tasks if missing
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'recurrence_type')) {
+    db.run("ALTER TABLE tasks ADD COLUMN recurrence_type TEXT DEFAULT 'none'")
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'recurrence_interval')) {
+    db.run('ALTER TABLE tasks ADD COLUMN recurrence_interval INTEGER DEFAULT 1')
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'recurrence_days_of_week')) {
+    db.run('ALTER TABLE tasks ADD COLUMN recurrence_days_of_week TEXT')
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'recurrence_end_date')) {
+    db.run('ALTER TABLE tasks ADD COLUMN recurrence_end_date TEXT')
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'recurrence_count')) {
+    db.run('ALTER TABLE tasks ADD COLUMN recurrence_count INTEGER')
+    cols = exec('PRAGMA table_info(tasks)')
+  }
+  if (!cols.some((c: any) => c.name === 'recurrence_parent_id')) {
+    db.run('ALTER TABLE tasks ADD COLUMN recurrence_parent_id INTEGER REFERENCES tasks(id)')
+  }
+
   // Migration: add ord column to statuses if missing
   const statusCols = exec('PRAGMA table_info(statuses)')
   if (!statusCols.some((c: any) => c.name === 'ord')) {
@@ -224,6 +250,7 @@ function runMigrations() {
 
   runNoteMigrations()
   runLinkMigrations()
+  runFlashcardMigrations()
 }
 
 function runNoteMigrations() {
@@ -425,4 +452,30 @@ function runLinkMigrations() {
   if (catCount[0].count === 0) {
     db.run(`INSERT OR IGNORE INTO link_categories (name, is_hardcoded) VALUES ('General',1), ('Tasks',1), ('Notes',1), ('Mindmaps',1), ('Journals',1)`)
   }
+}
+
+function runFlashcardMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS flashcard_decks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS flashcards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      deck_id INTEGER NOT NULL REFERENCES flashcard_decks(id) ON DELETE CASCADE,
+      front TEXT NOT NULL,
+      back TEXT NOT NULL,
+      ease_factor REAL DEFAULT 2.5,
+      interval INTEGER DEFAULT 0,
+      repetitions INTEGER DEFAULT 0,
+      next_review_date TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
+    CREATE INDEX IF NOT EXISTS idx_flashcards_review ON flashcards(next_review_date);
+  `)
 }

@@ -23,6 +23,11 @@ interface Props {
   showDepPicker?: 'predecessor' | 'successor' | null; setShowDepPicker?: (v: 'predecessor' | 'successor' | null) => void
   depSearch?: string; setDepSearch?: (v: string) => void
   allTasks?: TaskWithRelations[]
+  editRecurrenceType?: string; setEditRecurrenceType?: (v: string) => void
+  editRecurrenceInterval?: number; setEditRecurrenceInterval?: (v: number) => void
+  editRecurrenceDaysOfWeek?: string; setEditRecurrenceDaysOfWeek?: (v: string) => void
+  editRecurrenceEndDate?: string; setEditRecurrenceEndDate?: (v: string) => void
+  editRecurrenceCount?: number | null; setEditRecurrenceCount?: (v: number | null) => void
 }
 
 export default function TaskEditModal({
@@ -37,8 +42,24 @@ export default function TaskEditModal({
   editPredecessorIds, setEditPredecessorIds,
   editSuccessorIds, setEditSuccessorIds,
   showDepPicker, setShowDepPicker, depSearch, setDepSearch, allTasks,
+  editRecurrenceType, setEditRecurrenceType,
+  editRecurrenceInterval, setEditRecurrenceInterval,
+  editRecurrenceDaysOfWeek, setEditRecurrenceDaysOfWeek,
+  editRecurrenceEndDate, setEditRecurrenceEndDate,
+  editRecurrenceCount, setEditRecurrenceCount,
 }: Props) {
   const hasDeps = !!setEditPredecessorIds && !!setEditSuccessorIds && !!setShowDepPicker && !!setDepSearch && !!allTasks
+  const hasRecurrence = !!setEditRecurrenceType
+
+  const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+  const parsedDays = (editRecurrenceDaysOfWeek || '').split(',').filter(Boolean).map(Number)
+
+  const toggleDay = (day: number) => {
+    if (!setEditRecurrenceDaysOfWeek) return
+    const current = parsedDays
+    const next = current.includes(day) ? current.filter(d => d !== day) : [...current, day]
+    setEditRecurrenceDaysOfWeek(next.sort((a, b) => a - b).join(','))
+  }
 
   const filteredDepTasks = hasDeps && depSearch && allTasks
     ? allTasks.filter(t => t.id !== editingTask?.id && t.name.toLowerCase().includes(depSearch.toLowerCase()))
@@ -130,6 +151,71 @@ export default function TaskEditModal({
               )}
             </div>
 
+            {hasRecurrence && (
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Recurrence</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <select value={editRecurrenceType} onChange={e => setEditRecurrenceType!(e.target.value)}
+                    className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value="none">None</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                  {editRecurrenceType !== 'none' && (
+                    <div>
+                      <input type="number" min={1} value={editRecurrenceInterval}
+                        onChange={e => setEditRecurrenceInterval!(Math.max(1, Number(e.target.value)))}
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                  )}
+                  {editRecurrenceType !== 'none' && (
+                    <div className="flex items-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {editRecurrenceType === 'daily' && 'day(s)'}
+                      {editRecurrenceType === 'weekly' && 'week(s)'}
+                      {editRecurrenceType === 'monthly' && 'month(s)'}
+                      {editRecurrenceType === 'yearly' && 'year(s)'}
+                    </div>
+                  )}
+                </div>
+                {editRecurrenceType === 'weekly' && (
+                  <div className="flex gap-1 mt-2">
+                    {dayLabels.map((label, i) => (
+                      <button key={i} onClick={() => toggleDay(i)}
+                        className="w-8 h-8 rounded-lg text-xs font-semibold transition-colors"
+                        style={{
+                          backgroundColor: parsedDays.includes(i) ? 'var(--accent)' : 'var(--bg-hover)',
+                          color: parsedDays.includes(i) ? '#fff' : 'var(--text-secondary)',
+                        }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {editRecurrenceType !== 'none' && (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--text-muted)' }}>End Date</label>
+                      <input type="date" value={editRecurrenceEndDate || ''}
+                        onChange={e => setEditRecurrenceEndDate!(e.target.value || '')}
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--text-muted)' }}>Max Occurrences</label>
+                      <input type="number" min={0} value={editRecurrenceCount ?? ''}
+                        onChange={e => setEditRecurrenceCount!(e.target.value ? Number(e.target.value) : 0)}
+                        placeholder="∞"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Links</label>
               <LinkInput linkedType="task" linkedId={editingTask.id} />

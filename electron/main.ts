@@ -15,6 +15,7 @@ import * as habitRepo from './database/repositories/habitRepo'
 import * as timeRepo from './database/repositories/timeRepo'
 import * as journalRepo from './database/repositories/journalRepo'
 import * as linkRepo from './database/repositories/linkRepo'
+import * as flashcardRepo from './database/repositories/flashcardRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -274,6 +275,258 @@ function registerIpcHandlers() {
   ipcMain.handle('db:tasks:delete', (_e, id) => taskRepo.deleteTask(id))
   ipcMain.handle('db:tasks:archive', (_e, id) => taskRepo.archiveTask(id))
   ipcMain.handle('db:tasks:unarchive', (_e, id) => taskRepo.unarchiveTask(id))
+  ipcMain.handle('db:tasks:recurring', () => taskRepo.getRecurringTasks())
+  ipcMain.handle('db:tasks:generate-next', (_e, id) => taskRepo.generateNextOccurrence(id))
+
+  // ── Flashcards ──
+  ipcMain.handle('flashcard:decks:list', () => flashcardRepo.getDecks())
+  ipcMain.handle('flashcard:decks:create', (_e, name, description) => flashcardRepo.createDeck(name, description))
+  ipcMain.handle('flashcard:decks:update', (_e, id, data) => flashcardRepo.updateDeck(id, data))
+  ipcMain.handle('flashcard:decks:delete', (_e, id) => flashcardRepo.deleteDeck(id))
+  ipcMain.handle('flashcard:list', (_e, deckId) => flashcardRepo.getFlashcards(deckId))
+  ipcMain.handle('flashcard:create', (_e, deckId, front, back) => flashcardRepo.createFlashcard(deckId, front, back))
+  ipcMain.handle('flashcard:update', (_e, id, data) => flashcardRepo.updateFlashcard(id, data))
+  ipcMain.handle('flashcard:delete', (_e, id) => flashcardRepo.deleteFlashcard(id))
+  ipcMain.handle('flashcard:review', (_e, id, quality) => flashcardRepo.reviewFlashcard(id, quality))
+  ipcMain.handle('flashcard:due', (_e, deckId) => flashcardRepo.getDueFlashcards(deckId))
+
+  // ── Data Portability ──
+
+  const CSV_TABLES = ['users', 'projects', 'statuses', 'priorities', 'link_categories', 'tags']
+
+  function escapeCsv(val: string): string {
+    if (val.includes(',') || val.includes('"') || val.includes('\n') || val.includes('\r')) {
+      return '"' + val.replace(/"/g, '""') + '"'
+    }
+    return val
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const result: string[] = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (inQuotes) {
+        if (ch === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            current += '"'
+            i++
+          } else {
+            inQuotes = false
+          }
+        } else {
+          current += ch
+        }
+      } else if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(current)
+        current = ''
+      } else {
+        current += ch
+      }
+    }
+    result.push(current)
+    return result
+  }
+
+  ipcMain.handle('db:export-json', async () => {
+    const { exec } = getDatabase()
+    const tables = [...CSV_TABLES, 'tasks', 'notebooks', 'notes', 'note_tags',
+      'habits', 'habit_logs', 'pomodoro_sessions', 'time_entries', 'journal_entries',
+      'mindmaps', 'mindmap_nodes', 'mindmap_edges', 'links']
+
+    const data: Record<string, any[]> = {}
+    for (const table of tables) {
+      data[table] = exec(`SELECT * FROM ${table}`)
+    }
+
+    const json = JSON.stringify({ version: app.getVersion(), exportedAt: new Date().toISOString(), data }, null, 2)
+
+    const r = await dialog.showSaveDialog(mainWindow!, {
+      title: 'Export Data as JSON',
+      defaultPath: `vibetasks-backup-${new Date().toISOString().split('T')[0]}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (r.canceled || !r.filePath) return null
+    fs.writeFileSync(r.filePath, json, 'utf-8')
+    return r.filePath
+  })
+
+  ipcMain.handle('db:import-json', async () => {
+    const r = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Import Data from JSON',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    })
+    if (r.canceled || r.filePaths.length === 0) return 0
+
+    const content = fs.readFileSync(r.filePaths[0], 'utf-8')
+    const parsed = JSON.parse(content)
+    if (!parsed.data) throw new Error('Invalid backup file')
+
+    const { exec, run, save } = getDatabase()
+    const wipeOrder = [...CSV_TABLES, 'tasks', 'notebooks', 'notes', 'note_tags',
+      'habits', 'habit_logs', 'pomodoro_sessions', 'time_entries', 'journal_entries',
+      'mindmaps', 'mindmap_nodes', 'mindmap_edges', 'links'].reverse()
+
+    exec('BEGIN TRANSACTION')
+    try {
+      for (const table of wipeOrder) {
+        if (parsed.data[table]) exec(`DELETE FROM ${table}`)
+      }
+
+      const insertOrder = ['users', 'projects', 'statuses', 'priorities', 'link_categories', 'tags',
+        'tasks', 'notebooks', 'note_tags', 'notes',
+        'habits', 'habit_logs', 'pomodoro_sessions', 'time_entries', 'journal_entries',
+        'mindmaps', 'mindmap_nodes', 'mindmap_edges', 'links']
+
+      let total = 0
+      for (const table of insertOrder) {
+        const rows = parsed.data[table]
+        if (!rows || rows.length === 0) continue
+        for (const row of rows) {
+          const cols = Object.keys(row)
+          const vals = cols.map(c => row[c])
+          run(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals)
+          total++
+        }
+      }
+
+      exec('COMMIT')
+      save()
+      return total
+    } catch (err) {
+      exec('ROLLBACK')
+      throw err
+    }
+  })
+
+  ipcMain.handle('db:export-csv', async () => {
+    const { exec } = getDatabase()
+    const tasks = exec(`SELECT t.*, s.name as status_name, p.name as priority_name,
+      pr.name as project_name, u.name as assigned_to_name
+      FROM tasks t
+      LEFT JOIN statuses s ON t.statusId = s.id
+      LEFT JOIN priorities p ON t.priorityId = p.id
+      LEFT JOIN projects pr ON t.projectId = pr.id
+      LEFT JOIN users u ON t.assignedTo = u.id
+      ORDER BY t.id`)
+
+    const cols = tasks.length > 0 ? Object.keys(tasks[0]) : ['id', 'name', 'description', 'notes', 'dueDate', 'statusId', 'status_name', 'priorityId', 'priority_name', 'projectId', 'project_name', 'predecessorIds', 'successorIds', 'archived', 'assignedTo', 'assigned_to_name', 'completionPercent', 'created_at', 'completed_at', 'recurrence_type', 'recurrence_interval', 'recurrence_days_of_week', 'recurrence_end_date', 'recurrence_count', 'recurrence_parent_id']
+
+    const csvRows: string[] = [cols.map(c => escapeCsv(c)).join(',')]
+    for (const task of tasks) {
+      csvRows.push(cols.map(c => escapeCsv(String(task[c] ?? ''))).join(','))
+    }
+
+    const csv = csvRows.join('\r\n')
+    const r = await dialog.showSaveDialog(mainWindow!, {
+      title: 'Export Tasks as CSV',
+      defaultPath: `tasks-${new Date().toISOString().split('T')[0]}.csv`,
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    })
+    if (r.canceled || !r.filePath) return null
+    fs.writeFileSync(r.filePath, '\uFEFF' + csv, 'utf-8')
+    return r.filePath
+  })
+
+  ipcMain.handle('db:import-csv', async () => {
+    const r = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Import Tasks from CSV',
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+      properties: ['openFile'],
+    })
+    if (r.canceled || r.filePaths.length === 0) return 0
+
+    const content = fs.readFileSync(r.filePaths[0], 'utf-8').replace(/^\uFEFF/, '')
+    const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean)
+    if (lines.length < 2) return 0
+
+    const header = parseCsvLine(lines[0])
+    const { exec, run, save } = getDatabase()
+    let imported = 0
+
+    exec('BEGIN TRANSACTION')
+    try {
+      for (let i = 1; i < lines.length; i++) {
+        const vals = parseCsvLine(lines[i])
+        const row: Record<string, string> = {}
+        header.forEach((col, idx) => { row[col] = vals[idx] ?? '' })
+
+        run(`INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId,
+          predecessorIds, successorIds, archived, assignedTo, completionPercent)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+          row.name || 'Imported Task',
+          row.description || '',
+          row.notes || '',
+          row.dueDate || null,
+          parseInt(row.statusId) || 1,
+          parseInt(row.priorityId) || 1,
+          parseInt(row.projectId) || 1,
+          '[]', '[]',
+          parseInt(row.archived) || 0,
+          row.assignedTo ? parseInt(row.assignedTo) : null,
+          parseInt(row.completionPercent) || 0,
+        ])
+        imported++
+      }
+      exec('COMMIT')
+      save()
+      return imported
+    } catch (err) {
+      exec('ROLLBACK')
+      throw err
+    }
+  })
+
+  ipcMain.handle('db:export-task-share', async (_e, taskId: number) => {
+    const { exec } = getDatabase()
+    const tasks = exec(`SELECT * FROM tasks WHERE id = ?`, [taskId])
+    if (tasks.length === 0) throw new Error('Task not found')
+
+    const shareData = {
+      sharedAt: new Date().toISOString(),
+      appVersion: app.getVersion(),
+      task: tasks[0],
+    }
+
+    const json = JSON.stringify(shareData, null, 2)
+    const r = await dialog.showSaveDialog(mainWindow!, {
+      title: 'Share Task',
+      defaultPath: `share-task-${taskId}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (r.canceled || !r.filePath) return null
+    fs.writeFileSync(r.filePath, json, 'utf-8')
+    return r.filePath
+  })
+
+  ipcMain.handle('db:import-share-link', async () => {
+    const r = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Import Shared Task',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    })
+    if (r.canceled || r.filePaths.length === 0) return null
+
+    const content = fs.readFileSync(r.filePaths[0], 'utf-8')
+    const parsed = JSON.parse(content)
+    if (!parsed.task) throw new Error('Invalid share file')
+
+    const { exec, run, save } = getDatabase()
+    const task = parsed.task
+    delete task.id
+
+    const cols = Object.keys(task)
+    const vals = cols.map(c => task[c])
+    run(`INSERT INTO tasks (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals)
+    save()
+
+    const inserted = exec('SELECT * FROM tasks WHERE id = last_insert_rowid()')
+    return inserted.length > 0 ? inserted[0] : null
+  })
 
   ipcMain.handle('pomodoro:toggle', () => {
     if (pomodoroWindow) {

@@ -8,6 +8,9 @@ import Archived from './pages/Archived'
 import KanbanBoard from './pages/KanbanBoard'
 import Inbox from './pages/Inbox'
 import About from './pages/About'
+import Calendar from './pages/Calendar'
+import ExportImport from './pages/ExportImport'
+import Flashcards from './pages/Flashcards'
 import Notes from './pages/Notes'
 import MindMap from './pages/MindMap'
 import Links from './pages/Links'
@@ -33,6 +36,9 @@ export default function App() {
               <Route path="/habits" element={<Habits />} />
               <Route path="/weekly-review" element={<WeeklyReview />} />
               <Route path="/kanban" element={<KanbanBoard />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/data" element={<ExportImport />} />
+              <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/archived" element={<Archived />} />
               <Route path="/time-reports" element={<TimeReports />} />
               <Route path="/journal" element={<DailyJournal />} />

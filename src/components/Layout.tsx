@@ -14,12 +14,14 @@ const navGroups: NavGroup[] = [
       { path: '/inbox',         label: 'Inbox',        icon: '📥' },
       { path: '/tasks',         label: 'Tasks',        icon: '📋' },
       { path: '/kanban',        label: 'Kanban',       icon: '📌' },
+      { path: '/calendar',     label: 'Calendar',    icon: '📅' },
       { path: '/archived',      label: 'Archived',     icon: '📦' },
     ],
   },
   {
     label: 'Knowledge',
     items: [
+      { path: '/flashcards',   label: 'Flashcards',  icon: '🃏' },
       { path: '/notes',         label: 'Notes',        icon: '📝' },
       { path: '/journal',       label: 'Journal',      icon: '📔' },
       { path: '/links',         label: 'Links',        icon: '🔗' },
@@ -37,6 +39,7 @@ const navGroups: NavGroup[] = [
   {
     items: [
       { path: '/settings',      label: 'Settings',     icon: '⚙️' },
+      { path: '/data',         label: 'Data',        icon: '💾' },
       { path: '/about',         label: 'About',        icon: 'ℹ️' },
     ],
   },

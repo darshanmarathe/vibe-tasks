@@ -36,6 +36,12 @@ export interface Task {
   archived: number
   assignedTo: number | null
   completionPercent: number
+  recurrence_type: string
+  recurrence_interval: number
+  recurrence_days_of_week: string | null
+  recurrence_end_date: string | null
+  recurrence_count: number | null
+  recurrence_parent_id: number | null
 }
 
 export interface TaskWithRelations extends Task {
@@ -83,6 +89,16 @@ export interface ElectronAPI {
   deleteTask: (id: number) => Promise<void>
   archiveTask: (id: number) => Promise<void>
   unarchiveTask: (id: number) => Promise<void>
+  getRecurringTasks: () => Promise<TaskWithRelations[]>
+  generateNextOccurrence: (taskId: number) => Promise<TaskWithRelations | null>
+
+  // Data Portability
+  exportJson: () => Promise<string | null>
+  importJson: () => Promise<number>
+  exportTasksCsv: () => Promise<string | null>
+  importTasksCsv: () => Promise<number>
+  exportTaskShare: (taskId: number) => Promise<string | null>
+  importShareLink: () => Promise<TaskWithRelations | null>
 
   // Pomodoro
   togglePomodoro: () => Promise<void>
@@ -183,8 +199,40 @@ export interface ElectronAPI {
   createLinkCategory: (name: string) => Promise<LinkCategory>
   deleteLinkCategory: (id: number) => Promise<void>
 
+  // Flashcards
+  getFlashcardDecks: () => Promise<FlashcardDeck[]>
+  createFlashcardDeck: (name: string, description?: string) => Promise<FlashcardDeck>
+  updateFlashcardDeck: (id: number, data: Partial<FlashcardDeck>) => Promise<FlashcardDeck>
+  deleteFlashcardDeck: (id: number) => Promise<void>
+  getFlashcards: (deckId: number) => Promise<Flashcard[]>
+  createFlashcard: (deckId: number, front: string, back: string) => Promise<Flashcard>
+  updateFlashcard: (id: number, data: Partial<Flashcard>) => Promise<Flashcard>
+  deleteFlashcard: (id: number) => Promise<void>
+  reviewFlashcard: (id: number, quality: number) => Promise<Flashcard>
+  getDueFlashcards: (deckId?: number) => Promise<Flashcard[]>
+
   // Focus Mode
   toggleFocus: () => Promise<void>
+}
+
+export interface FlashcardDeck {
+  id: number
+  name: string
+  description: string
+  created_at: string
+}
+
+export interface Flashcard {
+  id: number
+  deck_id: number
+  front: string
+  back: string
+  ease_factor: number
+  interval: number
+  repetitions: number
+  next_review_date: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Notebook {
