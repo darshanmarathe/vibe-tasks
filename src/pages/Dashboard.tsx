@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
 import { useTimer } from '../contexts/TimerContext'
 import BulkAddModal from '../components/BulkAddModal'
+import TaskEditModal from '../components/TaskEditModal'
 export default function Dashboard() {
   const navigate = useNavigate()
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
@@ -664,85 +665,22 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Edit Modal */}
-      {editingTask && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="rounded-xl p-6 border w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-              </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Description</label>
-                <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm resize-y" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Status</label>
-                  <select value={editStatus} onChange={e => setEditStatus(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
-                  <select value={editPriority} onChange={e => setEditPriority(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
-                  <select value={editProject} onChange={e => setEditProject(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
-                  <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>
-                  <select value={editAssignedTo} onChange={e => setEditAssignedTo(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    <option value={0}>Unassigned</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Completion: {editCompletionPercent}%</label>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="0" max="100" step="5" value={editCompletionPercent}
-                    onChange={e => setEditCompletionPercent(Number(e.target.value))}
-                    className="flex-1" style={{ accentColor: 'var(--accent)' }} />
-                  <div className="w-20 h-2 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${editCompletionPercent}%`, backgroundColor: editCompletionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>Notes (Markdown)</label>
-                  <button onClick={() => setShowMarkdownPreview(!showMarkdownPreview)} className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: showMarkdownPreview ? 'var(--accent)' : 'var(--bg-hover)', color: showMarkdownPreview ? '#fff' : 'var(--text-secondary)' }}>
-                    {showMarkdownPreview ? 'Edit' : 'Preview'}
-                  </button>
-                </div>
-                {showMarkdownPreview ? (
-                  <div className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px]" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} dangerouslySetInnerHTML={{ __html: renderMarkdown(editNotes) }} />
-                ) : (
-                  <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Write notes in Markdown..." className="w-full border rounded-lg px-3 py-2 text-sm min-h-[80px] resize-y" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={closeEdit} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
-              <button onClick={saveEdit} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TaskEditModal
+        editingTask={editingTask}
+        editName={editName} setEditName={setEditName}
+        editDesc={editDesc} setEditDesc={setEditDesc}
+        editStatus={editStatus} setEditStatus={setEditStatus}
+        editPriority={editPriority} setEditPriority={setEditPriority}
+        editProject={editProject} setEditProject={setEditProject}
+        editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
+        editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editNotes={editNotes} setEditNotes={setEditNotes}
+        editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
+        showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}
+        statuses={statuses} priorities={priorities} projects={projects} users={users}
+        onClose={closeEdit} onSave={saveEdit}
+        renderMarkdown={renderMarkdown}
+      />
     </div>
   )
 }

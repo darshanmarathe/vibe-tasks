@@ -1,10 +1,11 @@
 {
   "name": "vibetasks",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Vibe Tasks - Desktop Task Management Application",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "start": "npm run dev",
     "build": "node scripts/build.mjs",
     "build:win": "node scripts/build.mjs win",
     "build:win-portable": "node scripts/build.mjs portable",

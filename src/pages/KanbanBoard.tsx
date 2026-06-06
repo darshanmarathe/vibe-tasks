@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
 import { useTimer } from '../contexts/TimerContext'
+import TaskEditModal from '../components/TaskEditModal'
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
@@ -33,6 +34,19 @@ export default function KanbanBoard() {
 
   // Filter state
   const [filterProject, setFilterProject] = useState(0)
+
+  // Edit state
+  const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editStatus, setEditStatus] = useState(0)
+  const [editPriority, setEditPriority] = useState(0)
+  const [editProject, setEditProject] = useState(0)
+  const [editAssignedTo, setEditAssignedTo] = useState(0)
+  const [editCompletionPercent, setEditCompletionPercent] = useState(0)
+  const [editDueDate, setEditDueDate] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
 
   // Add task state
   const [addingToColumn, setAddingToColumn] = useState<number | null>(null)
@@ -88,6 +102,39 @@ export default function KanbanBoard() {
   const isOverdue = (d: string | null) => {
     if (!d) return false
     return new Date(d) < new Date(new Date().toDateString())
+  }
+
+  const openEdit = (task: TaskWithRelations) => {
+    setEditingTask(task)
+    setEditName(task.name)
+    setEditDesc(task.description || '')
+    setEditStatus(task.statusId)
+    setEditPriority(task.priorityId)
+    setEditProject(task.projectId)
+    setEditAssignedTo(task.assignedTo || 0)
+    setEditCompletionPercent(task.completionPercent ?? 0)
+    setEditDueDate(task.dueDate || '')
+    setEditNotes(task.notes || '')
+    setShowMarkdownPreview(false)
+  }
+
+  const closeEdit = () => setEditingTask(null)
+
+  const saveEdit = async () => {
+    if (!editingTask || !editName.trim()) return
+    await window.electronAPI.updateTask(editingTask.id, {
+      name: editName.trim(),
+      description: editDesc,
+      statusId: editStatus,
+      priorityId: editPriority,
+      projectId: editProject,
+      assignedTo: editAssignedTo || null,
+      completionPercent: editCompletionPercent,
+      dueDate: editDueDate || null,
+      notes: editNotes,
+    })
+    closeEdit()
+    loadData()
   }
 
   return (
@@ -390,6 +437,13 @@ export default function KanbanBoard() {
                   title="Email assigned user">📧 Email</a>
               )}
               <button
+                onClick={() => { openEdit(detailTask); setDetailTask(null) }}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+              >
+                Edit
+              </button>
+              <button
                 onClick={async (e) => { e.stopPropagation(); if (!window.confirm('Archive this task?')) return; await window.electronAPI.archiveTask(detailTask.id); setDetailTask(null); loadData() }}
                 className="px-4 py-2 rounded-lg text-sm"
                 style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}
@@ -400,6 +454,22 @@ export default function KanbanBoard() {
           </div>
         </div>
       )}
+      <TaskEditModal
+        editingTask={editingTask}
+        editName={editName} setEditName={setEditName}
+        editDesc={editDesc} setEditDesc={setEditDesc}
+        editStatus={editStatus} setEditStatus={setEditStatus}
+        editPriority={editPriority} setEditPriority={setEditPriority}
+        editProject={editProject} setEditProject={setEditProject}
+        editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
+        editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editNotes={editNotes} setEditNotes={setEditNotes}
+        editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
+        showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}
+        statuses={statuses} priorities={priorities} projects={projects} users={users}
+        onClose={closeEdit} onSave={saveEdit}
+        renderMarkdown={renderMarkdown}
+      />
     </div>
   )
 }

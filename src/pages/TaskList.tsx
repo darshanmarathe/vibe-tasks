@@ -4,7 +4,7 @@ import { parseDateFromText } from '../utils/dateParser'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge, formatElapsedShort } from '../components/TimerBadge'
 import BulkAddModal from '../components/BulkAddModal'
-import LinkInput from '../components/LinkInput'
+import TaskEditModal from '../components/TaskEditModal'
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
@@ -218,22 +218,7 @@ export default function TaskList() {
     return html
   }
 
-  // Dependency picker
-  const availableForDep = tasks.filter(t => t.id !== editingTask?.id)
-  const depSearchLower = depSearch.toLowerCase()
-  const filteredDepTasks = depSearch
-    ? availableForDep.filter(t => t.name.toLowerCase().includes(depSearchLower) || t.projectName.toLowerCase().includes(depSearchLower))
-    : availableForDep
 
-  function toggleDepId(id: number, mode: 'predecessor' | 'successor') {
-    const setter = mode === 'predecessor' ? setEditPredecessorIds : setEditSuccessorIds
-    const current = mode === 'predecessor' ? editPredecessorIds : editSuccessorIds
-    if (current.includes(id)) {
-      setter(current.filter(x => x !== id))
-    } else {
-      setter([...current, id])
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -519,228 +504,27 @@ export default function TaskList() {
         </table>
       </div>
 
-      {/* Edit Modal */}
-      {editingTask && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="rounded-xl p-6 border w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-              </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Description</label>
-                <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2 text-sm resize-y" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Status</label>
-                  <select value={editStatus} onChange={e => setEditStatus(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
-                  <select value={editPriority} onChange={e => setEditPriority(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
-                  <select value={editProject} onChange={e => setEditProject(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
-                  <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
-                </div>
-                <div>
-                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>
-                  <select value={editAssignedTo} onChange={e => setEditAssignedTo(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                    <option value={0}>Unassigned</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Completion: {editCompletionPercent}%</label>
-                <div className="flex items-center gap-3">
-                  <input type="range" min="0" max="100" step="5" value={editCompletionPercent}
-                    onChange={e => setEditCompletionPercent(Number(e.target.value))}
-                    className="flex-1" style={{ accentColor: 'var(--accent)' }} />
-                  <div className="w-20 h-2 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${editCompletionPercent}%`, backgroundColor: editCompletionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes with Markdown */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>Notes (Markdown)</label>
-                  <button
-                    onClick={() => setShowMarkdownPreview(!showMarkdownPreview)}
-                    className="text-xs px-2 py-0.5 rounded transition-colors"
-                    style={{ backgroundColor: showMarkdownPreview ? 'var(--accent)' : 'var(--bg-hover)', color: showMarkdownPreview ? '#fff' : 'var(--text-secondary)' }}
-                  >
-                    {showMarkdownPreview ? 'Edit' : 'Preview'}
-                  </button>
-                </div>
-                {showMarkdownPreview ? (
-                  <div
-                    className="w-full border rounded-lg px-3 py-2 text-sm min-h-[100px] prose prose-sm"
-                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(editNotes) }}
-                  />
-                ) : (
-                  <textarea
-                    value={editNotes}
-                    onChange={e => setEditNotes(e.target.value)}
-                    placeholder="Write notes in Markdown...&#10;&#10;## Heading&#10;Regular text with **bold** and *italic*&#10;- List item&#10;`code`"
-                    className="w-full border rounded-lg px-3 py-2 text-sm min-h-[100px] resize-y"
-                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Links</label>
-                <LinkInput linkedType="task" linkedId={editingTask.id} />
-              </div>
-
-              {/* Dependencies */}
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Dependencies</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Predecessors</span>
-                      <button
-                        onClick={() => { setShowDepPicker('predecessor'); setDepSearch('') }}
-                        className="text-xs px-2 py-0.5 rounded"
-                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
-                      >
-                        + Add
-                      </button>
-                    </div>
-                    <div className="min-h-[32px] border rounded-lg p-1.5 text-xs space-y-1" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
-                      {editPredecessorIds.length === 0 ? (
-                        <span style={{ color: 'var(--text-muted)' }}>None</span>
-                      ) : (
-                        editPredecessorIds.map(id => {
-                          const t = tasks.find(x => x.id === id)
-                          return (
-                            <div key={id} className="flex items-center justify-between gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                              <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
-                              <button onClick={() => toggleDepId(id, 'predecessor')} className="text-xs" style={{ color: 'var(--danger)' }}>✕</button>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Successors</span>
-                      <button
-                        onClick={() => { setShowDepPicker('successor'); setDepSearch('') }}
-                        className="text-xs px-2 py-0.5 rounded"
-                        style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}
-                      >
-                        + Add
-                      </button>
-                    </div>
-                    <div className="min-h-[32px] border rounded-lg p-1.5 text-xs space-y-1" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
-                      {editSuccessorIds.length === 0 ? (
-                        <span style={{ color: 'var(--text-muted)' }}>None</span>
-                      ) : (
-                        editSuccessorIds.map(id => {
-                          const t = tasks.find(x => x.id === id)
-                          return (
-                            <div key={id} className="flex items-center justify-between gap-1 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                              <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
-                              <button onClick={() => toggleDepId(id, 'successor')} className="text-xs" style={{ color: 'var(--danger)' }}>✕</button>
-                            </div>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={closeEdit} className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
-              <button onClick={saveEdit} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dependency Picker Modal */}
-      {showDepPicker && (
-        <div className="fixed inset-0 flex items-center justify-center z-[60]" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="rounded-xl p-4 border w-full max-w-lg max-h-[60vh] flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {showDepPicker === 'predecessor' ? 'Select Predecessors' : 'Select Successors'}
-              </h3>
-              <button onClick={() => setShowDepPicker(null)} className="text-xs" style={{ color: 'var(--text-secondary)' }}>✕</button>
-            </div>
-            <input
-              value={depSearch}
-              onChange={e => setDepSearch(e.target.value)}
-              placeholder="Search tasks..."
-              className="w-full border rounded-lg px-3 py-1.5 text-sm mb-3"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            />
-            <div className="flex-1 overflow-y-auto space-y-1">
-              {filteredDepTasks.map(t => {
-                const selected = showDepPicker === 'predecessor'
-                  ? editPredecessorIds.includes(t.id)
-                  : editSuccessorIds.includes(t.id)
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => toggleDepId(t.id, showDepPicker)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm"
-                    style={{
-                      backgroundColor: selected ? 'var(--bg-hover)' : 'transparent',
-                      borderLeft: `3px solid ${t.priorityColor || 'var(--text-muted)'}`,
-                    }}
-                  >
-                    <input type="checkbox" checked={selected} readOnly className="rounded" />
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate font-medium" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
-                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                        {t.projectName} · {t.statusName} · {t.priorityName}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-              {filteredDepTasks.length === 0 && (
-                <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No tasks found.</p>
-              )}
-            </div>
-            <button
-              onClick={() => setShowDepPicker(null)}
-              className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold self-end"
-              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
+      <TaskEditModal
+        editingTask={editingTask}
+        editName={editName} setEditName={setEditName}
+        editDesc={editDesc} setEditDesc={setEditDesc}
+        editStatus={editStatus} setEditStatus={setEditStatus}
+        editPriority={editPriority} setEditPriority={setEditPriority}
+        editProject={editProject} setEditProject={setEditProject}
+        editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
+        editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editNotes={editNotes} setEditNotes={setEditNotes}
+        editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
+        showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}
+        statuses={statuses} priorities={priorities} projects={projects} users={users}
+        onClose={closeEdit} onSave={saveEdit}
+        renderMarkdown={renderMarkdown}
+        editPredecessorIds={editPredecessorIds} setEditPredecessorIds={setEditPredecessorIds}
+        editSuccessorIds={editSuccessorIds} setEditSuccessorIds={setEditSuccessorIds}
+        showDepPicker={showDepPicker} setShowDepPicker={setShowDepPicker}
+        depSearch={depSearch} setDepSearch={setDepSearch}
+        allTasks={tasks}
+      />
     </div>
   )
 }
