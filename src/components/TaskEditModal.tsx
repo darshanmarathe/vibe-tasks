@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 import LinkInput from './LinkInput'
 
@@ -72,6 +72,13 @@ export default function TaskEditModal({
       setEditSuccessorIds(editSuccessorIds.includes(id) ? editSuccessorIds.filter(x => x !== id) : [...editSuccessorIds, id])
     }
   }
+
+  useEffect(() => {
+    if (!editingTask) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [editingTask, onClose])
 
   if (!editingTask) return null
 

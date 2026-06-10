@@ -27,8 +27,19 @@ export default function Inbox() {
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
-  const [filterStatus, setFilterStatus] = useState(0)
-  const [filterPriority, setFilterPriority] = useState(0)
+  const [filterStatuses, setFilterStatuses] = useState<Set<number>>(new Set())
+  const [filterPriorities, setFilterPriorities] = useState<Set<number>>(new Set())
+  const [filterProjects, setFilterProjects] = useState<Set<number>>(new Set())
+  const [filterOverdue, setFilterOverdue] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+
+  const toggleSet = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, id: number) => {
+    setter(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
   const [sortKey, setSortKey] = useState<SortKey>('dueDate')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
@@ -85,8 +96,10 @@ export default function Inbox() {
   }
 
   const filteredTasks = tasks.filter(t => {
-    if (filterStatus && t.statusId !== filterStatus) return false
-    if (filterPriority && t.priorityId !== filterPriority) return false
+    if (filterStatuses.size > 0 && !filterStatuses.has(t.statusId)) return false
+    if (filterPriorities.size > 0 && !filterPriorities.has(t.priorityId)) return false
+    if (filterProjects.size > 0 && !filterProjects.has(t.projectId)) return false
+    if (filterOverdue && !isOverdue(t.dueDate)) return false
     return true
   })
 
@@ -170,17 +183,88 @@ export default function Inbox() {
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Inbox</h1>
 
       {/* Filters */}
-      <div className="flex gap-3">
-        <select value={filterStatus} onChange={e => setFilterStatus(Number(e.target.value))}
-          className="border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-          <option value={0}>All Statuses</option>
-          {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select value={filterPriority} onChange={e => setFilterPriority(Number(e.target.value))}
-          className="border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-          <option value={0}>All Priorities</option>
-          {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+      {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+      <div className="flex gap-3 relative z-20">
+        {/* Status multi-select */}
+        <div className="relative">
+          <button onClick={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+            className="border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            {filterStatuses.size === 0 ? 'All Statuses' : `${filterStatuses.size} selected`}
+          </button>
+          {openDropdown === 'status' && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg border p-2 min-w-[180px] shadow-lg"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              {statuses.map(s => (
+                <label key={s.id} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <input type="checkbox" checked={filterStatuses.has(s.id)}
+                    onChange={() => toggleSet(setFilterStatuses, s.id)}
+                    className="rounded" style={{ accentColor: 'var(--accent)' }} />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Priority multi-select */}
+        <div className="relative">
+          <button onClick={() => setOpenDropdown(openDropdown === 'priority' ? null : 'priority')}
+            className="border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            {filterPriorities.size === 0 ? 'All Priorities' : `${filterPriorities.size} selected`}
+          </button>
+          {openDropdown === 'priority' && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg border p-2 min-w-[180px] shadow-lg"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              {priorities.map(p => (
+                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <input type="checkbox" checked={filterPriorities.has(p.id)}
+                    onChange={() => toggleSet(setFilterPriorities, p.id)}
+                    className="rounded" style={{ accentColor: 'var(--accent)' }} />
+                  {p.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Project multi-select */}
+        <div className="relative">
+          <button onClick={() => setOpenDropdown(openDropdown === 'project' ? null : 'project')}
+            className="border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            {filterProjects.size === 0 ? 'All Projects' : `${filterProjects.size} selected`}
+          </button>
+          {openDropdown === 'project' && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg border p-2 min-w-[180px] shadow-lg"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              {projects.map(p => (
+                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <input type="checkbox" checked={filterProjects.has(p.id)}
+                    onChange={() => toggleSet(setFilterProjects, p.id)}
+                    className="rounded" style={{ accentColor: 'var(--accent)' }} />
+                  {p.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={() => setFilterOverdue(v => !v)}
+          className="px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: filterOverdue ? 'var(--danger)' : 'var(--bg-hover)',
+            color: filterOverdue ? '#fff' : 'var(--text-secondary)',
+          }}>
+          {filterOverdue ? '✓ Overdue' : 'Overdue'}
+        </button>
       </div>
 
       {/* Upcoming */}
