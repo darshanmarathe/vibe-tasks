@@ -10,6 +10,38 @@ const PROVIDERS = [
   { value: 'groq', label: 'Groq (Cloud)' },
 ]
 
+function OllamaModelSelect({ value, onChange }: { value: string; onChange: (m: string) => void }) {
+  const [models, setModels] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    window.electronAPI.getOllamaModels().then(list => {
+      setModels(list)
+      setLoading(false)
+    })
+  }, [])
+
+  return (
+    <div className="relative mt-1">
+      {loading ? (
+        <div className="text-xs px-3 py-2" style={{ color: 'var(--text-muted)' }}>Loading models...</div>
+      ) : models.length > 0 ? (
+        <select value={value} onChange={e => onChange(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+          {models.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+      ) : (
+        <input value={value} onChange={e => onChange(e.target.value)}
+          placeholder="Ollama not running or no models found"
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+      )}
+    </div>
+  )
+}
+
 export default function AiChat() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
@@ -129,9 +161,13 @@ export default function AiChat() {
               </div>
               <div>
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Model</label>
-                <input value={config.model} onChange={e => setConfig(c => ({ ...c, model: e.target.value }))}
-                  className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
-                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                {config.provider === 'ollama' ? (
+                  <OllamaModelSelect value={config.model} onChange={m => setConfig(c => ({ ...c, model: m }))} />
+                ) : (
+                  <input value={config.model} onChange={e => setConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                )}
               </div>
               {config.provider !== 'ollama' && (
                 <div>

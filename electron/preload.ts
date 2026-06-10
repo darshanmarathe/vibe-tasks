@@ -164,4 +164,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getAiConfig: () => ipcRenderer.invoke('ai:chat:config:get'),
   setAiConfig: (config: any) => ipcRenderer.invoke('ai:chat:config:set', config),
+  getOllamaModels: () => ipcRenderer.invoke('ai:chat:ollama-models'),
 })

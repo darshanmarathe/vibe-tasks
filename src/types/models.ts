@@ -225,6 +225,7 @@ export interface ElectronAPI {
   onChatChunk: (callback: (data: ChatChunk) => void) => () => void
   getAiConfig: () => Promise<AiConfig>
   setAiConfig: (config: AiConfig) => Promise<void>
+  getOllamaModels: () => Promise<string[]>
 }
 
 export interface FlashcardDeck {

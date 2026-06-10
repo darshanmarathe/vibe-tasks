@@ -753,6 +753,19 @@ function registerIpcHandlers() {
     if (config.model) chatRepo.setAiConfig('model', config.model)
   })
 
+  ipcMain.handle('ai:chat:ollama-models', async () => {
+    try {
+      const res = await fetch('http://localhost:11434/api/tags')
+      const data = await res.json() as any
+      const models: string[] = (data.models || []).map((m: any) => m.name)
+      console.log('[AI Chat] fetched Ollama models:', models)
+      return models
+    } catch (err: any) {
+      console.error('[AI Chat] failed to fetch Ollama models:', err.message)
+      return []
+    }
+  })
+
   ipcMain.on('ai:chat:send', async (event, { conversationId, message }) => {
     chatRepo.addMessage(conversationId, 'user', message)
 
