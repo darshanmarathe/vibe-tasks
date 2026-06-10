@@ -251,6 +251,7 @@ function runMigrations() {
   runNoteMigrations()
   runLinkMigrations()
   runFlashcardMigrations()
+  runAiChatMigrations()
 }
 
 function runNoteMigrations() {
@@ -451,6 +452,41 @@ function runLinkMigrations() {
   const catCount = exec('SELECT COUNT(*) as count FROM link_categories')
   if (catCount[0].count === 0) {
     db.run(`INSERT OR IGNORE INTO link_categories (name, is_hardcoded) VALUES ('General',1), ('Tasks',1), ('Notes',1), ('Mindmaps',1), ('Journals',1)`)
+  }
+}
+
+function runAiChatMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL DEFAULT 'New Chat',
+      provider TEXT NOT NULL DEFAULT 'ollama',
+      model TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id INTEGER NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversation_id);
+
+    CREATE TABLE IF NOT EXISTS ai_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `)
+
+  // Seed default config
+  const existing = exec("SELECT value FROM ai_config WHERE key = 'provider'")
+  if (existing.length === 0) {
+    db.run("INSERT INTO ai_config (key, value) VALUES ('provider', 'ollama')")
+    db.run("INSERT INTO ai_config (key, value) VALUES ('model', 'llama3.2')")
+    db.run("INSERT INTO ai_config (key, value) VALUES ('api_key', '')")
   }
 }
 

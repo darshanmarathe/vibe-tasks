@@ -149,4 +149,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
+
+  // AI Chat
+  getConversations: () => ipcRenderer.invoke('ai:chat:conversations:list'),
+  createConversation: () => ipcRenderer.invoke('ai:chat:conversations:create'),
+  deleteConversation: (id) => ipcRenderer.invoke('ai:chat:conversations:delete', id),
+  renameConversation: (id, title) => ipcRenderer.invoke('ai:chat:conversations:rename', id, title),
+  getMessages: (id) => ipcRenderer.invoke('ai:chat:messages:list', id),
+  sendChatMessage: (conversationId, message) => ipcRenderer.send('ai:chat:send', { conversationId, message }),
+  cancelChat: (conversationId) => ipcRenderer.send('ai:chat:cancel', conversationId),
+  onChatChunk: (callback) => {
+    const handler = (_e, data) => callback(data)
+    ipcRenderer.on('ai:chat:chunk', handler)
+    return () => ipcRenderer.removeListener('ai:chat:chunk', handler)
+  },
+  getAiConfig: () => ipcRenderer.invoke('ai:chat:config:get'),
+  setAiConfig: (config) => ipcRenderer.invoke('ai:chat:config:set', config),
 })

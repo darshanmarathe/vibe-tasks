@@ -2,6 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { app, BrowserWindow, ipcMain, Notification, dialog, shell } from 'electron'
+import OpenAI from 'openai'
 import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
 import TurndownService from 'turndown'
 import * as userRepo from './database/repositories/userRepo'
@@ -16,6 +17,7 @@ import * as timeRepo from './database/repositories/timeRepo'
 import * as journalRepo from './database/repositories/journalRepo'
 import * as linkRepo from './database/repositories/linkRepo'
 import * as flashcardRepo from './database/repositories/flashcardRepo'
+import * as chatRepo from './database/repositories/chatRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -727,6 +729,89 @@ function registerIpcHandlers() {
       timeRepo.stopTimer(running.id)
       focusWindow?.webContents.send('focus:timerUpdate', null)
     }
+  })
+
+  // ── AI Chat ──
+
+  const activeStreams = new Map<number, AbortController>()
+
+  ipcMain.handle('ai:chat:conversations:list', () => chatRepo.getConversations())
+  ipcMain.handle('ai:chat:conversations:create', () => chatRepo.createConversation('ollama', 'llama3.2'))
+  ipcMain.handle('ai:chat:conversations:delete', (_e, id) => chatRepo.deleteConversation(id))
+  ipcMain.handle('ai:chat:conversations:rename', (_e, id, title) => chatRepo.updateConversationTitle(id, title))
+  ipcMain.handle('ai:chat:messages:list', (_e, id) => chatRepo.getMessages(id))
+
+  ipcMain.handle('ai:chat:config:get', () => ({
+    provider: chatRepo.getAiConfig('provider') || 'ollama',
+    apiKey: chatRepo.getAiConfig('api_key') || '',
+    model: chatRepo.getAiConfig('model') || 'llama3.2',
+  }))
+
+  ipcMain.handle('ai:chat:config:set', (_e, config) => {
+    if (config.provider) chatRepo.setAiConfig('provider', config.provider)
+    if (config.apiKey !== undefined) chatRepo.setAiConfig('api_key', config.apiKey)
+    if (config.model) chatRepo.setAiConfig('model', config.model)
+  })
+
+  ipcMain.on('ai:chat:send', async (event, { conversationId, message }) => {
+    chatRepo.addMessage(conversationId, 'user', message)
+
+    const existing = activeStreams.get(conversationId)
+    if (existing) existing.abort()
+
+    const abortController = new AbortController()
+    activeStreams.set(conversationId, abortController)
+
+    try {
+      const provider = chatRepo.getAiConfig('provider') || 'ollama'
+      const apiKey = chatRepo.getAiConfig('api_key') || ''
+      const model = chatRepo.getAiConfig('model') || 'llama3.2'
+
+      let client: OpenAI
+      if (provider === 'ollama') {
+        client = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
+      } else if (provider === 'gemini') {
+        client = new OpenAI({ baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey })
+      } else if (provider === 'groq') {
+        client = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey })
+      } else {
+        client = new OpenAI({ apiKey })
+      }
+
+      const history = chatRepo.getMessages(conversationId)
+      const msgs = history.map((m: any) => ({ role: m.role, content: m.content }))
+      if (!msgs.some(m => m.role === 'system')) {
+        msgs.unshift({ role: 'system', content: 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully.' })
+      }
+
+      let fullContent = ''
+      const stream = await client.chat.completions.create({
+        model,
+        messages: msgs,
+        stream: true,
+      }, { signal: abortController.signal })
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content || ''
+        if (delta) {
+          fullContent += delta
+          event.sender.send('ai:chat:chunk', { conversationId, delta })
+        }
+      }
+
+      chatRepo.addMessage(conversationId, 'assistant', fullContent)
+      event.sender.send('ai:chat:chunk', { conversationId, done: true })
+    } catch (err: any) {
+      if (err.name === 'AbortError') return
+      event.sender.send('ai:chat:chunk', { conversationId, error: err.message })
+    } finally {
+      activeStreams.delete(conversationId)
+    }
+  })
+
+  ipcMain.on('ai:chat:cancel', (_e, conversationId) => {
+    const existing = activeStreams.get(conversationId)
+    if (existing) existing.abort()
   })
 
   ipcMain.handle('theme:get', () => {

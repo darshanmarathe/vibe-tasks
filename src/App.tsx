@@ -19,6 +19,7 @@ import WeeklyReview from './pages/WeeklyReview'
 import Settings from './pages/Settings/Settings'
 import TimeReports from './pages/TimeReports'
 import DailyJournal from './pages/DailyJournal'
+import AiChat from './pages/AiChat'
 
 export default function App() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/journal" element={<DailyJournal />} />
               <Route path="/links" element={<Links />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/ai-chat" element={<AiChat />} />
               <Route path="/about" element={<About />} />
             </Route>
           </Routes>

@@ -52,6 +52,7 @@
     "react-is": "^19.2.6",
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1",
+    "openai": "^4.0.0",
     "sql.js": "^1.14.1",
     "turndown": "^7.2.4"
   }

@@ -213,6 +213,18 @@ export interface ElectronAPI {
 
   // Focus Mode
   toggleFocus: () => Promise<void>
+
+  // AI Chat
+  getConversations: () => Promise<ChatConversation[]>
+  createConversation: () => Promise<ChatConversation>
+  deleteConversation: (id: number) => Promise<void>
+  renameConversation: (id: number, title: string) => Promise<void>
+  getMessages: (conversationId: number) => Promise<ChatMessage[]>
+  sendChatMessage: (conversationId: number, message: string) => void
+  cancelChat: (conversationId: number) => void
+  onChatChunk: (callback: (data: ChatChunk) => void) => () => void
+  getAiConfig: () => Promise<AiConfig>
+  setAiConfig: (config: AiConfig) => Promise<void>
 }
 
 export interface FlashcardDeck {
@@ -450,6 +462,36 @@ export interface JournalSummaryReport {
   allWins: { date: string; text: string }[]
   allLosses: { date: string; text: string }[]
   days: JournalSummaryDay[]
+}
+
+export interface ChatConversation {
+  id: number
+  title: string
+  provider: string
+  model: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatMessage {
+  id: number
+  conversation_id: number
+  role: string
+  content: string
+  created_at: string
+}
+
+export interface ChatChunk {
+  conversationId: number
+  delta?: string
+  done?: boolean
+  error?: string
+}
+
+export interface AiConfig {
+  provider: string
+  apiKey: string
+  model: string
 }
 
 declare global {
