@@ -216,11 +216,13 @@ export interface ElectronAPI {
 
   // AI Chat
   getConversations: () => Promise<ChatConversation[]>
-  createConversation: () => Promise<ChatConversation>
+  createConversation: (provider?: string, model?: string, apiKey?: string) => Promise<ChatConversation>
   deleteConversation: (id: number) => Promise<void>
   renameConversation: (id: number, title: string) => Promise<void>
+  updateConversationConfig: (id: number, provider: string, model: string, apiKey: string) => Promise<void>
   getMessages: (conversationId: number) => Promise<ChatMessage[]>
   sendChatMessage: (conversationId: number, message: string) => void
+  retryChatMessage: (conversationId: number) => void
   cancelChat: (conversationId: number) => void
   onChatChunk: (callback: (data: ChatChunk) => void) => () => void
   getAiConfig: () => Promise<AiConfig>
@@ -470,6 +472,7 @@ export interface ChatConversation {
   title: string
   provider: string
   model: string | null
+  api_key: string
   created_at: string
   updated_at: string
 }

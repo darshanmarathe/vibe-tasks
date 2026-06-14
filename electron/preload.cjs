@@ -152,11 +152,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // AI Chat
   getConversations: () => ipcRenderer.invoke('ai:chat:conversations:list'),
-  createConversation: () => ipcRenderer.invoke('ai:chat:conversations:create'),
+  createConversation: (provider, model, apiKey) => ipcRenderer.invoke('ai:chat:conversations:create', provider, model, apiKey),
   deleteConversation: (id) => ipcRenderer.invoke('ai:chat:conversations:delete', id),
   renameConversation: (id, title) => ipcRenderer.invoke('ai:chat:conversations:rename', id, title),
+  updateConversationConfig: (id, provider, model, apiKey) => ipcRenderer.invoke('ai:chat:conversations:updateConfig', id, provider, model, apiKey),
   getMessages: (id) => ipcRenderer.invoke('ai:chat:messages:list', id),
   sendChatMessage: (conversationId, message) => ipcRenderer.send('ai:chat:send', { conversationId, message }),
+  retryChatMessage: (conversationId) => ipcRenderer.send('ai:chat:retry', { conversationId }),
   cancelChat: (conversationId) => ipcRenderer.send('ai:chat:cancel', conversationId),
   onChatChunk: (callback) => {
     const handler = (_e, data) => callback(data)

@@ -736,9 +736,11 @@ function registerIpcHandlers() {
   const activeStreams = new Map<number, AbortController>()
 
   ipcMain.handle('ai:chat:conversations:list', () => chatRepo.getConversations())
-  ipcMain.handle('ai:chat:conversations:create', () => chatRepo.createConversation('ollama', 'llama3.2'))
+  ipcMain.handle('ai:chat:conversations:create', (_e, provider?: string, model?: string, apiKey?: string) =>
+    chatRepo.createConversation(provider, model, apiKey))
   ipcMain.handle('ai:chat:conversations:delete', (_e, id) => chatRepo.deleteConversation(id))
   ipcMain.handle('ai:chat:conversations:rename', (_e, id, title) => chatRepo.updateConversationTitle(id, title))
+  ipcMain.handle('ai:chat:conversations:updateConfig', (_e, id, provider, model, apiKey) => chatRepo.updateConversationConfig(id, provider, model, apiKey))
   ipcMain.handle('ai:chat:messages:list', (_e, id) => chatRepo.getMessages(id))
 
   ipcMain.handle('ai:chat:config:get', () => ({
@@ -766,9 +768,7 @@ function registerIpcHandlers() {
     }
   })
 
-  ipcMain.on('ai:chat:send', async (event, { conversationId, message }) => {
-    chatRepo.addMessage(conversationId, 'user', message)
-
+  async function streamAiResponse(event: Electron.IpcMainEvent, conversationId: number, logPrefix: string) {
     const existing = activeStreams.get(conversationId)
     if (existing) existing.abort()
 
@@ -776,18 +776,25 @@ function registerIpcHandlers() {
     activeStreams.set(conversationId, abortController)
 
     try {
-      const provider = chatRepo.getAiConfig('provider') || 'ollama'
-      const apiKey = chatRepo.getAiConfig('api_key') || ''
-      const model = chatRepo.getAiConfig('model') || 'llama3.2'
+      const convs = chatRepo.getConversations()
+      const conv = convs.find(c => c.id === conversationId)
+      const provider = conv?.provider || 'ollama'
+      const apiKey = conv?.api_key || ''
+      const model = conv?.model || 'llama3.2'
+      console.log(`[${logPrefix}] config`, { provider, model, hasApiKey: !!apiKey, convFound: !!conv })
 
       let client: OpenAI
       if (provider === 'ollama') {
+        console.log(`[${logPrefix}] using ollama`)
         client = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
       } else if (provider === 'gemini') {
+        console.log(`[${logPrefix}] using gemini`)
         client = new OpenAI({ baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey })
       } else if (provider === 'groq') {
+        console.log(`[${logPrefix}] using groq`)
         client = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey })
       } else {
+        console.log(`[${logPrefix}] using unknown provider, falling back`)
         client = new OpenAI({ apiKey })
       }
 
@@ -798,11 +805,13 @@ function registerIpcHandlers() {
       }
 
       let fullContent = ''
+      console.log(`[${logPrefix}] creating stream...`)
       const stream = await client.chat.completions.create({
         model,
         messages: msgs,
         stream: true,
       }, { signal: abortController.signal })
+      console.log(`[${logPrefix}] stream created, iterating...`)
 
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content || ''
@@ -812,14 +821,29 @@ function registerIpcHandlers() {
         }
       }
 
+      console.log(`[${logPrefix}] stream complete, fullContent length:`, fullContent.length)
       chatRepo.addMessage(conversationId, 'assistant', fullContent)
       event.sender.send('ai:chat:chunk', { conversationId, done: true })
     } catch (err: any) {
+      console.error(`[${logPrefix}] error:`, err.name, err.message, 'status:', err.status, 'code:', err.code, 'type:', err.type)
       if (err.name === 'AbortError') return
-      event.sender.send('ai:chat:chunk', { conversationId, error: err.message })
+      const statusHint = err.status ? ` (HTTP ${err.status})` : ''
+      const bodyHint = err.message.includes('(no body)') ? ' — the API returned no error details. Check your API key is valid and the model is accessible.' : ''
+      event.sender.send('ai:chat:chunk', { conversationId, error: `${err.message}${statusHint}${bodyHint}` })
     } finally {
       activeStreams.delete(conversationId)
     }
+  }
+
+  ipcMain.on('ai:chat:send', async (event, { conversationId, message }) => {
+    console.log('[ai:chat:send] received', { conversationId, message: message.substring(0, 50) })
+    chatRepo.addMessage(conversationId, 'user', message)
+    await streamAiResponse(event, conversationId, 'ai:chat:send')
+  })
+
+  ipcMain.on('ai:chat:retry', async (event, { conversationId }) => {
+    console.log('[ai:chat:retry] received', { conversationId })
+    await streamAiResponse(event, conversationId, 'ai:chat:retry')
   })
 
   ipcMain.on('ai:chat:cancel', (_e, conversationId) => {

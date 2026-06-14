@@ -481,6 +481,12 @@ function runAiChatMigrations() {
     );
   `)
 
+  // Migration: add api_key column if missing
+  const convCols = exec('PRAGMA table_info(chat_conversations)')
+  if (!convCols.some((c: any) => c.name === 'api_key')) {
+    db.run("ALTER TABLE chat_conversations ADD COLUMN api_key TEXT DEFAULT ''")
+  }
+
   // Seed default config
   const existing = exec("SELECT value FROM ai_config WHERE key = 'provider'")
   if (existing.length === 0) {

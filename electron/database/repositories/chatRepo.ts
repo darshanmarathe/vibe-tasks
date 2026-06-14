@@ -9,6 +9,7 @@ export interface ChatConversationRow {
   title: string
   provider: string
   model: string | null
+  api_key: string
   created_at: string
   updated_at: string
 }
@@ -26,14 +27,21 @@ export function getConversations(): ChatConversationRow[] {
   return exec('SELECT * FROM chat_conversations ORDER BY updated_at DESC')
 }
 
-export function createConversation(provider = 'ollama', model = 'llama3.2'): ChatConversationRow {
+export function createConversation(provider = 'ollama', model = 'llama3.2', apiKey = ''): ChatConversationRow {
   const { exec, run, save } = getDatabase()
   const n = now()
-  run('INSERT INTO chat_conversations (title, provider, model, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-    ['New Chat', provider, model, n, n])
+  run('INSERT INTO chat_conversations (title, provider, model, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ['New Chat', provider, model, apiKey, n, n])
   save()
   const rows = exec('SELECT * FROM chat_conversations WHERE id = last_insert_rowid()')
   return rows[0]
+}
+
+export function updateConversationConfig(id: number, provider: string, model: string, apiKey: string): void {
+  const { run, save } = getDatabase()
+  run('UPDATE chat_conversations SET provider = ?, model = ?, api_key = ?, updated_at = ? WHERE id = ?',
+    [provider, model, apiKey, now(), id])
+  save()
 }
 
 export function updateConversationTitle(id: number, title: string): void {
