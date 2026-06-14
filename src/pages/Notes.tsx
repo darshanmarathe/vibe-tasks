@@ -620,6 +620,11 @@ export default function Notes() {
               <input value={editTitle} onChange={e => { setEditTitle(e.target.value); triggerAutoSave(e.target.value) }}
                 className="text-lg font-semibold bg-transparent border-none outline-none flex-1 mr-4" style={{ color: 'var(--text-primary)' }} />
               <div className="flex items-center gap-2">
+                <button onClick={() => {
+                  const text = `Title: ${editTitle}\n\n${editor?.getText() || ''}`
+                  navigator.clipboard.writeText(text)
+                }}
+                  className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }} title="Copy title + content">📑 Copy</button>
                 <button onClick={handleDuplicate}
                   className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }} title="Duplicate">📋</button>
                 <button onClick={handleSaveAsTemplate}

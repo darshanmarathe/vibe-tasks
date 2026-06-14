@@ -80,13 +80,43 @@ export default function TaskEditModal({
     return () => window.removeEventListener('keydown', handler)
   }, [editingTask, onClose])
 
+  const [copied, setCopied] = useState(false)
+
   if (!editingTask) return null
+
+  const copyTaskDetails = () => {
+    const statusName = statuses.find(s => s.id === editStatus)?.name || ''
+    const priorityName = priorities.find(p => p.id === editPriority)?.name || ''
+    const projectName = projects.find(p => p.id === editProject)?.name || ''
+    const assignedName = users.find(u => u.id === editAssignedTo)?.name || 'Unassigned'
+
+    const parts: string[] = []
+    parts.push(`Name: ${editName}`)
+    if (editDesc.trim()) parts.push(`Description: ${editDesc}`)
+    if (editDueDate) parts.push(`Due Date: ${editDueDate}`)
+    parts.push(`Status: ${statusName}`)
+    parts.push(`Priority: ${priorityName}`)
+    parts.push(`Project: ${projectName}`)
+    parts.push(`Assigned To: ${assignedName}`)
+
+    navigator.clipboard.writeText(parts.join('\n')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
         <div className="rounded-xl p-6 border w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-          <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
+            <button onClick={copyTaskDetails}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+              {copied ? 'Copied!' : '📋 Copy'}
+            </button>
+          </div>
           <div className="space-y-3">
             <div>
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>

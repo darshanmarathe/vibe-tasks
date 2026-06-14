@@ -136,7 +136,9 @@ export default function Links() {
                     {link.display_on_dashboard ? '✓' : '○'}
                   </button>
                 </td>
-                <td className="py-3 px-4 text-right">
+                <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
+                  <button onClick={() => navigator.clipboard.writeText(link.url)}
+                    className="text-xs" style={{ color: 'var(--text-secondary)' }}>Copy</button>
                   <button onClick={() => deleteLink(link.id)}
                     className="text-xs" style={{ color: 'var(--danger)' }}>Delete</button>
                 </td>
