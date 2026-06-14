@@ -14,6 +14,7 @@ import Flashcards from './pages/Flashcards'
 import Notes from './pages/Notes'
 import MindMap from './pages/MindMap'
 import Links from './pages/Links'
+import Spreadsheets from './pages/Spreadsheets'
 import Habits from './pages/Habits'
 import WeeklyReview from './pages/WeeklyReview'
 import Settings from './pages/Settings/Settings'
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/time-reports" element={<TimeReports />} />
               <Route path="/journal" element={<DailyJournal />} />
               <Route path="/links" element={<Links />} />
+              <Route path="/spreadsheets" element={<Spreadsheets />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/ai-chat" element={<AiChat />} />
               <Route path="/about" element={<About />} />

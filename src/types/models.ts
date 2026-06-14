@@ -211,6 +211,17 @@ export interface ElectronAPI {
   reviewFlashcard: (id: number, quality: number) => Promise<Flashcard>
   getDueFlashcards: (deckId?: number) => Promise<Flashcard[]>
 
+  // Spreadsheets
+  getSpreadsheets: () => Promise<Spreadsheet[]>
+  getSpreadsheet: (id: number) => Promise<Spreadsheet | null>
+  createSpreadsheet: (name?: string) => Promise<Spreadsheet>
+  updateSpreadsheet: (id: number, data: { name?: string; data?: string }) => Promise<Spreadsheet>
+  deleteSpreadsheet: (id: number) => Promise<void>
+
+  // Utilities
+  showSaveDialog: (options: { defaultPath?: string; filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>
+  writeBinaryFile: (filePath: string, data: number[]) => Promise<void>
+
   // Focus Mode
   toggleFocus: () => Promise<void>
 
@@ -235,6 +246,14 @@ export interface FlashcardDeck {
   name: string
   description: string
   created_at: string
+}
+
+export interface Spreadsheet {
+  id: number
+  name: string
+  data: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Flashcard {

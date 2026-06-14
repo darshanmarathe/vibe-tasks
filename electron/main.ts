@@ -18,6 +18,7 @@ import * as journalRepo from './database/repositories/journalRepo'
 import * as linkRepo from './database/repositories/linkRepo'
 import * as flashcardRepo from './database/repositories/flashcardRepo'
 import * as chatRepo from './database/repositories/chatRepo'
+import * as spreadsheetRepo from './database/repositories/spreadsheetRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -291,6 +292,23 @@ function registerIpcHandlers() {
   ipcMain.handle('flashcard:delete', (_e, id) => flashcardRepo.deleteFlashcard(id))
   ipcMain.handle('flashcard:review', (_e, id, quality) => flashcardRepo.reviewFlashcard(id, quality))
   ipcMain.handle('flashcard:due', (_e, deckId) => flashcardRepo.getDueFlashcards(deckId))
+
+  // ── Spreadsheets ──
+  ipcMain.handle('spreadsheet:list', () => spreadsheetRepo.getSpreadsheets())
+  ipcMain.handle('spreadsheet:get', (_e, id) => spreadsheetRepo.getSpreadsheet(id))
+  ipcMain.handle('spreadsheet:create', (_e, name) => spreadsheetRepo.createSpreadsheet(name))
+  ipcMain.handle('spreadsheet:update', (_e, id, data) => spreadsheetRepo.updateSpreadsheet(id, data))
+  ipcMain.handle('spreadsheet:delete', (_e, id) => spreadsheetRepo.deleteSpreadsheet(id))
+
+  // ── Utilities ──
+  ipcMain.handle('util:showSaveDialog', async (_e, options: Electron.SaveDialogOptions) => {
+    const r = await dialog.showSaveDialog(mainWindow!, options)
+    if (r.canceled || !r.filePath) return null
+    return r.filePath
+  })
+  ipcMain.handle('util:writeBinaryFile', async (_e, filePath: string, data: number[]) => {
+    fs.writeFileSync(filePath, Buffer.from(data))
+  })
 
   // ── Data Portability ──
 

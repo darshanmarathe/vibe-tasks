@@ -26,6 +26,7 @@ const navGroups: NavGroup[] = [
       { path: '/notes',         label: 'Notes',        icon: '📝' },
       { path: '/journal',       label: 'Journal',      icon: '📔' },
       { path: '/links',         label: 'Links',        icon: '🔗' },
+      { path: '/spreadsheets',  label: 'Spreadsheets', icon: '📗' },
       { path: '/habits',        label: 'Habits',       icon: '✅' },
       { path: '/mindmap',       label: 'Mind Map',     icon: '🧠' },
     ],

@@ -147,6 +147,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reviewFlashcard: (id, quality) => ipcRenderer.invoke('flashcard:review', id, quality),
   getDueFlashcards: (deckId) => ipcRenderer.invoke('flashcard:due', deckId),
 
+  // Spreadsheets
+  getSpreadsheets: () => ipcRenderer.invoke('spreadsheet:list'),
+  getSpreadsheet: (id) => ipcRenderer.invoke('spreadsheet:get', id),
+  createSpreadsheet: (name) => ipcRenderer.invoke('spreadsheet:create', name),
+  updateSpreadsheet: (id, data) => ipcRenderer.invoke('spreadsheet:update', id, data),
+  deleteSpreadsheet: (id) => ipcRenderer.invoke('spreadsheet:delete', id),
+
+  // Utilities
+  showSaveDialog: (options) => ipcRenderer.invoke('util:showSaveDialog', options),
+  writeBinaryFile: (filePath, data) => ipcRenderer.invoke('util:writeBinaryFile', filePath, data),
+
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 

@@ -252,6 +252,7 @@ function runMigrations() {
   runLinkMigrations()
   runFlashcardMigrations()
   runAiChatMigrations()
+  runSpreadsheetMigrations()
 }
 
 function runNoteMigrations() {
@@ -519,5 +520,17 @@ function runFlashcardMigrations() {
     );
     CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
     CREATE INDEX IF NOT EXISTS idx_flashcards_review ON flashcards(next_review_date);
+  `)
+}
+
+function runSpreadsheetMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS spreadsheets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL DEFAULT 'Untitled Spreadsheet',
+      data TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `)
 }
