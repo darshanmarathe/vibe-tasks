@@ -361,6 +361,8 @@ export interface MindMapFull extends MindMap {
 }
 
 export type DiagramNodeType = 'rectangle' | 'diamond' | 'parallelogram' | 'cylinder' | 'circle' | 'hexagon'
+  | 'server' | 'cloud' | 'mobile' | 'tablet' | 'database' | 'boundary'
+  | 'lambda' | 's3' | 'ec2' | 'azfunc' | 'azsql'
 
 export interface Diagram {
   id: string

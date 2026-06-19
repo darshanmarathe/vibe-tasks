@@ -29,6 +29,7 @@ const navGroups: NavGroup[] = [
       { path: '/spreadsheets',  label: 'Spreadsheets', icon: '📗' },
       { path: '/habits',        label: 'Habits',       icon: '✅' },
       { path: '/mindmap',       label: 'Mind Map',     icon: '🧠' },
+      { path: '/diagrams',     label: 'Diagrams',    icon: '📐' },
     ],
   },
   {
