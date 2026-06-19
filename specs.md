@@ -185,3 +185,4 @@
    4. ✅ Dashboard calendar — clicking a date pre-fills the due date and focuses the quick add input
    5. ✅ Calendar page — clicking a day number opens an add task modal with the date pre-filled as the due date
    6. ✅ QR codes — generic 📱 icon in links table and dashboard quick links; clicking opens a modal with a large scannable QR code (via qrcode library)
+   7. ✅ QR scanning — "Scan" button next to URL input in add form; opens camera modal to scan a QR code and auto-fills the URL

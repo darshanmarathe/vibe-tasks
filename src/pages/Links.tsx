@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { Link, LinkCategory } from '../types/models'
 import QRCode from 'qrcode'
+// @ts-ignore - html5-qrcode has no types
+import { Html5Qrcode } from 'html5-qrcode'
 
 export default function Links() {
   const [links, setLinks] = useState<Link[]>([])
@@ -13,6 +15,10 @@ export default function Links() {
   const [dashboard, setDashboard] = useState(false)
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const [qrModalData, setQrModalData] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
+  const [scanError, setScanError] = useState('')
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+  const scannerContainerRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     const [l, c] = await Promise.all([
@@ -33,6 +39,47 @@ export default function Links() {
       setQrModalData('')
     }
   }
+
+  const startScanner = async () => {
+    setScanError('')
+    setShowScanner(true)
+  }
+
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop() } catch { /* ignore */ }
+      scannerRef.current = null
+    }
+    setShowScanner(false)
+    setScanError('')
+  }
+
+  useEffect(() => {
+    if (!showScanner || !scannerContainerRef.current) return
+    let cancelled = false
+    const run = async () => {
+      try {
+        const scanner = new Html5Qrcode('qr-scanner-container')
+        scannerRef.current = scanner
+        const cameras = await Html5Qrcode.getCameras()
+        if (cameras.length === 0) { setScanError('No camera found'); return }
+        const cameraId = cameras[cameras.length - 1].id
+        await scanner.start(cameraId, { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText: string) => {
+            if (!cancelled) {
+              setUrl(decodedText)
+              stopScanner()
+            }
+          },
+          () => { /* ignore partial scans */ }
+        )
+      } catch (err: any) {
+        if (!cancelled) setScanError(err?.message || 'Camera access denied')
+      }
+    }
+    run()
+    return () => { cancelled = true; scannerRef.current?.stop().catch(() => {}) }
+  }, [showScanner])
 
   const addLink = async () => {
     if (!url.trim()) return
@@ -73,9 +120,15 @@ export default function Links() {
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>URL</label>
-              <input value={url} onChange={e => setUrl(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              <div className="flex gap-2">
+                <input value={url} onChange={e => setUrl(e.target.value)}
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                <button onClick={startScanner} type="button"
+                  className="px-3 py-2 rounded-lg text-sm"
+                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  title="Scan QR code from camera">📷 Scan</button>
+              </div>
             </div>
             <div className="flex-1">
               <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Text</label>
@@ -170,6 +223,25 @@ export default function Links() {
           </tbody>
         </table>
       </div>
+
+      {/* Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={stopScanner}>
+          <div className="rounded-xl p-6 border w-full max-w-md" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Scan QR Code</h2>
+              <button onClick={stopScanner} className="text-sm" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div ref={scannerContainerRef}>
+              <div id="qr-scanner-container" className="w-full aspect-square rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }} />
+            </div>
+            {scanError && (
+              <p className="text-sm text-center mt-3" style={{ color: 'var(--danger)' }}>{scanError}</p>
+            )}
+            <p className="text-xs text-center mt-3" style={{ color: 'var(--text-muted)' }}>Point your camera at a QR code</p>
+          </div>
+        </div>
+      )}
 
       {/* QR Modal */}
       {qrModalUrl !== null && (
