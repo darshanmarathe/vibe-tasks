@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Link, LinkCategory } from '../types/models'
+import QRCode from 'qrcode'
 
 export default function Links() {
   const [links, setLinks] = useState<Link[]>([])
@@ -10,6 +11,8 @@ export default function Links() {
   const [text, setText] = useState('')
   const [categoryId, setCategoryId] = useState(0)
   const [dashboard, setDashboard] = useState(false)
+  const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
+  const [qrModalData, setQrModalData] = useState('')
 
   const load = useCallback(async () => {
     const [l, c] = await Promise.all([
@@ -21,6 +24,15 @@ export default function Links() {
   }, [filterCat])
 
   useEffect(() => { load() }, [load])
+
+  const openQrModal = async (linkUrl: string) => {
+    setQrModalUrl(linkUrl)
+    try {
+      setQrModalData(await QRCode.toDataURL(linkUrl, { width: 400, margin: 2 }))
+    } catch {
+      setQrModalData('')
+    }
+  }
 
   const addLink = async () => {
     if (!url.trim()) return
@@ -115,6 +127,7 @@ export default function Links() {
               <th className="text-left py-3 px-4">URL</th>
               <th className="text-left py-3 px-2">Text</th>
               <th className="text-left py-3 px-2">Category</th>
+              <th className="text-center py-3 px-2">QR</th>
               <th className="text-center py-3 px-2">Dashboard</th>
               <th className="text-right py-3 px-4">Actions</th>
             </tr>
@@ -129,6 +142,13 @@ export default function Links() {
                 </td>
                 <td className="py-3 px-2" style={{ color: 'var(--text-primary)' }}>{link.text}</td>
                 <td className="py-3 px-2" style={{ color: 'var(--text-secondary)' }}>{(link as any).category_name || '—'}</td>
+                <td className="py-3 px-2 text-center">
+                  <button onClick={() => openQrModal(link.url)}
+                    className="text-lg mx-auto" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    title="Show QR code">
+                    📱
+                  </button>
+                </td>
                 <td className="py-3 px-2 text-center">
                   <button onClick={() => toggleDashboard(link)}
                     className="text-sm"
@@ -145,11 +165,29 @@ export default function Links() {
               </tr>
             ))}
             {links.length === 0 && (
-              <tr><td colSpan={5} className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>No links yet.</td></tr>
+              <tr><td colSpan={6} className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>No links yet.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {/* QR Modal */}
+      {qrModalUrl !== null && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setQrModalUrl(null)}>
+          <div className="rounded-xl p-6 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>QR Code</h2>
+              <button onClick={() => setQrModalUrl(null)} className="text-sm" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+            {qrModalData ? (
+              <img src={qrModalData} alt={`QR for ${qrModalUrl}`} className="w-64 h-64 mx-auto rounded" />
+            ) : (
+              <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>Failed to generate QR code</p>
+            )}
+            <p className="text-xs text-center mt-3 truncate max-w-64 mx-auto" style={{ color: 'var(--text-secondary)' }}>{qrModalUrl}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

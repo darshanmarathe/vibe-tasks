@@ -28,6 +28,14 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth())
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear())
 
+  // Add task modal state
+  const [showAddForDate, setShowAddForDate] = useState<string | null>(null)
+  const [addName, setAddName] = useState('')
+  const [addPriority, setAddPriority] = useState(0)
+  const [addProject, setAddProject] = useState(0)
+  const [addAssignedTo, setAddAssignedTo] = useState(0)
+  const [addDesc, setAddDesc] = useState('')
+
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [editName, setEditName] = useState('')
@@ -177,11 +185,17 @@ export default function Calendar() {
                   backgroundColor: isToday ? 'var(--bg-hover)' : 'transparent',
                 }}
               >
-                <div className={`text-xs font-semibold mb-1 ${isToday ? 'flex items-center justify-center w-6 h-6 rounded-full' : ''}`}
+                <div onClick={() => {
+                  setShowAddForDate(dateStr)
+                  setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
+                  setAddProject(projects[0]?.id || 0); setAddAssignedTo(0)
+                }}
+                  className={`text-xs font-semibold mb-1 cursor-pointer hover:opacity-70 ${isToday ? 'flex items-center justify-center w-6 h-6 rounded-full' : ''}`}
                   style={{
                     color: isToday ? '#fff' : isWeekend ? 'var(--text-muted)' : 'var(--text-primary)',
                     backgroundColor: isToday ? 'var(--accent)' : 'transparent',
                   }}
+                  title="Add task on this date"
                 >
                   {day}
                 </div>
@@ -209,6 +223,93 @@ export default function Calendar() {
           })}
         </div>
       </div>
+
+      {/* Add Task Modal */}
+      {showAddForDate !== null && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setShowAddForDate(null)}>
+          <div className="rounded-xl p-6 border w-full max-w-lg" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Add Task</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Name</label>
+                <input value={addName} onChange={e => setAddName(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Description</label>
+                <textarea value={addDesc} onChange={e => setAddDesc(e.target.value)} rows={2}
+                  className="w-full border rounded-lg px-3 py-2 text-sm resize-y"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
+                  <select value={addPriority} onChange={e => setAddPriority(Number(e.target.value))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
+                  <select value={addProject} onChange={e => setAddProject(Number(e.target.value))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
+                  <input type="date" value={showAddForDate} readOnly
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>
+                  <select value={addAssignedTo} onChange={e => setAddAssignedTo(Number(e.target.value))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value={0}>Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button onClick={() => setShowAddForDate(null)}
+                className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
+              <button onClick={async () => {
+                if (!addName.trim() || !showAddForDate) return
+                await window.electronAPI.createTask({
+                  name: addName.trim(),
+                  description: addDesc,
+                  notes: '',
+                  dueDate: showAddForDate,
+                  statusId: statuses[0]?.id || 1,
+                  priorityId: addPriority || priorities[0]?.id || 1,
+                  projectId: addProject || projects[0]?.id || 1,
+                  predecessorIds: '[]',
+                  successorIds: '[]',
+                  archived: 0,
+                  assignedTo: addAssignedTo || null,
+                  completionPercent: 0,
+                  recurrence_type: 'none',
+                  recurrence_interval: 1,
+                  recurrence_days_of_week: null,
+                  recurrence_end_date: null,
+                  recurrence_count: null,
+                  recurrence_parent_id: null,
+                })
+                setShowAddForDate(null)
+                loadData()
+              }} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TaskEditModal
         editingTask={editingTask}

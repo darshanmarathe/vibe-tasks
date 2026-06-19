@@ -170,10 +170,18 @@
   12. ✅ Pomodoro integration — session complete auto-stops running timer and logs duration
   13. ✅ time_entries table with indexes — migration added to DB init chain
 
-  ### Release 1.6.2 ✅
-  1. ✅ Daily Journal — mood picker, went well / to improve, wins & losses, quick notes
-  2. ✅ On This Day — past entries for same calendar date in previous years
-  3. ✅ Journal Summary Report — date range, inclusion criteria, Markdown export
-  4. ✅ Dashboard journal card and Weekly Review journal-days stat
-  5. ✅ Native splash screen (3s branding on cold start)
-  6. ✅ journal_entries table with wins/losses columns — migration in DB init chain
+   ### Release 1.6.2 ✅
+   1. ✅ Daily Journal — mood picker, went well / to improve, wins & losses, quick notes
+   2. ✅ On This Day — past entries for same calendar date in previous years
+   3. ✅ Journal Summary Report — date range, inclusion criteria, Markdown export
+   4. ✅ Dashboard journal card and Weekly Review journal-days stat
+   5. ✅ Native splash screen (3s branding on cold start)
+   6. ✅ journal_entries table with wins/losses columns — migration in DB init chain
+
+   ### Release 1.11.1 ✅
+   1. ✅ Quick add fields (Status, Priority, Project, Assigned To) retain their selected values between adds — no need to re-select for consecutive entries
+   2. ✅ Focus returns to Task Name input after quick add for rapid consecutive entry (no more clicking back into the field)
+   3. ✅ Kanban board add task modal uses active project filter as default project
+   4. ✅ Dashboard calendar — clicking a date pre-fills the due date and focuses the quick add input
+   5. ✅ Calendar page — clicking a day number opens an add task modal with the date pre-filled as the due date
+   6. ✅ QR codes — generic 📱 icon in links table and dashboard quick links; clicking opens a modal with a large scannable QR code (via qrcode library)

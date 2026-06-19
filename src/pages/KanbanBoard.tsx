@@ -174,7 +174,7 @@ export default function KanbanBoard() {
                     onClick={() => {
                       setAddingToColumn(status.id)
                       setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
-                      setAddProject(projects[0]?.id || 0); setAddAssignedTo(0); setAddDueDate('')
+                      setAddProject(filterProject || projects[0]?.id || 0); setAddAssignedTo(0); setAddDueDate('')
                     }}
                     className="text-xs px-2 py-0.5 rounded-full transition-colors"
                     style={{ backgroundColor: 'var(--accent)', color: '#fff' }}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
 import { parseDateFromText } from '../utils/dateParser'
 import { useTimer } from '../contexts/TimerContext'
@@ -14,6 +14,8 @@ export default function TaskList() {
   const [users, setUsers] = useState<User[]>([])
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
   const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
+  const quickNameRef = useRef<HTMLInputElement>(null)
+  const defaultsSet = useRef(false)
   const [quickName, setQuickName] = useState('')
   const [quickStatus, setQuickStatus] = useState(0)
   const [quickPriority, setQuickPriority] = useState(0)
@@ -62,9 +64,12 @@ export default function TaskList() {
     setPriorities(p)
     setProjects(pr)
     setUsers(u)
-    if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
-    if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
-    if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
+    if (!defaultsSet.current) {
+      defaultsSet.current = true
+      if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
+      if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
+      if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
+    }
   }, [])
 
   const loadTaskTimes = useCallback(async (taskList: TaskWithRelations[]) => {
@@ -114,6 +119,7 @@ export default function TaskList() {
     })
     setQuickName('')
     setParsedDueDate(null)
+    quickNameRef.current?.focus()
     loadData()
   }
 
@@ -251,6 +257,7 @@ export default function TaskList() {
           <div className="flex-1">
             <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Task Name</label>
             <input
+              ref={quickNameRef}
               value={quickName}
               onChange={e => handleNameChange(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}

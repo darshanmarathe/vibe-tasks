@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry, Link } from '../types/models'
 import { moodEmoji } from '../components/MoodPicker'
 import { parseDateFromText } from '../utils/dateParser'
@@ -8,6 +8,7 @@ import { formatElapsedShort, TimerBadge } from '../components/TimerBadge'
 import { useTimer } from '../contexts/TimerContext'
 import BulkAddModal from '../components/BulkAddModal'
 import TaskEditModal from '../components/TaskEditModal'
+import QRCode from 'qrcode'
 export default function Dashboard() {
   const navigate = useNavigate()
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
@@ -22,8 +23,12 @@ export default function Dashboard() {
   const [todayJournal, setTodayJournal] = useState<JournalEntry | null>(null)
   const [taskTimes, setTaskTimes] = useState<Map<number, number>>(new Map())
   const [dashboardLinks, setDashboardLinks] = useState<Link[]>([])
+  const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
+  const [qrModalData, setQrModalData] = useState('')
 
   // Quick Add state
+  const quickNameRef = useRef<HTMLInputElement>(null)
+  const defaultsSet = useRef(false)
   const [quickName, setQuickName] = useState('')
   const [quickStatus, setQuickStatus] = useState(0)
   const [quickPriority, setQuickPriority] = useState(0)
@@ -71,9 +76,12 @@ export default function Dashboard() {
       t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
     )
     setTaskTimes(new Map(times))
-    if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
-    if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
-    if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
+    if (!defaultsSet.current) {
+      defaultsSet.current = true
+      if (quickStatus === 0 && s.length > 0) setQuickStatus(s[0].id)
+      if (quickPriority === 0 && p.length > 0) setQuickPriority(p[1]?.id ?? p[0].id)
+      if (quickProject === 0 && pr.length > 0) setQuickProject(pr[0].id)
+    }
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
@@ -122,12 +130,13 @@ export default function Dashboard() {
   const handleNameChange = (val: string) => {
     setQuickName(val)
     const result = parseDateFromText(val)
-    setParsedDueDate(result.dueDate)
+    if (result.dueDate) setParsedDueDate(result.dueDate)
   }
 
   const handleQuickAdd = async () => {
     if (!quickName.trim()) return
-    const { cleaned, dueDate } = parseDateFromText(quickName)
+    const { cleaned, dueDate: parsedDue } = parseDateFromText(quickName)
+    const dueDate = parsedDue || parsedDueDate
     const sid = quickStatus || statuses[0]?.id || 1
     const pid = quickPriority || priorities[0]?.id || 1
     const prid = quickProject || projects[0]?.id || 1
@@ -153,6 +162,7 @@ export default function Dashboard() {
     })
     setQuickName('')
     setParsedDueDate(null)
+    quickNameRef.current?.focus()
     loadData()
   }
 
@@ -188,6 +198,15 @@ export default function Dashboard() {
     })
     closeEdit()
     loadData()
+  }
+
+  const openQrModal = async (linkUrl: string) => {
+    setQrModalUrl(linkUrl)
+    try {
+      setQrModalData(await QRCode.toDataURL(linkUrl, { width: 400, margin: 2 }))
+    } catch {
+      setQrModalData('')
+    }
   }
 
   const handleArchive = async (id: number) => {
@@ -303,16 +322,21 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-2">
               {dashboardLinks.map(link => (
-                <button key={link.id} onClick={() => window.electronAPI.openExternal(link.url)}
-                  className="flex items-center gap-2 rounded-lg p-2 border transition-colors hover:opacity-80 text-sm w-full text-left"
-                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}>
-                  <span className="truncate flex-1">{link.text || link.url}</span>
+                <div key={link.id} className="flex items-center gap-1 rounded-lg p-2 border transition-colors hover:opacity-80 text-sm w-full"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                  <button onClick={() => window.electronAPI.openExternal(link.url)}
+                    className="flex-1 text-left truncate" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'inherit' }}>
+                    {link.text || link.url}
+                  </button>
                   {(link as any).category_name && (
                     <span className="text-xs px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
                       {(link as any).category_name}
                     </span>
                   )}
-                </button>
+                  <button onClick={(e) => { e.stopPropagation(); openQrModal(link.url) }}
+                    className="text-sm shrink-0" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                    title="Show QR code">📱</button>
+                </div>
               ))}
             </div>
           )}
@@ -382,6 +406,7 @@ export default function Dashboard() {
           <div className="flex-1">
             <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Task Name</label>
             <input
+              ref={quickNameRef}
               value={quickName}
               onChange={e => handleNameChange(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
@@ -492,7 +517,11 @@ export default function Dashboard() {
                     return (
                       <div
                         key={day}
-                        onClick={() => setSelectedDate(selectedDate === dateStr ? null : dateStr)}
+                        onClick={() => {
+                          setSelectedDate(selectedDate === dateStr ? null : dateStr)
+                          setParsedDueDate(dateStr)
+                          quickNameRef.current?.focus()
+                        }}
                         className="rounded-lg p-1.5 text-xs relative cursor-pointer transition-colors"
                         style={{
                           backgroundColor: isSelected ? 'var(--accent)' : isToday ? 'var(--bg-hover)' : 'transparent',
@@ -670,6 +699,24 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* QR Modal */}
+      {qrModalUrl !== null && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setQrModalUrl(null)}>
+          <div className="rounded-xl p-6 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>QR Code</h2>
+              <button onClick={() => setQrModalUrl(null)} className="text-sm" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+            {qrModalData ? (
+              <img src={qrModalData} alt={`QR for ${qrModalUrl}`} className="w-64 h-64 mx-auto rounded" />
+            ) : (
+              <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>Failed to generate QR code</p>
+            )}
+            <p className="text-xs text-center mt-3 truncate max-w-64 mx-auto" style={{ color: 'var(--text-secondary)' }}>{qrModalUrl}</p>
+          </div>
+        </div>
+      )}
 
       <TaskEditModal
         editingTask={editingTask}
