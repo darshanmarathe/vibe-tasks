@@ -151,6 +151,14 @@ export interface ElectronAPI {
   deleteMindMap: (id: string) => Promise<void>
   saveMindMap: (id: string, nodes: MindMapNode[], edges: MindMapEdge[]) => Promise<void>
 
+  // Diagrams
+  getDiagrams: () => Promise<Diagram[]>
+  getDiagram: (id: string) => Promise<DiagramFull | null>
+  createDiagram: (name: string) => Promise<Diagram>
+  renameDiagram: (id: string, name: string) => Promise<void>
+  deleteDiagram: (id: string) => Promise<void>
+  saveDiagram: (id: string, nodes: DiagramNode[], edges: DiagramEdge[]) => Promise<void>
+
   // Habits
   getHabits: () => Promise<Habit[]>
   getHabit: (id: number) => Promise<Habit | null>
@@ -344,11 +352,49 @@ export interface MindMapEdge {
   to_node: string
   label: string
   dashed: number
+  edge_type: string
 }
 
 export interface MindMapFull extends MindMap {
   nodes: MindMapNode[]
   edges: MindMapEdge[]
+}
+
+export type DiagramNodeType = 'rectangle' | 'diamond' | 'parallelogram' | 'cylinder' | 'circle' | 'hexagon'
+
+export interface Diagram {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DiagramNode {
+  id: string
+  diagram_id: string
+  type: DiagramNodeType
+  label: string
+  color: string
+  x: number
+  y: number
+  width: number
+  height: number
+  props_json: string
+}
+
+export interface DiagramEdge {
+  id: string
+  diagram_id: string
+  source: string
+  target: string
+  label: string
+  edge_type: string
+  dashed: number
+}
+
+export interface DiagramFull extends Diagram {
+  nodes: DiagramNode[]
+  edges: DiagramEdge[]
 }
 
 export interface Habit {

@@ -12,6 +12,7 @@ import * as priorityRepo from './database/repositories/priorityRepo'
 import * as taskRepo from './database/repositories/taskRepo'
 import * as noteRepo from './database/repositories/noteRepo'
 import * as mindmapRepo from './database/repositories/mindmapRepo'
+import * as diagramRepo from './database/repositories/diagramRepo'
 import * as habitRepo from './database/repositories/habitRepo'
 import * as timeRepo from './database/repositories/timeRepo'
 import * as journalRepo from './database/repositories/journalRepo'
@@ -684,6 +685,14 @@ function registerIpcHandlers() {
   ipcMain.handle('mindmap:delete', (_e, id) => mindmapRepo.deleteMindMap(id))
   ipcMain.handle('mindmap:save', (_e, id, nodes, edges) => mindmapRepo.saveMindMap(id, nodes, edges))
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
+
+  // Diagrams
+  ipcMain.handle('diagram:list', () => diagramRepo.getDiagrams())
+  ipcMain.handle('diagram:get', (_e, id) => diagramRepo.getDiagram(id))
+  ipcMain.handle('diagram:create', (_e, name) => diagramRepo.createDiagram(name))
+  ipcMain.handle('diagram:rename', (_e, id, name) => diagramRepo.renameDiagram(id, name))
+  ipcMain.handle('diagram:delete', (_e, id) => diagramRepo.deleteDiagram(id))
+  ipcMain.handle('diagram:save', (_e, id, nodes, edges) => diagramRepo.saveDiagram(id, nodes, edges))
 
   // Habits
   ipcMain.handle('habits:list', () => habitRepo.getHabits())

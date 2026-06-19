@@ -16,40 +16,147 @@ const EMOJIS = [
   '🌟', '💎', '🎵', '📚', '✏️', '📦', '🛠️', '🎮',
 ]
 
-function MindMapNode({ data, selected }: NodeProps) {
+const SHAPE_LABELS: Record<string, string> = {
+  rounded: 'Rounded',
+  diamond: 'Diamond',
+  parallelogram: 'Para.',
+  cylinder: 'Cylinder',
+  circle: 'Circle',
+  hexagon: 'Hexagon',
+}
+
+function RoundedNode({ data, selected }: NodeProps) {
   const childCount = data.childCount || 0
   const highlighted = data._highlight
   return (
-    <div
-      className="rounded-xl border-2 px-4 py-3 shadow-lg min-w-[160px] transition-shadow"
+    <div className="rounded-xl border-2 px-4 py-3 shadow-lg min-w-[140px] transition-shadow"
       style={{
-        backgroundColor: data.color || '#89b4fa',
-        borderColor: selected ? '#fff' : 'transparent',
-        color: '#1e1e2e',
-        opacity: highlighted === false ? 0.3 : 1,
+        backgroundColor: data.color || '#89b4fa', borderColor: selected ? '#fff' : 'transparent',
+        color: '#1e1e2e', opacity: highlighted === false ? 0.3 : 1,
         boxShadow: highlighted === true ? '0 0 0 3px var(--accent)' : undefined,
-      }}
-    >
+      }}>
       <div className="text-center">
         {data.emoji && <span className="text-2xl mr-1">{data.emoji}</span>}
         <span className="font-semibold text-sm">{data.label}</span>
-        {data.collapsed && childCount > 0 && (
-          <span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded-full"
-            style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>
-            +{childCount}
-          </span>
-        )}
+        {data.collapsed && childCount > 0 && <span className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}>+{childCount}</span>}
       </div>
-      {data.image && (
-        <img src={data.image} alt="" className="mt-2 mx-auto max-w-[120px] max-h-[80px] rounded-lg object-cover" />
-      )}
+      {data.image && <img src={data.image} alt="" className="mt-2 mx-auto max-w-[120px] max-h-[80px] rounded-lg object-cover" />}
       <Handle type="target" position={Position.Left} style={{ background: '#555', width: 8, height: 8 }} />
       <Handle type="source" position={Position.Right} style={{ background: '#555', width: 8, height: 8 }} />
     </div>
   )
 }
 
-const nodeTypes = { mindMapNode: MindMapNode }
+function DiamondNode({ data, selected }: NodeProps) {
+  const s = data._highlight
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
+      <svg width="120" height="120" className="absolute inset-0">
+        <polygon points="60,5 115,60 60,115 5,60"
+          fill={data.color || '#89b4fa'}
+          stroke={selected ? '#fff' : 'transparent'} strokeWidth={2}
+          opacity={s === false ? 0.3 : 1} />
+      </svg>
+      <div className="relative z-10 text-center px-2" style={{ color: '#1e1e2e', opacity: s === false ? 0.3 : 1 }}>
+        {data.emoji && <div className="text-lg">{data.emoji}</div>}
+        <div className="text-xs font-semibold leading-tight">{data.label}</div>
+      </div>
+      <Handle type="target" position={Position.Top} style={{ background: '#555', width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555', width: 8, height: 8 }} />
+    </div>
+  )
+}
+
+function ParallelogramNode({ data, selected }: NodeProps) {
+  const s = data._highlight
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 160, height: 70 }}>
+      <svg width="160" height="70" className="absolute inset-0">
+        <polygon points="25,5 155,5 135,65 5,65"
+          fill={data.color || '#89b4fa'}
+          stroke={selected ? '#fff' : 'transparent'} strokeWidth={2}
+          opacity={s === false ? 0.3 : 1} />
+      </svg>
+      <div className="relative z-10 text-center px-2" style={{ color: '#1e1e2e', opacity: s === false ? 0.3 : 1 }}>
+        {data.emoji && <span className="text-lg mr-1">{data.emoji}</span>}
+        <span className="text-xs font-semibold">{data.label}</span>
+      </div>
+      <Handle type="target" position={Position.Left} style={{ background: '#555', width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555', width: 8, height: 8 }} />
+    </div>
+  )
+}
+
+function CylinderNode({ data, selected }: NodeProps) {
+  const s = data._highlight
+  const w = 140, h = 90
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: w, height: h }}>
+      <svg width={w} height={h} className="absolute inset-0">
+        <ellipse cx={w / 2} cy={12} rx={w / 2 - 5} ry={12} fill={data.color || '#89b4fa'}
+          stroke={selected ? '#fff' : 'transparent'} strokeWidth={2} opacity={s === false ? 0.3 : 1} />
+        <rect x={5} y={12} width={w - 10} height={h - 24} fill={data.color || '#89b4fa'}
+          opacity={s === false ? 0.3 : 1} />
+        <ellipse cx={w / 2} cy={h - 12} rx={w / 2 - 5} ry={12} fill={data.color || '#89b4fa'}
+          stroke={selected ? '#fff' : 'transparent'} strokeWidth={2} opacity={s === false ? 0.3 : 1} />
+      </svg>
+      <div className="relative z-10 text-center px-2" style={{ color: '#1e1e2e', opacity: s === false ? 0.3 : 1 }}>
+        {data.emoji && <div className="text-lg">{data.emoji}</div>}
+        <div className="text-xs font-semibold leading-tight">{data.label}</div>
+      </div>
+      <Handle type="target" position={Position.Top} style={{ background: '#555', width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555', width: 8, height: 8 }} />
+    </div>
+  )
+}
+
+function CircleNode({ data, selected }: NodeProps) {
+  const s = data._highlight
+  return (
+    <div className="relative flex items-center justify-center rounded-full" style={{
+      width: 100, height: 100,
+      backgroundColor: data.color || '#89b4fa',
+      border: selected ? '2px solid #fff' : '2px solid transparent',
+      opacity: s === false ? 0.3 : 1,
+    }}>
+      <div className="text-center" style={{ color: '#1e1e2e' }}>
+        {data.emoji && <div className="text-xl">{data.emoji}</div>}
+        <div className="text-xs font-semibold leading-tight px-1">{data.label}</div>
+      </div>
+      <Handle type="target" position={Position.Left} style={{ background: '#555', width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555', width: 8, height: 8 }} />
+    </div>
+  )
+}
+
+function HexagonNode({ data, selected }: NodeProps) {
+  const s = data._highlight
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 130, height: 110 }}>
+      <svg width="130" height="110" className="absolute inset-0">
+        <polygon points="65,5 125,30 125,80 65,105 5,80 5,30"
+          fill={data.color || '#89b4fa'}
+          stroke={selected ? '#fff' : 'transparent'} strokeWidth={2}
+          opacity={s === false ? 0.3 : 1} />
+      </svg>
+      <div className="relative z-10 text-center px-2" style={{ color: '#1e1e2e', opacity: s === false ? 0.3 : 1 }}>
+        {data.emoji && <div className="text-lg">{data.emoji}</div>}
+        <div className="text-xs font-semibold leading-tight">{data.label}</div>
+      </div>
+      <Handle type="target" position={Position.Left} style={{ background: '#555', width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: '#555', width: 8, height: 8 }} />
+    </div>
+  )
+}
+
+const nodeTypes = {
+  rounded: RoundedNode,
+  diamond: DiamondNode,
+  parallelogram: ParallelogramNode,
+  cylinder: CylinderNode,
+  circle: CircleNode,
+  hexagon: HexagonNode,
+}
 
 function EmojiPicker({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -105,6 +212,7 @@ export default function MindMapPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [nodeColor, setNodeColor] = useState('#89b4fa')
   const [nodeEmoji, setNodeEmoji] = useState('')
+  const [nodeShape, setNodeShape] = useState('rounded')
   const [emojiPickerOpen, setEmojiPickerOpen] = useState<'new' | string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null)
   const [edgeContextMenu, setEdgeContextMenu] = useState<{ x: number; y: number; edgeId: string } | null>(null)
@@ -125,6 +233,7 @@ export default function MindMapPage() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null)
   const autoSaveTimer = useRef<number | null>(null)
+  const clipboardRef = useRef<{ nodes: Node[]; edges: Edge[] } | null>(null)
 
   const loadMaps = useCallback(async () => {
     const m = await window.electronAPI.getMindMaps()
@@ -142,17 +251,21 @@ export default function MindMapPage() {
     setRedoStack([])
     setSearchQuery('')
     setShowNotesPanel(false)
-    setNodes(map.nodes.map((n: any) => ({
-      id: n.id,
-      type: 'mindMapNode',
-      position: { x: n.x, y: n.y },
-      data: { label: n.title, color: n.color, emoji: n.emoji, notes: n.notes, image: n.image || '', collapsed: false },
-    })))
+    setNodes(map.nodes.map((n: any) => {
+      const shape = n.shape || 'rounded'
+      return {
+        id: n.id,
+        type: shape,
+        position: { x: n.x, y: n.y },
+        data: { label: n.title, color: n.color, emoji: n.emoji, notes: n.notes, image: n.image || '', shape, collapsed: false },
+      }
+    }))
     setEdges(map.edges.map((e: any) => ({
       id: e.id,
       source: e.from_node,
       target: e.to_node,
       label: e.label || undefined,
+      type: e.edge_type === 'default' ? undefined : (e.edge_type || undefined),
       style: e.dashed ? { strokeDasharray: '5 5' } : undefined,
       markerEnd: { type: MarkerType.ArrowClosed },
       animated: true,
@@ -196,10 +309,45 @@ export default function MindMapPage() {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); redo(); return }
       if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return }
+      if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+        const selected = nodes.filter(n => n.selected)
+        if (selected.length > 0) {
+          const relatedEdges = edges.filter(e => selected.some(n => n.id === e.source || n.id === e.target))
+          clipboardRef.current = { nodes: structuredClone(selected), edges: structuredClone(relatedEdges) }
+        }
+        return
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'v' && clipboardRef.current) {
+        e.preventDefault()
+        pushUndo()
+        const idMap = new Map<string, string>()
+        const pastedNodes: Node[] = clipboardRef.current.nodes.map(n => {
+          const newId = `paste_${Date.now()}_${n.id}`
+          idMap.set(n.id, newId)
+          return { ...n, id: newId, position: { x: n.position.x + 50, y: n.position.y + 50 }, selected: false }
+        })
+        const pastedEdges: Edge[] = clipboardRef.current.edges.map(e => ({
+          ...e,
+          id: `paste_${Date.now()}_${e.id}`,
+          source: idMap.get(e.source) || e.source,
+          target: idMap.get(e.target) || e.target,
+        }))
+        setNodes(nds => {
+          const next = [...nds, ...pastedNodes]
+          triggerAutoSave(next, edges)
+          return next
+        })
+        setEdges(eds => {
+          const next = [...eds, ...pastedEdges]
+          triggerAutoSave(nodes, next)
+          return next
+        })
+        return
+      }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [undo, redo])
+  }, [undo, redo, nodes, edges])
 
   const triggerAutoSave = (ns?: Node[], es?: Edge[]) => {
     if (!selectedMapId) return
@@ -209,12 +357,13 @@ export default function MindMapPage() {
       const nodeData = visibleNodes.map(n => ({
         id: n.id, map_id: selectedMapId,
         title: n.data.label, color: n.data.color, emoji: n.data.emoji || '', notes: n.data.notes || '',
-        image: n.data.image || '',
+        image: n.data.image || '', shape: n.data.shape || 'rounded',
         x: n.position.x, y: n.position.y, width: n.width || 200, height: n.height || 80,
       }))
       const edgeData = (es || edges).map(e => ({
         id: e.id, map_id: selectedMapId, from_node: e.source, to_node: e.target,
         label: e.label || '', dashed: e.style?.strokeDasharray ? 1 : 0,
+        edge_type: e.type || 'default',
       }))
       await window.electronAPI.saveMindMap(selectedMapId, nodeData, edgeData)
       loadMaps()
@@ -250,11 +399,12 @@ export default function MindMapPage() {
     pushUndo()
     const center = reactFlowInstance.screenToFlowPosition({ x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 - 40 })
     const id = `node_${Date.now()}`
+    const shape = nodeShape
     const newNode: Node = {
       id,
-      type: 'mindMapNode',
+      type: shape,
       position: center,
-      data: { label: 'New Node', color: nodeColor, emoji: nodeEmoji, collapsed: false, notes: '', image: '' },
+      data: { label: 'New Node', color: nodeColor, emoji: nodeEmoji, shape, collapsed: false, notes: '', image: '' },
     }
     setNodes(nds => {
       const next = [...nds, newNode]
@@ -267,6 +417,15 @@ export default function MindMapPage() {
     pushUndo()
     setNodes(nds => {
       const next = nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n)
+      triggerAutoSave(next, edges)
+      return next
+    })
+  }
+
+  const changeNodeShape = (nodeId: string, shape: string) => {
+    pushUndo()
+    setNodes(nds => {
+      const next = nds.map(n => n.id === nodeId ? { ...n, type: shape, data: { ...n.data, shape } } : n)
       triggerAutoSave(next, edges)
       return next
     })
@@ -576,9 +735,9 @@ export default function MindMapPage() {
       const id = `import_${idx++}`
       const newNode: Node = {
         id,
-        type: 'mindMapNode',
+        type: 'rounded',
         position: { x: 200 + (level - 1) * 250, y: idx * 100 },
-        data: { label: text, color: '#89b4fa', emoji: '', collapsed: false, notes: '', image: '' },
+        data: { label: text, color: '#89b4fa', emoji: '', shape: 'rounded', collapsed: false, notes: '', image: '' },
       }
       newNodeList.push(newNode)
 
@@ -699,6 +858,18 @@ export default function MindMapPage() {
                         <EmojiPicker value={nodeEmoji} onChange={setNodeEmoji} onClose={() => setEmojiPickerOpen(null)} />
                       )}
                     </div>
+                    <div className="flex items-center gap-0.5">
+                      {Object.keys(SHAPE_LABELS).map(s => (
+                        <button key={s} onClick={() => setNodeShape(s)}
+                          className="w-6 h-6 text-[10px] rounded border flex items-center justify-center"
+                          style={{
+                            backgroundColor: nodeShape === s ? 'var(--accent)' : 'var(--bg-primary)',
+                            borderColor: nodeShape === s ? 'var(--accent)' : 'var(--border)',
+                            color: nodeShape === s ? '#fff' : 'var(--text-primary)',
+                          }}
+                          title={SHAPE_LABELS[s]}>{SHAPE_LABELS[s].slice(0, 3)}</button>
+                      ))}
+                    </div>
                     <button onClick={addNode} className="px-2.5 py-1 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ Node</button>
                   </>
                 )}
@@ -733,6 +904,18 @@ export default function MindMapPage() {
                         <EmojiPicker value={selectedNode.data.emoji || ''} onChange={v => updateNodeData(selectedNode.id, { emoji: v })} onClose={() => setEmojiPickerOpen(null)} />
                       )}
                     </div>
+                    <div className="flex items-center gap-0.5">
+                      {Object.keys(SHAPE_LABELS).map(s => (
+                        <button key={s} onClick={() => changeNodeShape(selectedNode.id, s)}
+                          className="w-6 h-6 text-[10px] rounded border flex items-center justify-center"
+                          style={{
+                            backgroundColor: selectedNode.type === s ? 'var(--accent)' : 'var(--bg-primary)',
+                            borderColor: selectedNode.type === s ? 'var(--accent)' : 'var(--border)',
+                            color: selectedNode.type === s ? '#fff' : 'var(--text-primary)',
+                          }}
+                          title={SHAPE_LABELS[s]}>{SHAPE_LABELS[s].slice(0, 3)}</button>
+                      ))}
+                    </div>
                     <button onClick={() => { setNotesText((selectedNode.data.notes as string) || ''); setShowNotesPanel(true) }}
                       className="px-2 py-1 rounded text-xs" style={{ color: (selectedNode.data.notes as string) ? 'var(--accent)' : 'var(--text-muted)' }} title="Node Notes">
                       📝 Notes
@@ -763,6 +946,10 @@ export default function MindMapPage() {
                 zoomOnScroll={true}
                 minZoom={0.1}
                 maxZoom={4}
+                snapToGrid
+                snapGrid={[20, 20]}
+                selectionOnDrag
+                panOnDrag={[1, 2]}
               >
                 {showMinimap && <MiniMap
                   nodeStrokeColor="var(--accent)"
@@ -837,6 +1024,23 @@ export default function MindMapPage() {
                     {(() => {
                       const edge = edges.find(e => e.id === edgeContextMenu.edgeId)
                       return edge?.style?.strokeDasharray ? '➖ Solid Style' : '➖ Dashed Style'
+                    })()}
+                  </button>
+                  <button onClick={() => {
+                    const edge = edges.find(e => e.id === edgeContextMenu.edgeId)
+                    const nextType = edge?.type === 'smoothstep' ? undefined : 'smoothstep'
+                    setEdges(eds => {
+                      const next = eds.map(e => e.id === edgeContextMenu.edgeId ? { ...e, type: nextType } : e)
+                      triggerAutoSave(nodes, next)
+                      return next
+                    })
+                    setEdgeContextMenu(null)
+                  }}
+                    className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}>
+                    {(() => {
+                      const edge = edges.find(e => e.id === edgeContextMenu.edgeId)
+                      return edge?.type === 'smoothstep' ? '📐 Bezier Route' : '📐 Smoothstep Route'
                     })()}
                   </button>
                   <button onClick={() => { setEdges(eds => { const next = eds.filter(e => e.id !== edgeContextMenu.edgeId); triggerAutoSave(nodes, next); return next }); setEdgeContextMenu(null) }}

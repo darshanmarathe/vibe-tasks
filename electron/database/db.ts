@@ -253,6 +253,7 @@ function runMigrations() {
   runFlashcardMigrations()
   runAiChatMigrations()
   runSpreadsheetMigrations()
+  runDiagramMigrations()
 }
 
 function runNoteMigrations() {
@@ -396,6 +397,16 @@ function runMindMapMigrations() {
   if (tableNames.includes('mindmaps')) {
     // Migrate: add image column if missing
     try { db.exec('ALTER TABLE mindmap_nodes ADD COLUMN image TEXT DEFAULT ""') } catch {}
+    // Migrate: add shape column if missing
+    const nodeCols = exec('PRAGMA table_info(mindmap_nodes)')
+    if (!nodeCols.some((c: any) => c.name === 'shape')) {
+      try { db.exec("ALTER TABLE mindmap_nodes ADD COLUMN shape TEXT DEFAULT 'rounded'") } catch {}
+    }
+    // Migrate: add edge_type column if missing
+    const edgeCols = exec('PRAGMA table_info(mindmap_edges)')
+    if (!edgeCols.some((c: any) => c.name === 'edge_type')) {
+      try { db.exec("ALTER TABLE mindmap_edges ADD COLUMN edge_type TEXT DEFAULT 'default'") } catch {}
+    }
     return
   }
 
@@ -417,7 +428,8 @@ function runMindMapMigrations() {
       y REAL NOT NULL DEFAULT 0,
       width REAL NOT NULL DEFAULT 200,
       height REAL NOT NULL DEFAULT 80,
-      image TEXT DEFAULT ''
+      image TEXT DEFAULT '',
+      shape TEXT DEFAULT 'rounded'
     );
     CREATE TABLE mindmap_edges (
       id TEXT PRIMARY KEY,
@@ -425,7 +437,8 @@ function runMindMapMigrations() {
       from_node TEXT NOT NULL,
       to_node TEXT NOT NULL,
       label TEXT DEFAULT '',
-      dashed INTEGER DEFAULT 0
+      dashed INTEGER DEFAULT 0,
+      edge_type TEXT DEFAULT 'default'
     );
   `)
 }
@@ -531,6 +544,38 @@ function runSpreadsheetMigrations() {
       data TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    );
+  `)
+}
+
+function runDiagramMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS diagrams (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT 'Untitled Diagram',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS diagram_nodes (
+      id TEXT PRIMARY KEY,
+      diagram_id TEXT NOT NULL REFERENCES diagrams(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'rectangle',
+      label TEXT DEFAULT 'Node',
+      color TEXT DEFAULT '#89b4fa',
+      x REAL NOT NULL DEFAULT 0,
+      y REAL NOT NULL DEFAULT 0,
+      width REAL NOT NULL DEFAULT 160,
+      height REAL NOT NULL DEFAULT 80,
+      props_json TEXT DEFAULT '{}'
+    );
+    CREATE TABLE IF NOT EXISTS diagram_edges (
+      id TEXT PRIMARY KEY,
+      diagram_id TEXT NOT NULL REFERENCES diagrams(id) ON DELETE CASCADE,
+      source TEXT NOT NULL,
+      target TEXT NOT NULL,
+      label TEXT DEFAULT '',
+      edge_type TEXT DEFAULT 'default',
+      dashed INTEGER DEFAULT 0
     );
   `)
 }

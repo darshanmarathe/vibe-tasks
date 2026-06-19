@@ -40,9 +40,9 @@ export function deleteMindMap(id: string): void {
 export function saveMindMapNodes(mapId: string, nodes: any[]): void {
   const d = getDatabase()
   d.run('DELETE FROM mindmap_nodes WHERE map_id = ?', [mapId])
-  const insert = d.db.prepare('INSERT INTO mindmap_nodes (id, map_id, title, color, emoji, notes, x, y, width, height, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+  const insert = d.db.prepare('INSERT INTO mindmap_nodes (id, map_id, title, color, emoji, notes, x, y, width, height, image, shape) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
   for (const n of nodes) {
-    insert.run([n.id, mapId, n.title || 'Node', n.color || '#89b4fa', n.emoji || '', n.notes || '', n.x || 0, n.y || 0, n.width || 200, n.height || 80, n.image || ''])
+    insert.run([n.id, mapId, n.title || 'Node', n.color || '#89b4fa', n.emoji || '', n.notes || '', n.x || 0, n.y || 0, n.width || 200, n.height || 80, n.image || '', n.shape || 'rounded'])
   }
   insert.free()
   d.save()
@@ -52,9 +52,9 @@ export function saveMindMapEdges(mapId: string, edges: any[]): void {
   const d = getDatabase()
   d.run('DELETE FROM mindmap_edges WHERE map_id = ?', [mapId])
   if (edges.length === 0) { d.save(); return }
-  const insert = d.db.prepare('INSERT INTO mindmap_edges (id, map_id, from_node, to_node, label, dashed) VALUES (?, ?, ?, ?, ?, ?)')
+  const insert = d.db.prepare('INSERT INTO mindmap_edges (id, map_id, from_node, to_node, label, dashed, edge_type) VALUES (?, ?, ?, ?, ?, ?, ?)')
   for (const e of edges) {
-    insert.run([e.id, mapId, e.from_node, e.to_node, e.label || '', e.dashed ? 1 : 0])
+    insert.run([e.id, mapId, e.from_node, e.to_node, e.label || '', e.dashed ? 1 : 0, e.edge_type || 'default'])
   }
   insert.free()
   d.save()
