@@ -82,7 +82,7 @@ export interface ElectronAPI {
   deletePriority: (id: number) => Promise<void>
 
   // Tasks
-  getTasks: (includeArchived?: boolean) => Promise<TaskWithRelations[]>
+  getTasks: (includeArchived?: boolean, includeGenerated?: boolean) => Promise<TaskWithRelations[]>
   getArchivedTasks: () => Promise<TaskWithRelations[]>
   createTask: (data: Omit<Task, 'id'>) => Promise<TaskWithRelations>
   updateTask: (id: number, data: Partial<Task>) => Promise<TaskWithRelations>
@@ -91,6 +91,7 @@ export interface ElectronAPI {
   unarchiveTask: (id: number) => Promise<void>
   getRecurringTasks: () => Promise<TaskWithRelations[]>
   generateNextOccurrence: (taskId: number) => Promise<TaskWithRelations | null>
+  generateAllOccurrences: (taskId: number) => Promise<void>
 
   // Data Portability
   exportJson: () => Promise<string | null>

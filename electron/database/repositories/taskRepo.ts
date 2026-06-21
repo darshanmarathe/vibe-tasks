@@ -1,9 +1,12 @@
 import { getDatabase } from '../db'
 import type { Task, TaskWithRelations } from '../../src/types/models'
 
-export function getTasks(includeArchived = false): TaskWithRelations[] {
+export function getTasks(includeArchived = false, includeGenerated = false): TaskWithRelations[] {
   const db = getDatabase()
-  const where = includeArchived ? '' : ' WHERE t.archived = 0'
+  let where = includeArchived ? '1=1' : 't.archived = 0'
+  if (!includeGenerated) {
+    where += ' AND t.recurrence_parent_id IS NULL'
+  }
   const tasks = db.exec(`
     SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
       u.name as assignedToName, u.email as assignedToEmail
@@ -11,7 +14,8 @@ export function getTasks(includeArchived = false): TaskWithRelations[] {
     JOIN statuses s ON t.statusId = s.id
     JOIN priorities p ON t.priorityId = p.id
     JOIN projects pr ON t.projectId = pr.id
-    LEFT JOIN users u ON t.assignedTo = u.id${where}
+    LEFT JOIN users u ON t.assignedTo = u.id
+    WHERE ${where}
     ORDER BY t.id DESC
   `)
   return tasks.map(t => enrichWithDependencyNames(t, db))
@@ -27,7 +31,7 @@ export function getArchivedTasks(): TaskWithRelations[] {
     JOIN priorities p ON t.priorityId = p.id
     JOIN projects pr ON t.projectId = pr.id
     LEFT JOIN users u ON t.assignedTo = u.id
-    WHERE t.archived = 1
+    WHERE t.archived = 1 AND t.recurrence_parent_id IS NULL
     ORDER BY t.id DESC
   `)
   return tasks.map(t => enrichWithDependencyNames(t, db))
@@ -40,6 +44,9 @@ export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
     [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null, data.recurrence_type ?? 'none', data.recurrence_interval ?? 1, data.recurrence_days_of_week ?? null, data.recurrence_end_date ?? null, data.recurrence_count ?? null, data.recurrence_parent_id ?? null])
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
+  if (data.recurrence_type && data.recurrence_type !== 'none') {
+    generateAllOccurrences(id)
+  }
   const task = db.getSingle(`
     SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
       u.name as assignedToName, u.email as assignedToEmail
@@ -106,6 +113,7 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
     db.run(`UPDATE tasks SET ${fields.join(', ')} WHERE id = ?`, values)
     db.save()
   }
+  generateAllOccurrences(id)
   const task = db.getSingle(`
     SELECT t.*, s.name as statusName, p.name as priorityName, p.color as priorityColor, pr.name as projectName,
       u.name as assignedToName, u.email as assignedToEmail
@@ -121,18 +129,38 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
 
 export function deleteTask(id: number): void {
   const db = getDatabase()
+  // Cascade delete: if this is a recurring parent, delete all children too
+  const task = db.getSingle('SELECT recurrence_parent_id, recurrence_type FROM tasks WHERE id = ?', [id])
+  if (task) {
+    const parentId = task.recurrence_parent_id || id
+    if (task.recurrence_type && task.recurrence_type !== 'none') {
+      db.run('DELETE FROM tasks WHERE recurrence_parent_id = ?', [parentId])
+    }
+  }
   db.run('DELETE FROM tasks WHERE id = ?', [id])
   db.save()
 }
 
 export function archiveTask(id: number): void {
   const db = getDatabase()
+  // Cascade archive: if this is a recurring parent, archive all children too
+  const task = db.getSingle('SELECT recurrence_parent_id, recurrence_type FROM tasks WHERE id = ?', [id])
+  if (task && task.recurrence_type && task.recurrence_type !== 'none') {
+    const parentId = task.recurrence_parent_id || id
+    db.run('UPDATE tasks SET archived = 1 WHERE recurrence_parent_id = ?', [parentId])
+  }
   db.run('UPDATE tasks SET archived = 1 WHERE id = ?', [id])
   db.save()
 }
 
 export function unarchiveTask(id: number): void {
   const db = getDatabase()
+  // Cascade unarchive: if this is a recurring parent, unarchive all children too
+  const task = db.getSingle('SELECT recurrence_parent_id, recurrence_type FROM tasks WHERE id = ?', [id])
+  if (task && task.recurrence_type && task.recurrence_type !== 'none') {
+    const parentId = task.recurrence_parent_id || id
+    db.run('UPDATE tasks SET archived = 0 WHERE recurrence_parent_id = ?', [parentId])
+  }
   db.run('UPDATE tasks SET archived = 0 WHERE id = ?', [id])
   db.save()
 }
@@ -182,6 +210,71 @@ function findNextDayOfWeek(fromDate: string, daysOfWeek: number[]): string {
     }
   }
   return addDays(fromDate, 1)
+}
+
+export function generateAllOccurrences(id: number): void {
+  const db = getDatabase()
+  const task = db.getSingle('SELECT * FROM tasks WHERE id = ?', [id])
+  if (!task || !task.recurrence_type || task.recurrence_type === 'none') {
+    // Recurrence was removed — delete existing generated children
+    db.run('DELETE FROM tasks WHERE recurrence_parent_id = ?', [id])
+    db.save()
+    return
+  }
+
+  const parentId = task.recurrence_parent_id || id
+
+  // Delete existing generated children
+  db.run('DELETE FROM tasks WHERE recurrence_parent_id = ?', [parentId])
+  db.save()
+
+  if (!task.dueDate) return
+
+  const interval = task.recurrence_interval || 1
+  let currentDue = task.dueDate
+  let count = 0
+  const maxCount = task.recurrence_count !== null ? task.recurrence_count - 1 : null
+  const endDate = task.recurrence_end_date || null
+
+  while (currentDue) {
+    let nextDue: string | null = null
+
+    switch (task.recurrence_type) {
+      case 'daily':
+        nextDue = addDays(currentDue, interval)
+        break
+      case 'weekly':
+        if (task.recurrence_days_of_week) {
+          const days = task.recurrence_days_of_week.split(',').map(Number)
+          nextDue = findNextDayOfWeek(currentDue, days)
+        } else {
+          nextDue = addDays(currentDue, interval * 7)
+        }
+        break
+      case 'monthly':
+        nextDue = addMonths(currentDue, interval)
+        break
+      case 'yearly':
+        nextDue = addYears(currentDue, interval)
+        break
+    }
+
+    if (!nextDue) break
+    if (endDate && nextDue > endDate) break
+    if (maxCount !== null && count >= maxCount) break
+
+    const now = new Date().toISOString()
+    db.run(`INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId,
+      predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at,
+      recurrence_type, recurrence_interval, recurrence_days_of_week, recurrence_end_date, recurrence_count, recurrence_parent_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [task.name, task.description, task.notes ?? '', nextDue, task.statusId, task.priorityId, task.projectId,
+        task.predecessorIds ?? '[]', task.successorIds ?? '[]', 0, task.assignedTo, 0, now, null,
+        'none', 1, null, null, null, parentId])
+    db.save()
+    count++
+    currentDue = nextDue
+  }
 }
 
 export function generateNextOccurrence(id: number): TaskWithRelations | null {

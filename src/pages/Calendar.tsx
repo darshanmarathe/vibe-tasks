@@ -35,6 +35,11 @@ export default function Calendar() {
   const [addProject, setAddProject] = useState(0)
   const [addAssignedTo, setAddAssignedTo] = useState(0)
   const [addDesc, setAddDesc] = useState('')
+  const [addRecurrenceType, setAddRecurrenceType] = useState('none')
+  const [addRecurrenceInterval, setAddRecurrenceInterval] = useState(1)
+  const [addRecurrenceDaysOfWeek, setAddRecurrenceDaysOfWeek] = useState('')
+  const [addRecurrenceEndDate, setAddRecurrenceEndDate] = useState('')
+  const [addRecurrenceCount, setAddRecurrenceCount] = useState<number | null>(null)
 
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
@@ -54,9 +59,53 @@ export default function Calendar() {
   const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState('')
   const [editRecurrenceCount, setEditRecurrenceCount] = useState<number | null>(null)
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; task: TaskWithRelations } | null>(null)
+
+  const closeContextMenu = () => setContextMenu(null)
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const handler = () => closeContextMenu()
+    window.addEventListener('click', handler)
+    return () => window.removeEventListener('click', handler)
+  }, [contextMenu])
+
+  const getParentId = (task: TaskWithRelations) => task.recurrence_parent_id || task.id
+
+  const handleDeleteInstance = async (task: TaskWithRelations) => {
+    if (!window.confirm(`Delete "${task.name}"?`)) return
+    await window.electronAPI.deleteTask(task.id)
+    closeContextMenu()
+    loadData()
+  }
+
+  const handleDeleteParent = async (task: TaskWithRelations) => {
+    const parentId = getParentId(task)
+    if (!window.confirm(`Delete this recurring task and all its instances?`)) return
+    await window.electronAPI.deleteTask(parentId)
+    closeContextMenu()
+    loadData()
+  }
+
+  const handleArchiveInstance = async (task: TaskWithRelations) => {
+    if (!window.confirm(`Archive "${task.name}"?`)) return
+    await window.electronAPI.updateTask(task.id, { archived: 1 } as any)
+    closeContextMenu()
+    loadData()
+  }
+
+  const handleArchiveParent = async (task: TaskWithRelations) => {
+    const parentId = getParentId(task)
+    if (!window.confirm(`Archive this recurring task and all its instances?`)) return
+    await window.electronAPI.archiveTask(parentId)
+    closeContextMenu()
+    loadData()
+  }
+
   const loadData = useCallback(async () => {
     const [t, s, p, pr, u] = await Promise.all([
-      window.electronAPI.getTasks(),
+      window.electronAPI.getTasks(false, true),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
       window.electronAPI.getProjects(),
@@ -189,6 +238,8 @@ export default function Calendar() {
                   setShowAddForDate(dateStr)
                   setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
                   setAddProject(projects[0]?.id || 0); setAddAssignedTo(0)
+                  setAddRecurrenceType('none'); setAddRecurrenceInterval(1)
+                  setAddRecurrenceDaysOfWeek(''); setAddRecurrenceEndDate(''); setAddRecurrenceCount(null)
                 }}
                   className={`text-xs font-semibold mb-1 cursor-pointer hover:opacity-70 ${isToday ? 'flex items-center justify-center w-6 h-6 rounded-full' : ''}`}
                   style={{
@@ -202,6 +253,11 @@ export default function Calendar() {
                 <div className="space-y-0.5">
                   {dayTasks.slice(0, 4).map(task => (
                     <button key={task.id} onClick={() => openEdit(task)}
+                      onContextMenu={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setContextMenu({ x: e.clientX, y: e.clientY, task })
+                      }}
                       className="w-full text-left text-[10px] px-1 py-0.5 rounded truncate transition-colors hover:opacity-80"
                       style={{
                         backgroundColor: task.priorityColor ? `${task.priorityColor}33` : 'var(--bg-hover)',
@@ -277,6 +333,77 @@ export default function Calendar() {
                   </select>
                 </div>
               </div>
+              {/* Recurrence */}
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Recurrence</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <select value={addRecurrenceType} onChange={e => setAddRecurrenceType(e.target.value)}
+                    className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value="none">None</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                  </select>
+                  {addRecurrenceType !== 'none' && (
+                    <div>
+                      <input type="number" min={1} value={addRecurrenceInterval}
+                        onChange={e => setAddRecurrenceInterval(Math.max(1, Number(e.target.value)))}
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                  )}
+                  {addRecurrenceType !== 'none' && (
+                    <div className="flex items-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {addRecurrenceType === 'daily' && 'day(s)'}
+                      {addRecurrenceType === 'weekly' && 'week(s)'}
+                      {addRecurrenceType === 'monthly' && 'month(s)'}
+                      {addRecurrenceType === 'yearly' && 'year(s)'}
+                    </div>
+                  )}
+                </div>
+                {addRecurrenceType === 'weekly' && (
+                  <div className="flex gap-1 mt-2">
+                    {['S','M','T','W','T','F','S'].map((label, i) => {
+                      const days = addRecurrenceDaysOfWeek.split(',').filter(Boolean).map(Number)
+                      return (
+                        <button key={i} onClick={() => {
+                          const current = days
+                          const next = current.includes(i) ? current.filter(d => d !== i) : [...current, i]
+                          setAddRecurrenceDaysOfWeek(next.sort((a,b) => a-b).join(','))
+                        }}
+                          className="w-8 h-8 rounded-lg text-xs font-semibold transition-colors"
+                          style={{
+                            backgroundColor: days.includes(i) ? 'var(--accent)' : 'var(--bg-hover)',
+                            color: days.includes(i) ? '#fff' : 'var(--text-secondary)',
+                          }}>
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                {addRecurrenceType !== 'none' && (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--text-muted)' }}>End Date</label>
+                      <input type="date" value={addRecurrenceEndDate || ''}
+                        onChange={e => setAddRecurrenceEndDate(e.target.value || '')}
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] mb-0.5 block" style={{ color: 'var(--text-muted)' }}>Max Occurrences</label>
+                      <input type="number" min={0} value={addRecurrenceCount ?? ''}
+                        onChange={e => setAddRecurrenceCount(e.target.value ? Number(e.target.value) : 0)}
+                        placeholder="∞"
+                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                        style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowAddForDate(null)}
@@ -296,11 +423,11 @@ export default function Calendar() {
                   archived: 0,
                   assignedTo: addAssignedTo || null,
                   completionPercent: 0,
-                  recurrence_type: 'none',
-                  recurrence_interval: 1,
-                  recurrence_days_of_week: null,
-                  recurrence_end_date: null,
-                  recurrence_count: null,
+                  recurrence_type: addRecurrenceType,
+                  recurrence_interval: addRecurrenceInterval,
+                  recurrence_days_of_week: addRecurrenceDaysOfWeek || null,
+                  recurrence_end_date: addRecurrenceEndDate || null,
+                  recurrence_count: addRecurrenceCount ?? null,
                   recurrence_parent_id: null,
                 })
                 setShowAddForDate(null)
@@ -308,6 +435,56 @@ export default function Calendar() {
               }} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 py-1 rounded-lg shadow-xl border min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y, backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <button onClick={() => { openEdit(contextMenu.task); closeContextMenu() }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}>
+            ✏️ Edit
+          </button>
+          <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
+          <button onClick={() => handleArchiveInstance(contextMenu.task)}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}>
+            📦 Archive Instance
+          </button>
+          <button onClick={() => handleArchiveParent(contextMenu.task)}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}>
+            📦 Archive All
+          </button>
+          <button onClick={() => handleDeleteInstance(contextMenu.task)}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--danger)' }}>
+            🗑️ Delete Instance
+          </button>
+          <button onClick={() => handleDeleteParent(contextMenu.task)}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--danger)' }}>
+            🗑️ Delete All
+          </button>
+          <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
+          <button onClick={() => {
+            const dateStr = contextMenu.task.dueDate
+            setShowAddForDate(dateStr)
+            setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
+            setAddProject(projects[0]?.id || 0); setAddAssignedTo(0)
+            setAddRecurrenceType('none'); setAddRecurrenceInterval(1)
+            setAddRecurrenceDaysOfWeek(''); setAddRecurrenceEndDate(''); setAddRecurrenceCount(null)
+            closeContextMenu()
+          }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:opacity-70 flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}>
+            ➕ New
+          </button>
         </div>
       )}
 

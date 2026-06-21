@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updatePriority: (id, data) => ipcRenderer.invoke('db:priorities:update', id, data),
   deletePriority: (id) => ipcRenderer.invoke('db:priorities:delete', id),
 
-  getTasks: (includeArchived) => ipcRenderer.invoke('db:tasks:list', includeArchived),
+  getTasks: (includeArchived, includeGenerated) => ipcRenderer.invoke('db:tasks:list', includeArchived, includeGenerated),
   getArchivedTasks: () => ipcRenderer.invoke('db:tasks:archived'),
   createTask: (data) => ipcRenderer.invoke('db:tasks:create', data),
   updateTask: (id, data) => ipcRenderer.invoke('db:tasks:update', id, data),
@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unarchiveTask: (id) => ipcRenderer.invoke('db:tasks:unarchive', id),
   getRecurringTasks: () => ipcRenderer.invoke('db:tasks:recurring'),
   generateNextOccurrence: (id) => ipcRenderer.invoke('db:tasks:generate-next', id),
+  generateAllOccurrences: (id) => ipcRenderer.invoke('db:tasks:generate-all', id),
 
   // Data Portability
   exportJson: () => ipcRenderer.invoke('db:export-json'),

@@ -272,7 +272,7 @@ function registerIpcHandlers() {
   ipcMain.handle('db:priorities:update', (_e, id, data) => priorityRepo.updatePriority(id, data))
   ipcMain.handle('db:priorities:delete', (_e, id) => priorityRepo.deletePriority(id))
 
-  ipcMain.handle('db:tasks:list', (_e, includeArchived) => taskRepo.getTasks(includeArchived))
+  ipcMain.handle('db:tasks:list', (_e, includeArchived, includeGenerated) => taskRepo.getTasks(includeArchived, includeGenerated))
   ipcMain.handle('db:tasks:archived', () => taskRepo.getArchivedTasks())
   ipcMain.handle('db:tasks:create', (_e, data) => taskRepo.createTask(data))
   ipcMain.handle('db:tasks:update', (_e, id, data) => taskRepo.updateTask(id, data))
@@ -281,6 +281,7 @@ function registerIpcHandlers() {
   ipcMain.handle('db:tasks:unarchive', (_e, id) => taskRepo.unarchiveTask(id))
   ipcMain.handle('db:tasks:recurring', () => taskRepo.getRecurringTasks())
   ipcMain.handle('db:tasks:generate-next', (_e, id) => taskRepo.generateNextOccurrence(id))
+  ipcMain.handle('db:tasks:generate-all', (_e, id) => taskRepo.generateAllOccurrences(id))
 
   // ── Flashcards ──
   ipcMain.handle('flashcard:decks:list', () => flashcardRepo.getDecks())

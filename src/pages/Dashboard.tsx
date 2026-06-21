@@ -49,6 +49,11 @@ export default function Dashboard() {
   const [editDueDate, setEditDueDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
+  const [editRecurrenceType, setEditRecurrenceType] = useState('none')
+  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState(1)
+  const [editRecurrenceDaysOfWeek, setEditRecurrenceDaysOfWeek] = useState('')
+  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState('')
+  const [editRecurrenceCount, setEditRecurrenceCount] = useState<number | null>(null)
 
   const loadData = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0]
@@ -178,6 +183,11 @@ export default function Dashboard() {
     setEditCompletionPercent(task.completionPercent ?? 0)
     setEditDueDate(task.dueDate || '')
     setEditNotes(task.notes || '')
+    setEditRecurrenceType(task.recurrence_type || 'none')
+    setEditRecurrenceInterval(task.recurrence_interval ?? 1)
+    setEditRecurrenceDaysOfWeek(task.recurrence_days_of_week || '')
+    setEditRecurrenceEndDate(task.recurrence_end_date || '')
+    setEditRecurrenceCount(task.recurrence_count ?? null)
     setShowMarkdownPreview(false)
   }
 
@@ -195,6 +205,11 @@ export default function Dashboard() {
       completionPercent: editCompletionPercent,
       dueDate: editDueDate || null,
       notes: editNotes,
+      recurrence_type: editRecurrenceType,
+      recurrence_interval: editRecurrenceInterval,
+      recurrence_days_of_week: editRecurrenceDaysOfWeek || null,
+      recurrence_end_date: editRecurrenceEndDate || null,
+      recurrence_count: editRecurrenceCount ?? null,
     })
     closeEdit()
     loadData()
@@ -733,6 +748,11 @@ export default function Dashboard() {
         statuses={statuses} priorities={priorities} projects={projects} users={users}
         onClose={closeEdit} onSave={saveEdit}
         renderMarkdown={renderMarkdown}
+        editRecurrenceType={editRecurrenceType} setEditRecurrenceType={setEditRecurrenceType}
+        editRecurrenceInterval={editRecurrenceInterval} setEditRecurrenceInterval={setEditRecurrenceInterval}
+        editRecurrenceDaysOfWeek={editRecurrenceDaysOfWeek} setEditRecurrenceDaysOfWeek={setEditRecurrenceDaysOfWeek}
+        editRecurrenceEndDate={editRecurrenceEndDate} setEditRecurrenceEndDate={setEditRecurrenceEndDate}
+        editRecurrenceCount={editRecurrenceCount} setEditRecurrenceCount={setEditRecurrenceCount}
       />
     </div>
   )
