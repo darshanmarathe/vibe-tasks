@@ -179,10 +179,20 @@
    6. ✅ journal_entries table with wins/losses columns — migration in DB init chain
 
    ### Release 1.11.1 ✅
-   1. ✅ Quick add fields (Status, Priority, Project, Assigned To) retain their selected values between adds — no need to re-select for consecutive entries
-   2. ✅ Focus returns to Task Name input after quick add for rapid consecutive entry (no more clicking back into the field)
-   3. ✅ Kanban board add task modal uses active project filter as default project
-   4. ✅ Dashboard calendar — clicking a date pre-fills the due date and focuses the quick add input
-   5. ✅ Calendar page — clicking a day number opens an add task modal with the date pre-filled as the due date
-   6. ✅ QR codes — generic 📱 icon in links table and dashboard quick links; clicking opens a modal with a large scannable QR code (via qrcode library)
-   7. ✅ QR scanning — "Scan" button next to URL input in add form; opens camera modal to scan a QR code and auto-fills the URL
+    1. ✅ Quick add fields (Status, Priority, Project, Assigned To) retain their selected values between adds — no need to re-select for consecutive entries
+    2. ✅ Focus returns to Task Name input after quick add for rapid consecutive entry (no more clicking back into the field)
+    3. ✅ Kanban board add task modal uses active project filter as default project
+    4. ✅ Dashboard calendar — clicking a date pre-fills the due date and focuses the quick add input
+    5. ✅ Calendar page — clicking a day number opens an add task modal with the date pre-filled as the due date
+    6. ✅ QR codes — generic 📱 icon in links table and dashboard quick links; clicking opens a modal with a large scannable QR code (via qrcode library)
+    7. ✅ QR scanning — "Scan" button next to URL input in add form; opens camera modal to scan a QR code and auto-fills the URL
+
+   ### Release 1.11.2 ✅
+    1. ✅ Recurring Tasks — Daily, weekly, monthly, yearly with custom interval and day-of-week picker
+    2. ✅ Recurrence UI — type selector, interval, day-of-week toggles, end date, max occurrences in edit modal
+    3. ✅ Recurrence in Add Task dialogs — Calendar and KanbanBoard add modals include recurrence settings
+    4. ✅ Auto-generate occurrences — `generateAllOccurrences` creates child tasks for every recurrence date up to end date/count
+    5. ✅ Backend cascade — deleting/archiving a recurring parent removes all generated children
+    6. ✅ Grid filtering — task lists (Dashboard, TaskList, KanbanBoard, Inbox) show only parent recurring tasks, not individual occurrences
+    7. ✅ Calendar shows all occurrences — Calendar page shows every generated instance on its due date
+    8. ✅ Context menu — right-click any task on Calendar to Edit, Archive Instance/All, Delete Instance/All, or New task on that date

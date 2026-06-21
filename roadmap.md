@@ -33,9 +33,9 @@
 
 ## Release 1.7.0 — Calendar Sync & Recurring Tasks
 
-- **Recurring Tasks** — Daily, weekly, monthly, custom interval
-  - Auto-create next instance on completion
-  - Skip weekends option
+- **Recurring Tasks** — Daily, weekly, monthly, custom interval ✅ *(Shipped in 1.11.2)*
+  - Auto-create next instance on completion *(pending — requires wiring completion handler)*
+  - Skip weekends option *(pending)*
 - **Calendar Integration** — Read-only or two-way sync
   - iCal/Outlook via ICS file import
   - Local calendar view with external events overlay
@@ -91,7 +91,7 @@
 ## Completed Features
 
 | Release | Features |
-|---|---|
+|---|---|---|
 | 1.0.0 | Task CRUD, Kanban, Dashboard, Settings (Users/Projects/Statuses/Priority) |
 | 1.1.0 | Dark/Light mode, date detection, charts, calendar view, task edit modal |
 | 1.1.2 | Tree grid, Markdown notes, task dependencies |
@@ -102,6 +102,7 @@
 | 1.5.0 | Habit Tracker (CRUD, streaks, heatmap, reminders), Weekly Review |
 | 1.6.0 | Time Tracking (start/stop timer, per-task time, reports), Focus Mode overlay |
 | 1.6.2 | Daily Journal (mood, wins/losses, summary report), On This Day, native splash screen |
+| 1.11.2 | Recurring Tasks (daily/weekly/monthly/yearly with auto-generation), Calendar context menu |
 
 ---
 
