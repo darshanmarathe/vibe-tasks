@@ -73,6 +73,8 @@ const STENCIL_CATEGORIES: { name: string; items: StencilItem[] }[] = [
   {
     name: 'Containers',
     items: [
+      { type: 'swimlane-h', label: 'H-Swimlane', color: '#89b4fa', icon: '⬌' },
+      { type: 'swimlane-v', label: 'V-Swimlane', color: '#89b4fa', icon: '⬍' },
       { type: 'hexagon', label: 'Kubernetes', color: '#326ce5', icon: 'K8s' },
       { type: 'hexagon', label: 'Docker', color: '#2496ed', icon: '🐋' },
       { type: 'boundary', label: 'Namespace', color: 'transparent', icon: '□' },
@@ -304,6 +306,45 @@ function BoundaryNode({ data, selected }: NodeProps) {
   )
 }
 
+function SwimlaneNode({ data, selected, style }: NodeProps) {
+  return (
+    <div className="flex flex-col border-2 rounded-lg overflow-hidden min-w-[300px] min-h-[200px] transition-shadow"
+      style={{
+        borderColor: selected ? 'var(--accent)' : '#89b4fa',
+        backgroundColor: 'rgba(137, 180, 250, 0.06)',
+        borderStyle: 'dashed',
+        width: style?.width || 500,
+        height: style?.height || 300,
+        ...style,
+      }}>
+      {/* Title bar */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b shrink-0"
+        style={{ borderColor: 'rgba(137, 180, 250, 0.2)', backgroundColor: 'rgba(137, 180, 250, 0.1)' }}>
+        <span className="text-[10px] font-bold tracking-wider uppercase" style={{ color: '#89b4fa' }}>
+          {data.icon && <span className="mr-1">{data.icon}</span>}
+          {data.label}
+        </span>
+      </div>
+      {/* Child area */}
+      <div className="flex-1 relative" style={{ minHeight: 100 }}>
+        {data.direction === 'horizontal' ? (
+          <div className="flex gap-3 p-3 h-full items-start" />
+        ) : (
+          <div className="flex flex-col gap-3 p-3 h-full items-start" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SwimlaneHNode(props: NodeProps) {
+  return <SwimlaneNode {...props} data={{ ...props.data, direction: 'horizontal' }} />
+}
+
+function SwimlaneVNode(props: NodeProps) {
+  return <SwimlaneNode {...props} data={{ ...props.data, direction: 'vertical' }} />
+}
+
 const nodeTypes = {
   rectangle: RectangleNode,
   diamond: DiamondNode,
@@ -317,6 +358,8 @@ const nodeTypes = {
   tablet: TabletNode,
   database: CylinderNode,
   boundary: BoundaryNode,
+  'swimlane-h': SwimlaneHNode,
+  'swimlane-v': SwimlaneVNode,
 }
 
 export default function DiagramsPage() {
@@ -350,11 +393,15 @@ export default function DiagramsPage() {
     setNodes(diagram.nodes.map((n: any) => {
       let extra = {}
       try { extra = JSON.parse(n.props_json || '{}') } catch {}
+      const isSwimlane = n.type === 'swimlane-h' || n.type === 'swimlane-v'
       return {
         id: n.id,
         type: n.type === 'cylinder' && (extra as any).icon ? 'database' : n.type,
         position: { x: n.x, y: n.y },
         data: { label: n.label, color: n.color, icon: (extra as any).icon || '', ...extra },
+        parentId: n.parent_id || undefined,
+        extent: n.parent_id ? 'parent' as const : undefined,
+        style: isSwimlane ? { width: n.width || 500, height: n.height || 300 } : undefined,
       }
     }))
     setEdges(diagram.edges.map((e: any) => ({
@@ -382,8 +429,9 @@ export default function DiagramsPage() {
         type: n.type || 'rectangle',
         label: n.data.label || 'Node', color: n.data.color || '#89b4fa',
         x: n.position.x, y: n.position.y,
-        width: n.width || 160, height: n.height || 80,
-        props_json: JSON.stringify({ icon: n.data.icon || '' }),
+        width: n.width || n.style?.width || 160, height: n.height || n.style?.height || 80,
+        props_json: JSON.stringify({ icon: n.data.icon || '', ...(n.parentId ? { parentId: n.parentId } : {}) }),
+        parent_id: n.parentId || null,
       }))
       const edgeData = (es || edges).map(e => ({
         id: e.id, diagram_id: selectedDiagramId, source: e.source, target: e.target,
@@ -397,7 +445,62 @@ export default function DiagramsPage() {
   const onNodesChangeHandler = useCallback((changes: any) => {
     onNodesChange(changes)
     const hasPosChange = changes.some((c: any) => c.type === 'position' && c.dragging === false)
-    if (hasPosChange) triggerAutoSave()
+    if (hasPosChange) {
+      // Auto-group: check if dropped node is inside a swimlane
+      setNodes(currentNodes => {
+        const changedIds = changes.filter((c: any) => c.type === 'position' && c.dragging === false).map((c: any) => c.id)
+        let changed = false
+        const next = currentNodes.map(n => {
+          if (!changedIds.includes(n.id)) return n
+          if (n.type === 'swimlane-h' || n.type === 'swimlane-v') return n
+          // Find swimlane parent using absolute position
+          const swimlanes = currentNodes.filter(sn => sn.type === 'swimlane-h' || sn.type === 'swimlane-v')
+          const parent = swimlanes.find(sw => {
+            const swStyle = sw.style || {}
+            const swW = swStyle.width || 500
+            const swH = swStyle.height || 300
+            const nW = n.measured?.width || 160
+            const nH = n.measured?.height || 80
+            return n.position.x >= sw.position.x + 10
+              && n.position.y >= sw.position.y + 40
+              && n.position.x + nW <= sw.position.x + swW - 10
+              && n.position.y + nH <= sw.position.y + swH - 10
+          })
+          const newParentId = parent?.id || null
+          if (n.parentId !== newParentId) {
+            changed = true
+            if (newParentId) {
+              // Convert absolute position to parent-relative
+              return {
+                ...n,
+                parentId: newParentId,
+                extent: 'parent' as const,
+                position: {
+                  x: n.position.x - parent!.position.x,
+                  y: n.position.y - parent!.position.y - 40,
+                },
+              }
+            } else {
+              // Leaving parent: convert relative back to absolute
+              const oldParent = currentNodes.find(p => p.id === n.parentId)
+              return {
+                ...n,
+                parentId: undefined,
+                extent: undefined,
+                position: {
+                  x: n.position.x + (oldParent?.position.x || 0),
+                  y: n.position.y + (oldParent?.position.y || 0) + 40,
+                },
+              }
+            }
+          }
+          return n
+        })
+        if (changed) triggerAutoSave(next, edges)
+        return next
+      })
+      triggerAutoSave()
+    }
   }, [])
 
   const onEdgesChangeHandler = useCallback((changes: any) => {
@@ -421,10 +524,12 @@ export default function DiagramsPage() {
     if (!reactFlowInstance) return
     const center = reactFlowInstance.screenToFlowPosition({ x: window.innerWidth / 2 - 80, y: window.innerHeight / 2 - 40 })
     const id = `node_${Date.now()}`
+    const isSwimlane = item.type === 'swimlane-h' || item.type === 'swimlane-v'
     const newNode: Node = {
       id, type: item.type,
       position: center,
       data: { label: item.label, color: item.color, icon: item.icon },
+      style: isSwimlane ? { width: 500, height: 300 } : undefined,
     }
     setNodes(nds => {
       const next = [...nds, newNode]
@@ -552,7 +657,29 @@ export default function DiagramsPage() {
               </div>
             </div>
             {/* Canvas */}
-            <div className="flex-1 relative" ref={reactFlowWrapper}>
+            <div className="flex-1 relative" ref={reactFlowWrapper}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+              onDrop={(e) => {
+                e.preventDefault()
+                const data = e.dataTransfer.getData('application/reactflow')
+                if (!data || !reactFlowInstance) return
+                const item: StencilItem = JSON.parse(data)
+                const position = reactFlowInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+                const id = `node_${Date.now()}`
+                const isSwimlane = item.type === 'swimlane-h' || item.type === 'swimlane-v'
+                const newNode: Node = {
+                  id, type: item.type,
+                  position,
+                  data: { label: item.label, color: item.color, icon: item.icon },
+                  style: isSwimlane ? { width: 500, height: 300 } : undefined,
+                }
+                setNodes(nds => {
+                  const next = [...nds, newNode]
+                  triggerAutoSave(next, edges)
+                  return next
+                })
+              }}
+            >
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -608,21 +735,26 @@ export default function DiagramsPage() {
               {expandedCategories.has(cat.name) && (
                 <div className="px-2 pb-2 grid grid-cols-2 gap-1">
                   {cat.items.map(item => (
-                    <button key={item.label}
+                    <div key={item.label}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/reactflow', JSON.stringify(item))
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
                       onClick={() => addNodeFromStencil(item)}
-                      className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg border text-[10px] transition-colors hover:opacity-80"
+                      className="flex flex-col items-center gap-0.5 px-1 py-2 rounded-lg border text-[10px] transition-colors hover:opacity-80 cursor-grab active:cursor-grabbing"
                       style={{
                         backgroundColor: 'var(--bg-primary)',
                         borderColor: 'var(--border)',
                         color: 'var(--text-primary)',
                       }}
-                      title={item.label}
+                      title={`Drag or click to add ${item.label}`}
                     >
                       <span className="text-sm font-bold" style={{ color: item.color === 'transparent' ? 'var(--text-muted)' : item.color }}>
                         {item.icon || '□'}
                       </span>
                       <span className="leading-tight text-center">{item.label}</span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}

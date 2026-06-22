@@ -578,4 +578,9 @@ function runDiagramMigrations() {
       dashed INTEGER DEFAULT 0
     );
   `)
+  // Migrate: add parent_id column if missing
+  const nodeCols = exec('PRAGMA table_info(diagram_nodes)')
+  if (!nodeCols.some((c: any) => c.name === 'parent_id')) {
+    try { db.exec('ALTER TABLE diagram_nodes ADD COLUMN parent_id TEXT') } catch {}
+  }
 }

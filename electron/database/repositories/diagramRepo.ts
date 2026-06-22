@@ -43,9 +43,9 @@ export function saveDiagram(id: string, nodes: any[], edges: any[]): void {
   db.run('DELETE FROM diagram_nodes WHERE diagram_id = ?', [id])
   db.run('DELETE FROM diagram_edges WHERE diagram_id = ?', [id])
   if (nodes.length > 0) {
-    const ni = db.db.prepare('INSERT INTO diagram_nodes (id, diagram_id, type, label, color, x, y, width, height, props_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    const ni = db.db.prepare('INSERT INTO diagram_nodes (id, diagram_id, type, label, color, x, y, width, height, props_json, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     for (const n of nodes) {
-      ni.run([n.id, id, n.type || 'rectangle', n.label || 'Node', n.color || '#89b4fa', n.x || 0, n.y || 0, n.width || 160, n.height || 80, n.props_json || '{}'])
+      ni.run([n.id, id, n.type || 'rectangle', n.label || 'Node', n.color || '#89b4fa', n.x || 0, n.y || 0, n.width || 160, n.height || 80, n.props_json || '{}', n.parent_id || null])
     }
     ni.free()
   }

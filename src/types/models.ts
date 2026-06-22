@@ -361,7 +361,7 @@ export interface MindMapFull extends MindMap {
   edges: MindMapEdge[]
 }
 
-export type DiagramNodeType = 'rectangle' | 'diamond' | 'parallelogram' | 'cylinder' | 'circle' | 'hexagon'
+export type DiagramNodeType = 'rectangle' | 'diamond' | 'parallelogram' | 'cylinder' | 'circle' | 'hexagon' | 'server' | 'cloud' | 'mobile' | 'tablet' | 'database' | 'boundary' | 'swimlane-h' | 'swimlane-v'
   | 'server' | 'cloud' | 'mobile' | 'tablet' | 'database' | 'boundary'
   | 'lambda' | 's3' | 'ec2' | 'azfunc' | 'azsql'
 
@@ -383,6 +383,7 @@ export interface DiagramNode {
   width: number
   height: number
   props_json: string
+  parent_id: string | null
 }
 
 export interface DiagramEdge {
