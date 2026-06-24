@@ -1,6 +1,6 @@
 {
   "name": "vibetasks",
-  "version": "1.11.3",
+  "version": "1.12.0",
   "description": "Vibe Tasks - Desktop Task Management Application",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "build:win-portable": "node scripts/build.mjs portable",
     "build:mac": "node scripts/build.mjs mac",
     "build:linux": "node scripts/build.mjs linux",
+    "download-drawio": "node scripts/download-drawio.mjs",
     "build:all": "node scripts/build.mjs all",
     "preview": "vite preview"
   },

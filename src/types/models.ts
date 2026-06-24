@@ -160,6 +160,15 @@ export interface ElectronAPI {
   deleteDiagram: (id: string) => Promise<void>
   saveDiagram: (id: string, nodes: DiagramNode[], edges: DiagramEdge[]) => Promise<void>
 
+  // Draw (BETA)
+  getDrawDiagrams:   () => Promise<DrawDiagram[]>
+  getDrawDiagram:    (id: string) => Promise<DrawDiagram | null>
+  createDrawDiagram: (name: string) => Promise<DrawDiagram>
+  renameDrawDiagram: (id: string, name: string) => Promise<void>
+  deleteDrawDiagram: (id: string) => Promise<void>
+  saveDrawDiagram:   (id: string, data: string) => Promise<void>
+  getDrawioUrl:      () => string
+
   // Habits
   getHabits: () => Promise<Habit[]>
   getHabit: (id: number) => Promise<Habit | null>
@@ -399,6 +408,14 @@ export interface DiagramEdge {
 export interface DiagramFull extends Diagram {
   nodes: DiagramNode[]
   edges: DiagramEdge[]
+}
+
+export interface DrawDiagram {
+  id: string
+  name: string
+  data: string
+  created_at: string
+  updated_at: string
 }
 
 export interface Habit {

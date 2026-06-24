@@ -33,6 +33,9 @@ npm-debug.log*
 # Binaries
 *.exe
 
+# Draw.io webapp (downloaded)
+public/drawio/
+
 # Temp
 tmp/
 temp/

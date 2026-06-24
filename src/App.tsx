@@ -14,6 +14,7 @@ import Flashcards from './pages/Flashcards'
 import Notes from './pages/Notes'
 import MindMap from './pages/MindMap'
 import Diagrams from './pages/Diagrams'
+import Draw from './pages/Draw'
 import Links from './pages/Links'
 import Spreadsheets from './pages/Spreadsheets'
 import Habits from './pages/Habits'
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/notes" element={<Notes />} />
               <Route path="/mindmap" element={<MindMap />} />
               <Route path="/diagrams" element={<Diagrams />} />
+              <Route path="/draw" element={<Draw />} />
               <Route path="/habits" element={<Habits />} />
               <Route path="/weekly-review" element={<WeeklyReview />} />
               <Route path="/kanban" element={<KanbanBoard />} />

@@ -20,6 +20,10 @@ extraResources:
     to: "."
     filter:
       - "xylophone.mp3"
+  - from: "public/drawio/"
+    to: "drawio/"
+    filter:
+      - "**/*"
 
 asar: true
 asarUnpack:

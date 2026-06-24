@@ -254,6 +254,7 @@ function runMigrations() {
   runAiChatMigrations()
   runSpreadsheetMigrations()
   runDiagramMigrations()
+  runDrawMigrations()
 }
 
 function runNoteMigrations() {
@@ -583,4 +584,16 @@ function runDiagramMigrations() {
   if (!nodeCols.some((c: any) => c.name === 'parent_id')) {
     try { db.exec('ALTER TABLE diagram_nodes ADD COLUMN parent_id TEXT') } catch {}
   }
+}
+
+function runDrawMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS draw_diagrams (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT 'Untitled',
+      data TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `)
 }

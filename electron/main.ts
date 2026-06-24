@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
-import { fileURLToPath } from 'url'
-import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu } from 'electron'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu, protocol, net } from 'electron'
 import OpenAI from 'openai'
 import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
 import TurndownService from 'turndown'
@@ -20,8 +20,13 @@ import * as linkRepo from './database/repositories/linkRepo'
 import * as flashcardRepo from './database/repositories/flashcardRepo'
 import * as chatRepo from './database/repositories/chatRepo'
 import * as spreadsheetRepo from './database/repositories/spreadsheetRepo'
+import * as drawRepo from './database/repositories/drawRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'drawio', privileges: { standard: true, secure: true, bypassCSP: true, stream: true, supportFetchAPI: true } }
+])
 
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
@@ -363,6 +368,25 @@ function registerIpcHandlers() {
   ipcMain.handle('spreadsheet:create', (_e, name) => spreadsheetRepo.createSpreadsheet(name))
   ipcMain.handle('spreadsheet:update', (_e, id, data) => spreadsheetRepo.updateSpreadsheet(id, data))
   ipcMain.handle('spreadsheet:delete', (_e, id) => spreadsheetRepo.deleteSpreadsheet(id))
+
+  // ── Draw (BETA) ──
+  ipcMain.handle('draw:list', () => drawRepo.getDiagrams())
+  ipcMain.handle('draw:get', (_e, id) => drawRepo.getDiagram(id))
+  ipcMain.handle('draw:create', (_e, name) => drawRepo.createDiagram(name))
+  ipcMain.handle('draw:rename', (_e, id, name) => drawRepo.renameDiagram(id, name))
+  ipcMain.handle('draw:delete', (_e, id) => drawRepo.deleteDiagram(id))
+  ipcMain.handle('draw:save', (_e, id, data) => drawRepo.saveDiagram(id, data))
+
+  const drawioPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'drawio')
+    : path.join(app.getAppPath(), 'public', 'drawio')
+  protocol.handle('drawio', async (request) => {
+    const url = new URL(request.url)
+    let filePath = url.pathname.replace(/^\//, '')
+    if (!filePath) filePath = 'index.html'
+    const fullPath = path.join(drawioPath, filePath)
+    return net.fetch(pathToFileURL(fullPath).href)
+  })
 
   // ── Utilities ──
   ipcMain.handle('util:showSaveDialog', async (_e, options: Electron.SaveDialogOptions) => {

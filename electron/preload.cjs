@@ -167,6 +167,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('util:showSaveDialog', options),
   writeBinaryFile: (filePath, data) => ipcRenderer.invoke('util:writeBinaryFile', filePath, data),
 
+  // Draw (BETA)
+  getDrawDiagrams:   () => ipcRenderer.invoke('draw:list'),
+  getDrawDiagram:    (id) => ipcRenderer.invoke('draw:get', id),
+  createDrawDiagram: (name) => ipcRenderer.invoke('draw:create', name),
+  renameDrawDiagram: (id, name) => ipcRenderer.invoke('draw:rename', id, name),
+  deleteDrawDiagram: (id) => ipcRenderer.invoke('draw:delete', id),
+  saveDrawDiagram:   (id, data) => ipcRenderer.invoke('draw:save', id, data),
+  getDrawioUrl:      () => 'drawio://app/index.html?proto=json',
+
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 

@@ -33,12 +33,16 @@ if (!target) {
 console.log(`\n  Building Vibe Tasks v${version}`)
 console.log(`  Platform target(s): ${platform}\n`)
 
+// Step 0: Download draw.io webapp
+console.log('[0/4] Downloading draw.io webapp...')
+execSync('node scripts/download-drawio.mjs', { cwd: root, stdio: 'inherit' })
+
 // Step 1: Vite build (renderer + electron main process)
-console.log('[1/3] Building app with Vite...')
+console.log('[1/4] Building app with Vite...')
 execSync('npx vite build', { cwd: root, stdio: 'inherit' })
 
 // Step 2: Copy preload & HTML files to dist-electron
-console.log('[2/3] Copying preload & asset files...')
+console.log('[2/4] Copying preload & asset files...')
 const filesToCopy = ['preload.cjs', 'pomodoroPreload.cjs', 'pomodoro.html', 'focusPreload.cjs', 'focus.html', 'splash.html']
 for (const file of filesToCopy) {
   const src = join(root, 'electron', file)
@@ -73,7 +77,7 @@ function preExtractWinCodeSign() {
 }
 
 // Step 3: Package with electron-builder
-console.log('[3/3] Packaging with electron-builder...')
+console.log('[3/4] Packaging with electron-builder...')
 const usePortableConfig = platform === 'portable'
 const cmd = usePortableConfig
   ? `npx electron-builder ${target}`
