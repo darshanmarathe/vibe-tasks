@@ -124,7 +124,14 @@ export default function Layout() {
                     title={collapsed ? item.label : undefined}
                   >
                     <span className="text-base">{item.icon}</span>
-                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && (
+                      <span className="flex items-center gap-1.5">
+                        {item.label}
+                        {item.label === 'Diagrams' && (
+                          <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)', color: '#fff', lineHeight: '1' }}>BETA</span>
+                        )}
+                      </span>
+                    )}
                   </NavLink>
                 ))}
               </div>

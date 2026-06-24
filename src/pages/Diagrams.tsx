@@ -642,6 +642,29 @@ export default function DiagramsPage() {
                       className="w-5 h-5 rounded cursor-pointer border-0" />
                     <input value={selectedNode.data.icon || ''} onChange={e => updateNodeData(selectedNode.id, { icon: e.target.value })}
                       className="border rounded px-2 py-0.5 text-xs w-16" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} placeholder="Icon" />
+                    <div className="w-px h-4" style={{ backgroundColor: 'var(--border)' }} />
+                    <button onClick={() => {
+                      setNodes(nds => {
+                        const idx = nds.findIndex(n => n.id === selectedNode.id)
+                        if (idx < 0) return nds
+                        const copy = [...nds]
+                        const [node] = copy.splice(idx, 1)
+                        copy.push(node)
+                        triggerAutoSave(copy, edges)
+                        return copy
+                      })
+                    }} className="px-2 py-1 rounded text-xs hover:opacity-70" style={{ color: 'var(--text-primary)' }} title="Bring to Front">⬆ Front</button>
+                    <button onClick={() => {
+                      setNodes(nds => {
+                        const idx = nds.findIndex(n => n.id === selectedNode.id)
+                        if (idx < 0) return nds
+                        const copy = [...nds]
+                        const [node] = copy.splice(idx, 1)
+                        copy.unshift(node)
+                        triggerAutoSave(copy, edges)
+                        return copy
+                      })
+                    }} className="px-2 py-1 rounded text-xs hover:opacity-70" style={{ color: 'var(--text-primary)' }} title="Send to Back">⬇ Back</button>
                   </>
                 )}
                 <div className="relative">
@@ -674,6 +697,22 @@ export default function DiagramsPage() {
                   style: isSwimlane ? { width: 500, height: 300 } : undefined,
                 }
                 setNodes(nds => {
+                  // Auto-group into swimlane if dropped inside one
+                  const swimlanes = nds.filter(n => n.type === 'swimlane-h' || n.type === 'swimlane-v')
+                  const parent = swimlanes.find(sw => {
+                    const swStyle = sw.style || {}
+                    const swW = swStyle.width || 500
+                    const swH = swStyle.height || 300
+                    return position.x >= sw.position.x + 10
+                      && position.y >= sw.position.y + 40
+                      && position.x + 160 <= sw.position.x + swW - 10
+                      && position.y + 80 <= sw.position.y + swH - 10
+                  })
+                  if (parent) {
+                    newNode.parentId = parent.id
+                    newNode.extent = 'parent' as const
+                    newNode.position = { x: position.x - parent.position.x, y: position.y - parent.position.y - 40 }
+                  }
                   const next = [...nds, newNode]
                   triggerAutoSave(next, edges)
                   return next
