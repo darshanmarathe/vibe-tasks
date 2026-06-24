@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { app, BrowserWindow, ipcMain, Notification, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu } from 'electron'
 import OpenAI from 'openai'
 import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
 import TurndownService from 'turndown'
@@ -144,6 +144,7 @@ function createWindow() {
       preload: preloadPath('preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      spellcheck: true,
     },
     titleBarStyle: 'hidden',
     titleBarOverlay: overlay,
@@ -153,12 +154,34 @@ function createWindow() {
   mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
   mainWindow.once('ready-to-show', revealMainWindow)
 
+  // Enable spell checker
+  if (mainWindow) {
+    mainWindow.webContents.session.spellCheckerEnabled = true
+  }
+
+  // Set languages once dictionary is ready
+  const setLanguages = () => {
+    try {
+      if (!mainWindow) return
+      const available = mainWindow.webContents.session.availableSpellCheckerLanguages
+      const systemLang = app.getLocale()
+      const langs = [systemLang, systemLang.split('-')[0], 'en-US'].filter(l => l && available.includes(l))
+      if (langs.length > 0) {
+        mainWindow.webContents.session.setSpellCheckerLanguages(langs)
+      }
+    } catch {}
+  }
+
+  mainWindow.webContents.session.on('spellcheck-dictionary-initialized', () => setLanguages())
+
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
+
+  mainWindow.webContents.on('did-finish-load', setLanguages)
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F12') {
       mainWindow?.webContents.toggleDevTools()
@@ -185,6 +208,45 @@ function createWindow() {
       event.preventDefault()
       setMainWindowZoom(DEFAULT_ZOOM_FACTOR)
     }
+  })
+
+  // Spell check context menu (Chrome-like right-click suggestions)
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const menuItems: Electron.MenuItemConstructorOptions[] = []
+
+    // Spelling suggestions
+    if (params.misspelledWord) {
+      const suggestions = params.dictionarySuggestions || []
+      suggestions.forEach(suggestion => {
+        menuItems.push({
+          label: suggestion,
+          click: () => mainWindow?.webContents.insertText(suggestion),
+        })
+      })
+      if (suggestions.length > 0) {
+        menuItems.push({ type: 'separator' })
+      }
+      menuItems.push({
+        label: `Add "${params.misspelledWord}" to dictionary`,
+        click: () => mainWindow?.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+      })
+      menuItems.push({ type: 'separator' })
+    }
+
+    // Standard edit actions
+    if (params.selectionText) {
+      menuItems.push(
+        { label: 'Cut', accelerator: 'CmdOrCtrl+X', role: 'cut' },
+        { label: 'Copy', accelerator: 'CmdOrCtrl+C', role: 'copy' },
+      )
+    }
+    menuItems.push(
+      { label: 'Paste', accelerator: 'CmdOrCtrl+V', role: 'paste' },
+      { label: 'Select All', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
+    )
+
+    const menu = Menu.buildFromTemplate(menuItems)
+    menu.popup({ window: mainWindow ?? undefined })
   })
 }
 
