@@ -166,6 +166,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Utilities
   showSaveDialog: (options) => ipcRenderer.invoke('util:showSaveDialog', options),
   writeBinaryFile: (filePath, data) => ipcRenderer.invoke('util:writeBinaryFile', filePath, data),
+  closeWindow: () => ipcRenderer.invoke('app:closeWindow'),
 
   // Draw (BETA)
   getDrawDiagrams:   () => ipcRenderer.invoke('draw:list'),

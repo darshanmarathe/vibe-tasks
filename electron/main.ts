@@ -772,6 +772,7 @@ function registerIpcHandlers() {
   ipcMain.handle('mindmap:delete', (_e, id) => mindmapRepo.deleteMindMap(id))
   ipcMain.handle('mindmap:save', (_e, id, nodes, edges) => mindmapRepo.saveMindMap(id, nodes, edges))
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
+  ipcMain.handle('app:closeWindow', () => { mainWindow?.close() })
 
   // Diagrams
   ipcMain.handle('diagram:list', () => diagramRepo.getDiagrams())

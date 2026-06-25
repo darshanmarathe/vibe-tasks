@@ -54,5 +54,40 @@
 	</div>
 </div>
 <script src="js/main.js"></script>
+<script>
+// Hijack save and close for offline mode
+(function() {
+    document.addEventListener('keydown', function(e) {
+        var key = e.key;
+        if ((e.ctrlKey || e.metaKey) && key === 's') {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                window.parent.postMessage(JSON.stringify({event: 'save_request'}), '*');
+            } catch(ex) {}
+        }
+        if ((e.ctrlKey || e.metaKey) && key === 'w') {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                window.parent.postMessage(JSON.stringify({event: 'close_request'}), '*');
+            } catch(ex) {}
+        }
+    }, true);
+
+    // Prevent draw.io's beforeunload from blocking window close
+    window.addEventListener('beforeunload', function(e) {
+        e.stopImmediatePropagation();
+        delete e.returnValue;
+    }, true);
+
+    // Remove any beforeunload handlers draw.io adds later
+    var origAdd = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function(type, fn, opts) {
+        if (type === 'beforeunload') return;
+        return origAdd.call(this, type, fn, opts);
+    };
+})();
+</script>
 </body>
 </html>

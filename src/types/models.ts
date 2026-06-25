@@ -239,6 +239,7 @@ export interface ElectronAPI {
   // Utilities
   showSaveDialog: (options: { defaultPath?: string; filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>
   writeBinaryFile: (filePath: string, data: number[]) => Promise<void>
+  closeWindow: () => Promise<void>
 
   // Focus Mode
   toggleFocus: () => Promise<void>

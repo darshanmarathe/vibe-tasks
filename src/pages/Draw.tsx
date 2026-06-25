@@ -14,11 +14,14 @@ const Draw: FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const readyRef = useRef(false)
   const pendingExport = useRef<{format: string; resolve: (data: string) => void} | null>(null)
   const loadedRef = useRef<string | null>(null)
   const savingRef = useRef(false)
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingAutosaveRef = useRef<{ id: string, xml: string } | null>(null)
 
   const active = diagrams.find(d => d.id === activeId)
 
@@ -47,15 +50,26 @@ const Draw: FC = () => {
       if (lid) {
         sendToDrawio(lid)
       } else {
-        postWithRetry({ action: 'load', xml: template() })
+        postWithRetry({ action: 'load', xml: template(), autosave: 1 })
       }
       return
     }
 
     if (msg.event === 'save') {
       const lid = loadedRef.current
-      console.log('[Draw] save event, loadedRef:', lid)
-      saveToDb(lid, msg.xml)
+      if (!lid || !msg.xml) return
+      pendingAutosaveRef.current = { id: lid, xml: msg.xml }
+      setSaving(true)
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = setTimeout(() => {
+        const save = pendingAutosaveRef.current
+        if (save) {
+          console.log('[Draw] autosave saving to db, id:', save.id)
+          saveToDb(save.id, save.xml)
+          pendingAutosaveRef.current = null
+        }
+        setSaving(false)
+      }, 1000)
       return
     }
 
@@ -67,6 +81,16 @@ const Draw: FC = () => {
         return
       }
       saveExportedFile(msg)
+    }
+
+    if (msg.event === 'save_request') {
+      console.log('[Draw] save_request from iframe')
+      saveToDbFromEditor()
+    }
+
+    if (msg.event === 'close_request') {
+      console.log('[Draw] close_request from iframe')
+      window.electronAPI.closeWindow()
     }
   }, [activeId, diagrams])
 
@@ -91,7 +115,7 @@ const Draw: FC = () => {
     loadedRef.current = id
     const diag = diagrams.find(d => d.id === id)
     const xml = diag?.data || template()
-    postWithRetry({ action: 'load', xml })
+    postWithRetry({ action: 'load', xml, autosave: 1 })
   }
 
   function template() {
@@ -120,11 +144,15 @@ const Draw: FC = () => {
     const lid = loadedRef.current
     if (!lid || savingRef.current) return
     savingRef.current = true
+    setSaving(true)
     try {
       const xml = await requestExport('xml')
-      await saveToDb(lid, xml)
+      if (xml) {
+        await saveToDb(lid, xml)
+      }
     } finally {
       savingRef.current = false
+      setSaving(false)
     }
   }
 
@@ -179,7 +207,7 @@ const Draw: FC = () => {
     setDiagrams(prev => [...prev, diag])
     setActiveId(diag.id)
     loadedRef.current = diag.id
-    postWithRetry({ action: 'load', xml: template() })
+    postWithRetry({ action: 'load', xml: template(), autosave: 1 })
   }
 
   async function deleteDiag(id: string) {
@@ -233,6 +261,7 @@ const Draw: FC = () => {
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
             <button onClick={saveToDbFromEditor} className="px-3 py-1 rounded transition-colors font-medium" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
+            {saving && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded animate-pulse" style={{ color: 'var(--text-muted)' }}><span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} /> Saving...</span>}
             <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
             <button onClick={downloadDrawio} className="px-2 py-1 rounded transition-colors" style={{ color: 'var(--text-secondary)' }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
