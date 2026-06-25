@@ -56,7 +56,7 @@ const Draw: FC = () => {
       return
     }
 
-    if (msg.event === 'save') {
+    if (msg.event === 'autosave' || msg.event === 'save') {
       const lid = loadedRef.current
       if (!lid || !msg.xml) return
       pendingAutosaveRef.current = { id: lid, xml: msg.xml }
@@ -114,12 +114,17 @@ const Draw: FC = () => {
   function sendToDrawio(id: string) {
     loadedRef.current = id
     const diag = diagrams.find(d => d.id === id)
-    const xml = diag?.data || template()
+    const rawXml = diag?.data || template()
+    const xml = patchDiagramName(rawXml, diag?.name || 'Untitled')
     postWithRetry({ action: 'load', xml, autosave: 1 })
   }
 
+  function patchDiagramName(xml: string, name: string): string {
+    return xml.replace(/(<diagram\b[^>]*?\bname=")[^"]*(")/, `$1${name.replace(/"/g, '&quot;')}$2`)
+  }
+
   function template() {
-    return '<mxfile><diagram name="Diagram"><mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>'
+    return '<mxfile><diagram name="Untitled"><mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>'
   }
 
   async function saveToDb(id: string | null, xml: string) {
@@ -223,9 +228,31 @@ const Draw: FC = () => {
     await window.electronAPI.renameDrawDiagram(id, name)
     setDiagrams(prev => prev.map(d => d.id === id ? { ...d, name } : d))
     setEditingId(null)
+    // Push name into draw.io if this is the active diagram
+    if (loadedRef.current === id && readyRef.current) {
+      const lid = loadedRef.current
+      if (lid) {
+        const xml = await requestExport('xml')
+        if (xml) {
+          const patched = patchDiagramName(xml, name)
+          postWithRetry({ action: 'load', xml: patched, autosave: 1 })
+        }
+      }
+    }
   }
 
-  function selectDiag(id: string) {
+  async function selectDiag(id: string) {
+    if (id === activeId) return
+    // Flush any pending autosave before switching
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+      const pending = pendingAutosaveRef.current
+      if (pending) {
+        await saveToDb(pending.id, pending.xml)
+        pendingAutosaveRef.current = null
+      }
+    }
     setActiveId(id)
     setDirty(false)
     setSavedFlash(false)
