@@ -17,6 +17,8 @@ const Draw: FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const readyRef = useRef(false)
   const pendingExport = useRef<{format: string; resolve: (data: string) => void} | null>(null)
+  const loadedRef = useRef<string | null>(null)
+  const savingRef = useRef(false)
 
   const active = diagrams.find(d => d.id === activeId)
 
@@ -30,24 +32,37 @@ const Draw: FC = () => {
   }
 
   const handleMessage = useCallback((e: MessageEvent) => {
-    const msg = e.data
-    if (!msg || !msg.event) return
+    let msg = e.data
+    if (!msg) return
+    if (typeof msg === 'string') {
+      try { msg = JSON.parse(msg) } catch { return }
+    }
+    if (!msg.event) return
+    console.log('[Draw] received message:', msg)
 
     if (msg.event === 'init') {
       readyRef.current = true
-      if (activeId) sendToDrawio(activeId)
+      const lid = loadedRef.current || activeId
+      console.log('[Draw] init received, loadedRef:', lid)
+      if (lid) {
+        sendToDrawio(lid)
+      } else {
+        postWithRetry({ action: 'load', xml: template() })
+      }
       return
     }
 
     if (msg.event === 'save') {
-      saveToDb(activeId, msg.xml)
+      const lid = loadedRef.current
+      console.log('[Draw] save event, loadedRef:', lid)
+      saveToDb(lid, msg.xml)
       return
     }
 
     if (msg.event === 'export') {
       const pending = pendingExport.current
       if (pending && pending.format === msg.format) {
-        pending.resolve(msg.data)
+        pending.resolve(msg.data || msg.xml)
         pendingExport.current = null
         return
       }
@@ -60,18 +75,27 @@ const Draw: FC = () => {
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
-  function sendToDrawio(id: string) {
-    const diag = diagrams.find(d => d.id === id)
+  function postWithRetry(msg: any, retries = 5) {
     const iframe = iframeRef.current
-    if (!iframe?.contentWindow) return
-    const msg = diag?.data
-      ? { action: 'load', xml: diag.data }
-      : { action: 'template', xml: template() }
-    iframe.contentWindow.postMessage(msg, '*')
+    if (iframe?.contentWindow) {
+      const data = typeof msg === 'string' ? msg : JSON.stringify(msg)
+      console.log('[Draw] posting to iframe:', msg)
+      iframe.contentWindow.postMessage(data, '*')
+      return
+    }
+    console.log('[Draw] no contentWindow yet, retries left:', retries)
+    if (retries > 0) setTimeout(() => postWithRetry(msg, retries - 1), 200)
+  }
+
+  function sendToDrawio(id: string) {
+    loadedRef.current = id
+    const diag = diagrams.find(d => d.id === id)
+    const xml = diag?.data || template()
+    postWithRetry({ action: 'load', xml })
   }
 
   function template() {
-    return '<mxfile><diagram name="Diagram">%3CmxGraphModel%3E%3Croot%3E%3CmxCell%20id%3D%220%22%2F%3E%3CmxCell%20id%3D%221%22%20parent%3D%220%22%2F%3E%3C%2Froot%3E%3C%2FmxGraphModel%3E</diagram></mxfile>'
+    return '<mxfile><diagram name="Diagram"><mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>'
   }
 
   async function saveToDb(id: string | null, xml: string) {
@@ -81,7 +105,8 @@ const Draw: FC = () => {
   }
 
   function post(msg: any) {
-    iframeRef.current?.contentWindow?.postMessage(msg, '*')
+    const data = typeof msg === 'string' ? msg : JSON.stringify(msg)
+    iframeRef.current?.contentWindow?.postMessage(data, '*')
   }
 
   function requestExport(format: string): Promise<string> {
@@ -92,9 +117,15 @@ const Draw: FC = () => {
   }
 
   async function saveToDbFromEditor() {
-    if (!activeId || !readyRef.current) return
-    const xml = await requestExport('xml')
-    await saveToDb(activeId, xml)
+    const lid = loadedRef.current
+    if (!lid || savingRef.current) return
+    savingRef.current = true
+    try {
+      const xml = await requestExport('xml')
+      await saveToDb(lid, xml)
+    } finally {
+      savingRef.current = false
+    }
   }
 
   async function downloadDrawio() {
@@ -147,7 +178,8 @@ const Draw: FC = () => {
     const diag = await window.electronAPI.createDrawDiagram('Untitled')
     setDiagrams(prev => [...prev, diag])
     setActiveId(diag.id)
-    if (readyRef.current) post({ action: 'template', xml: template() })
+    loadedRef.current = diag.id
+    postWithRetry({ action: 'load', xml: template() })
   }
 
   async function deleteDiag(id: string) {
@@ -164,7 +196,7 @@ const Draw: FC = () => {
 
   function selectDiag(id: string) {
     setActiveId(id)
-    if (readyRef.current) sendToDrawio(id)
+    sendToDrawio(id)
   }
 
   return (
@@ -218,7 +250,7 @@ const Draw: FC = () => {
         )}
         <div className="flex-1 rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
           {active ? (
-            <iframe ref={iframeRef} src={window.electronAPI.getDrawioUrl()} className="w-full h-full" onLoad={() => { readyRef.current = false }} title="Draw.io" />
+            <iframe ref={iframeRef} src={window.electronAPI.getDrawioUrl()} className="w-full h-full" title="Draw.io" />
           ) : (
             <div className="flex items-center justify-center h-full" style={{ color: 'var(--text-muted)' }}><p>Select or create a diagram</p></div>
           )}

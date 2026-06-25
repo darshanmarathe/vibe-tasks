@@ -173,7 +173,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameDrawDiagram: (id: string, name: string) => ipcRenderer.invoke('draw:rename', id, name),
   deleteDrawDiagram: (id: string) => ipcRenderer.invoke('draw:delete', id),
   saveDrawDiagram:   (id: string, data: string) => ipcRenderer.invoke('draw:save', id, data),
-  getDrawioUrl:      () => 'drawio://app/index.html?proto=json',
+  getDrawioUrl:      () => 'drawio://app/index.html?client=1&proto=json',
 
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
