@@ -14,7 +14,8 @@ const Draw: FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [exporting, setExporting] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [savedFlash, setSavedFlash] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const readyRef = useRef(false)
   const pendingExport = useRef<{format: string; resolve: (data: string) => void} | null>(null)
@@ -59,7 +60,7 @@ const Draw: FC = () => {
       const lid = loadedRef.current
       if (!lid || !msg.xml) return
       pendingAutosaveRef.current = { id: lid, xml: msg.xml }
-      setSaving(true)
+      setDirty(true)
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = setTimeout(() => {
         const save = pendingAutosaveRef.current
@@ -68,7 +69,6 @@ const Draw: FC = () => {
           saveToDb(save.id, save.xml)
           pendingAutosaveRef.current = null
         }
-        setSaving(false)
       }, 1000)
       return
     }
@@ -126,6 +126,9 @@ const Draw: FC = () => {
     if (!id) return
     await window.electronAPI.saveDrawDiagram(id, xml)
     setDiagrams(prev => prev.map(d => d.id === id ? { ...d, data: xml, updated_at: new Date().toISOString() } : d))
+    setDirty(false)
+    setSavedFlash(true)
+    setTimeout(() => setSavedFlash(false), 1500)
   }
 
   function post(msg: any) {
@@ -144,7 +147,6 @@ const Draw: FC = () => {
     const lid = loadedRef.current
     if (!lid || savingRef.current) return
     savingRef.current = true
-    setSaving(true)
     try {
       const xml = await requestExport('xml')
       if (xml) {
@@ -152,7 +154,6 @@ const Draw: FC = () => {
       }
     } finally {
       savingRef.current = false
-      setSaving(false)
     }
   }
 
@@ -207,6 +208,8 @@ const Draw: FC = () => {
     setDiagrams(prev => [...prev, diag])
     setActiveId(diag.id)
     loadedRef.current = diag.id
+    setDirty(false)
+    setSavedFlash(false)
     postWithRetry({ action: 'load', xml: template(), autosave: 1 })
   }
 
@@ -224,6 +227,8 @@ const Draw: FC = () => {
 
   function selectDiag(id: string) {
     setActiveId(id)
+    setDirty(false)
+    setSavedFlash(false)
     sendToDrawio(id)
   }
 
@@ -261,7 +266,8 @@ const Draw: FC = () => {
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
             <button onClick={saveToDbFromEditor} className="px-3 py-1 rounded transition-colors font-medium" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
-            {saving && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded animate-pulse" style={{ color: 'var(--text-muted)' }}><span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }} /> Saving...</span>}
+            {dirty && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded" style={{ color: 'var(--text-muted)' }}><span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#f59e0b' }} /> Unsaved</span>}
+            {!dirty && savedFlash && <span className="flex items-center gap-1 text-xs px-2 py-1 rounded" style={{ color: 'var(--text-muted)' }}><span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} /> Saved</span>}
             <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
             <button onClick={downloadDrawio} className="px-2 py-1 rounded transition-colors" style={{ color: 'var(--text-secondary)' }}
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
