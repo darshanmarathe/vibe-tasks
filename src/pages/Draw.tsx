@@ -120,7 +120,15 @@ const Draw: FC = () => {
   }
 
   function patchDiagramName(xml: string, name: string): string {
-    return xml.replace(/(<diagram\b[^>]*?\bname=")[^"]*(")/, `$1${name.replace(/"/g, '&quot;')}$2`)
+    const safe = name.replace(/"/g, '&quot;')
+    // If name attr exists, replace it; otherwise add it to <diagram>
+    if (xml.includes('<diagram')) {
+      if (/\bname="[^"]*"/.test(xml)) {
+        return xml.replace(/(<diagram\b[^>]*?)\bname="[^"]*"/, `$1name="${safe}"`)
+      }
+      return xml.replace(/(<diagram)(\s)/, `$1 name="${safe}"$2`)
+    }
+    return xml
   }
 
   function template() {
@@ -225,18 +233,25 @@ const Draw: FC = () => {
   }
 
   async function renameDiag(id: string, name: string) {
+    // Flush pending autosave first so DB has latest XML
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+      const pending = pendingAutosaveRef.current
+      if (pending) {
+        await saveToDb(pending.id, pending.xml)
+        pendingAutosaveRef.current = null
+      }
+    }
     await window.electronAPI.renameDrawDiagram(id, name)
     setDiagrams(prev => prev.map(d => d.id === id ? { ...d, name } : d))
     setEditingId(null)
-    // Push name into draw.io if this is the active diagram
-    if (loadedRef.current === id && readyRef.current) {
-      const lid = loadedRef.current
-      if (lid) {
-        const xml = await requestExport('xml')
-        if (xml) {
-          const patched = patchDiagramName(xml, name)
-          postWithRetry({ action: 'load', xml: patched, autosave: 1 })
-        }
+    // Reload draw.io so the diagram name updates inside the editor
+    if (loadedRef.current === id) {
+      const diag = await window.electronAPI.getDrawDiagram(id)
+      if (diag) {
+        const xml = patchDiagramName(diag.data || template(), name)
+        postWithRetry({ action: 'load', xml, autosave: 1 })
       }
     }
   }
