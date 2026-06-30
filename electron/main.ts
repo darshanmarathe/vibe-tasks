@@ -159,6 +159,24 @@ function createWindow() {
   mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
   mainWindow.once('ready-to-show', revealMainWindow)
 
+  // Content Security Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: blob:; " +
+          "frame-src 'self' drawio:; " +
+          "script-src 'self' 'unsafe-inline'; " +
+          "connect-src 'self' http://localhost:* ws://localhost:*; " +
+          "font-src 'self' data:;"
+        ]
+      }
+    })
+  })
+
   // Enable spell checker
   if (mainWindow) {
     mainWindow.webContents.session.spellCheckerEnabled = true
@@ -384,7 +402,11 @@ function registerIpcHandlers() {
     const url = new URL(request.url)
     let filePath = url.pathname.replace(/^\//, '')
     if (!filePath) filePath = 'index.html'
-    const fullPath = path.join(drawioPath, filePath)
+    const fullPath = path.resolve(drawioPath, filePath)
+    // Prevent path traversal outside drawio directory
+    if (!fullPath.startsWith(drawioPath)) {
+      return new Response(null, { status: 403 })
+    }
     return net.fetch(pathToFileURL(fullPath).href)
   })
 

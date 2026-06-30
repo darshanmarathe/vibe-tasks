@@ -15,6 +15,7 @@ const navGroups: NavGroup[] = [
       { path: '/tasks',         label: 'Tasks',        icon: '📋' },
       { path: '/kanban',        label: 'Kanban',       icon: '📌' },
       { path: '/calendar',     label: 'Calendar',    icon: '📅' },
+      { path: '/completed',    label: 'Completed',   icon: '✅' },
       { path: '/archived',      label: 'Archived',     icon: '📦' },
     ],
   },

@@ -95,7 +95,10 @@ export default function Inbox() {
     return new Date(dueDate) < today
   }
 
+  const completedStatusId = statuses.find(s => s.complete)?.id
+
   const filteredTasks = tasks.filter(t => {
+    if (t.statusId === completedStatusId) return false
     if (filterStatuses.size > 0 && !filterStatuses.has(t.statusId)) return false
     if (filterPriorities.size > 0 && !filterPriorities.has(t.priorityId)) return false
     if (filterProjects.size > 0 && !filterProjects.has(t.projectId)) return false

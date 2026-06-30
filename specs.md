@@ -196,3 +196,11 @@
     6. ✅ Grid filtering — task lists (Dashboard, TaskList, KanbanBoard, Inbox) show only parent recurring tasks, not individual occurrences
     7. ✅ Calendar shows all occurrences — Calendar page shows every generated instance on its due date
     8. ✅ Context menu — right-click any task on Calendar to Edit, Archive Instance/All, Delete Instance/All, or New task on that date
+
+   ### Release 1.13.0 ✅
+    1. ✅ Task Complete Marker — `complete` field added to Status model (INTEGER DEFAULT 0), migration for existing DBs
+    2. ✅ Settings > Statuses — toggle button to mark any status as the "complete" marker (only one at a time)
+    3. ✅ Auto-set status on completion — when `completionPercent` reaches 100, task status auto-changes to the completed status
+    4. ✅ Hide completed tasks — Inbox and Dashboard filter out tasks with the completed status
+    5. ✅ Completed page — new route `/completed` listing all completed tasks with edit, archive, select-and-delete, and select-and-archive
+    6. ✅ Sidebar nav — "Completed" item added between Calendar and Archived

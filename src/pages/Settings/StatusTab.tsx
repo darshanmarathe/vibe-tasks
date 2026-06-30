@@ -34,6 +34,11 @@ export default function StatusTab() {
     load()
   }
 
+  const toggleComplete = async (item: Status) => {
+    await window.electronAPI.updateStatus(item.id, { complete: item.complete ? 0 : 1 })
+    load()
+  }
+
   const moveItem = async (index: number, direction: -1 | 1) => {
     const newItems = [...items]
     const target = index + direction
@@ -59,6 +64,7 @@ export default function StatusTab() {
           <tr className="border-b" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}>
             <th className="text-left py-2 w-8">#</th>
             <th className="text-left py-2">Name</th>
+            <th className="text-left py-2">Complete</th>
             <th className="text-left py-2">Order</th>
             <th className="text-right py-2">Actions</th>
           </tr>
@@ -68,6 +74,18 @@ export default function StatusTab() {
             <tr key={item.id} className="border-b" style={{ borderColor: 'var(--border)' }}>
               <td className="py-2" style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
               <td className="py-2" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+              <td className="py-2">
+                <button
+                  onClick={() => toggleComplete(item)}
+                  className="text-xs px-2 py-0.5 rounded font-semibold"
+                  style={{
+                    backgroundColor: item.complete ? 'var(--success)' : 'var(--bg-hover)',
+                    color: item.complete ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  {item.complete ? '✓' : '—'}
+                </button>
+              </td>
               <td className="py-2">
                 <div className="flex gap-1">
                   <button onClick={() => moveItem(i, -1)} disabled={i === 0} className="text-xs px-1.5 py-0.5 rounded" style={{ color: i === 0 ? 'var(--text-muted)' : 'var(--accent)' }}>▲</button>

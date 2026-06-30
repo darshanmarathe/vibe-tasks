@@ -103,6 +103,7 @@
 | 1.6.0 | Time Tracking (start/stop timer, per-task time, reports), Focus Mode overlay |
 | 1.6.2 | Daily Journal (mood, wins/losses, summary report), On This Day, native splash screen |
 | 1.11.2 | Recurring Tasks (daily/weekly/monthly/yearly with auto-generation), Calendar context menu |
+| 1.13.0 | Task Complete Marker — any status can be marked complete in Settings; auto-set status on 100% completion; Completed page for viewing/editing/archiving; completed tasks hidden from Inbox/Dashboard |
 
 ---
 

@@ -14,6 +14,7 @@ export interface Status {
   id: number
   name: string
   ord: number
+  complete?: number
 }
 
 export interface Priority {

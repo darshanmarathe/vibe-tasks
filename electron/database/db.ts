@@ -139,7 +139,8 @@ function runMigrations() {
 
     CREATE TABLE IF NOT EXISTS statuses (
       id   INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL
+      name TEXT NOT NULL,
+      complete INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS priorities (
@@ -160,7 +161,7 @@ function runMigrations() {
 
   const statusCount = exec('SELECT COUNT(*) as count FROM statuses')
   if (statusCount.length === 0 || statusCount[0].count === 0) {
-    db.run(`INSERT INTO statuses (name) VALUES ('To Do'), ('In Progress'), ('Review'), ('Done');`)
+    db.run(`INSERT INTO statuses (name, complete) VALUES ('To Do', 0), ('In Progress', 0), ('Review', 0), ('Done', 1);`)
     db.run(`INSERT INTO priorities (name) VALUES ('Low'), ('Medium'), ('High'), ('Critical');`)
   }
 
@@ -246,6 +247,16 @@ function runMigrations() {
     existing.forEach((s: any, i: number) => {
       db.run('UPDATE statuses SET ord = ? WHERE id = ?', [i * 10, s.id])
     })
+  }
+
+  // Migration: add complete column to statuses if missing
+  const statusCols2 = exec('PRAGMA table_info(statuses)')
+  if (!statusCols2.some((c: any) => c.name === 'complete')) {
+    db.run('ALTER TABLE statuses ADD COLUMN complete INTEGER DEFAULT 0')
+    const done = exec("SELECT id FROM statuses WHERE LOWER(name) = 'done'")
+    if (done.length > 0) {
+      db.run('UPDATE statuses SET complete = 1 WHERE id = ?', [done[0].id])
+    }
   }
 
   runNoteMigrations()

@@ -104,7 +104,7 @@ const Draw: FC = () => {
     if (iframe?.contentWindow) {
       const data = typeof msg === 'string' ? msg : JSON.stringify(msg)
       console.log('[Draw] posting to iframe:', msg)
-      iframe.contentWindow.postMessage(data, '*')
+      iframe.contentWindow.postMessage(data, 'drawio://app')
       return
     }
     console.log('[Draw] no contentWindow yet, retries left:', retries)
@@ -146,7 +146,7 @@ const Draw: FC = () => {
 
   function post(msg: any) {
     const data = typeof msg === 'string' ? msg : JSON.stringify(msg)
-    iframeRef.current?.contentWindow?.postMessage(data, '*')
+    iframeRef.current?.contentWindow?.postMessage(data, 'drawio://app')
   }
 
   function requestExport(format: string): Promise<string> {

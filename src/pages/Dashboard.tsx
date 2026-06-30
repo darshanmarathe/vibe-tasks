@@ -94,10 +94,13 @@ export default function Dashboard() {
   const todayFocusTotal = todayFocus.reduce((s, g) => s + g.totalSeconds, 0)
   const topFocusTasks = [...todayFocus].sort((a, b) => b.totalSeconds - a.totalSeconds).slice(0, 3)
 
-  const byStatus = (name: string) => tasks.filter(t => t.statusName === name).length
-  const byPriority = (name: string) => tasks.filter(t => t.priorityName === name).length
-  const totalTasks = tasks.length
-  const overdueTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date(new Date().toDateString())).length
+  const completedStatusId = statuses.find(s => s.complete)?.id
+  const activeTasks = tasks.filter(t => t.statusId !== completedStatusId)
+
+  const byStatus = (name: string) => activeTasks.filter(t => t.statusName === name).length
+  const byPriority = (name: string) => activeTasks.filter(t => t.priorityName === name).length
+  const totalTasks = activeTasks.length
+  const overdueTasks = activeTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date(new Date().toDateString())).length
 
   const formatDate = (d: string | null) => {
     if (!d) return ''
@@ -123,7 +126,7 @@ export default function Dashboard() {
   const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
   const tasksByDate: Record<string, TaskWithRelations[]> = {}
-  tasks.filter(t => t.dueDate).forEach(t => {
+  activeTasks.filter(t => t.dueDate).forEach(t => {
     if (!tasksByDate[t.dueDate!]) tasksByDate[t.dueDate!] = []
     tasksByDate[t.dueDate!].push(t)
   })
@@ -501,7 +504,7 @@ export default function Dashboard() {
         const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 
         const tasksByDate: Record<string, TaskWithRelations[]> = {}
-        tasks.filter(t => t.dueDate).forEach(t => {
+        activeTasks.filter(t => t.dueDate).forEach(t => {
           if (!tasksByDate[t.dueDate!]) tasksByDate[t.dueDate!] = []
           tasksByDate[t.dueDate!].push(t)
         })
@@ -607,7 +610,7 @@ export default function Dashboard() {
       {/* Recent tasks */}
       <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
         <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Recent Tasks</h2>
-        {tasks.length === 0 ? (
+        {activeTasks.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No tasks yet.</p>
         ) : (
           <table className="w-full text-sm">
@@ -626,7 +629,7 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {tasks.slice(0, 8).map(task => (
+              {activeTasks.slice(0, 8).map(task => (
                 <tr
                   key={task.id}
                   className="border-b cursor-pointer transition-colors"

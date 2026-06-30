@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import TaskList from './pages/TaskList'
 import Archived from './pages/Archived'
+import Completed from './pages/Completed'
 import KanbanBoard from './pages/KanbanBoard'
 import Inbox from './pages/Inbox'
 import About from './pages/About'
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/weekly-review" element={<WeeklyReview />} />
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/calendar" element={<Calendar />} />
+              <Route path="/completed" element={<Completed />} />
               <Route path="/data" element={<ExportImport />} />
               <Route path="/flashcards" element={<Flashcards />} />
               <Route path="/archived" element={<Archived />} />

@@ -40,8 +40,13 @@ export function getArchivedTasks(): TaskWithRelations[] {
 export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
   const db = getDatabase()
   const now = new Date().toISOString()
+  let statusId = data.statusId
+  if (data.completionPercent === 100) {
+    const completeStatus = db.getSingle('SELECT id FROM statuses WHERE complete = 1')
+    if (completeStatus) statusId = completeStatus.id
+  }
   db.run(`INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at, recurrence_type, recurrence_interval, recurrence_days_of_week, recurrence_end_date, recurrence_count, recurrence_parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null, data.recurrence_type ?? 'none', data.recurrence_interval ?? 1, data.recurrence_days_of_week ?? null, data.recurrence_end_date ?? null, data.recurrence_count ?? null, data.recurrence_parent_id ?? null])
+    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null, data.recurrence_type ?? 'none', data.recurrence_interval ?? 1, data.recurrence_days_of_week ?? null, data.recurrence_end_date ?? null, data.recurrence_count ?? null, data.recurrence_parent_id ?? null])
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
   if (data.recurrence_type && data.recurrence_type !== 'none') {
@@ -101,6 +106,13 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
     const now = new Date().toISOString()
     fields.push('completed_at = ?')
     values.push(data.completionPercent === 100 ? now : null)
+    if (data.completionPercent === 100) {
+      const completeStatus = db.getSingle('SELECT id FROM statuses WHERE complete = 1')
+      if (completeStatus) {
+        fields.push('statusId = ?')
+        values.push(completeStatus.id)
+      }
+    }
   }
   if (data.recurrence_type !== undefined) { fields.push('recurrence_type = ?'); values.push(data.recurrence_type) }
   if (data.recurrence_interval !== undefined) { fields.push('recurrence_interval = ?'); values.push(data.recurrence_interval) }
