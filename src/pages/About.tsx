@@ -53,6 +53,17 @@ export default function About() {
                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>AI-powered coding assistant</p>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>DI</div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <a href="#" onClick={openLink('https://draw.io')} style={{ color: 'var(--accent)' }}>
+                    draw.io
+                  </a>
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Diagramming library (embedded editor)</p>
+              </div>
+            </div>
           </div>
         </div>
 
