@@ -2,3 +2,4 @@
 
 1. Never run npm command print them and ask me to use it 
 2. Tell me ones you are done with "I am done now check it out"
+3. After making changes ask me to check it out. If I say all good/ok then commit the changes with a good message

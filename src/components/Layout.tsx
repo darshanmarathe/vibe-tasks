@@ -1,8 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge } from './TimerBadge'
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 type NavItem  = { path: string; label: string; icon: string }
 type NavGroup = { label?: string; items: NavItem[] }
@@ -50,12 +50,83 @@ const navGroups: NavGroup[] = [
   },
 ]
 
+const allItems: NavItem[] = navGroups.flatMap(g => g.items)
+
+function CommandPalette({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
+  const [query, setQuery] = useState('')
+  const [sel, setSel] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return allItems
+    const lq = query.toLowerCase()
+    return allItems.filter(i => i.label.toLowerCase().includes(lq) || i.path.toLowerCase().includes(lq))
+  }, [query])
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => { setSel(0) }, [query])
+
+  const go = (path: string) => { navigate(path); onClose() }
+
+  const handleKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSel(i => Math.min(i + 1, filtered.length - 1)) }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setSel(i => Math.max(i - 1, 0)) }
+    if (e.key === 'Enter' && filtered[sel]) { go(filtered[sel].path) }
+    if (e.key === 'Escape') onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}
+      style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      <div className="w-[400px] rounded-xl shadow-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>🔍</span>
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKey}
+            placeholder="Go to feature..."
+            className="flex-1 text-sm bg-transparent border-none outline-none" style={{ color: 'var(--text-primary)' }} />
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>Ctrl+G</span>
+        </div>
+        <div className="max-h-[300px] overflow-y-auto p-2 space-y-0.5">
+          {filtered.map((item, i) => (
+            <div key={item.path} onClick={() => go(item.path)}
+              onMouseEnter={() => setSel(i)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors"
+              style={{ backgroundColor: i === sel ? 'var(--bg-hover)' : 'transparent', color: 'var(--text-primary)' }}>
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+              <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{item.path}</span>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No features found</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Layout() {
   const { theme, toggleTheme } = useTheme()
   const { runningEntry, elapsed, stopTimer } = useTimer()
   const [collapsed, setCollapsed] = useState(() =>
     localStorage.getItem('vibe-sidebar-collapsed') === 'true'
   )
+  const [showPalette, setShowPalette] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault()
+        setShowPalette(true)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const toggleCollapsed = () => {
     setCollapsed(prev => {
@@ -66,7 +137,9 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+    <>
+      {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
+      <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       {/* ── Sidebar ── */}
       <aside
         style={{ backgroundColor: 'var(--bg-secondary)', borderRightColor: 'var(--border)', width: collapsed ? '56px' : '240px' }}
@@ -240,5 +313,6 @@ export default function Layout() {
         </div>
       </main>
     </div>
+    </>
   )
 }
