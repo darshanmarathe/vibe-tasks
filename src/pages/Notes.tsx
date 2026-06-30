@@ -414,6 +414,14 @@ export default function Notes() {
     loadNotes(selectedNotebook!)
   }
 
+  const handleDeleteNotePermanently = async (id: string) => {
+    if (!window.confirm('Permanently delete this note? This cannot be undone.')) return
+    await window.electronAPI.deleteNotePermanently(id)
+    setSelectedNote(null)
+    loadNotes(selectedNotebook!)
+    refreshNoteTitles()
+  }
+
   const handleTogglePin = async (id: string) => {
     await window.electronAPI.togglePin(id)
     loadNotes(selectedNotebook!)
@@ -633,6 +641,8 @@ export default function Notes() {
                   className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }} title="Export as Markdown">📥</button>
                 <button onClick={() => handleTrashNote(selectedNote.id)}
                   className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>Trash</button>
+                <button onClick={() => handleDeleteNotePermanently(selectedNote.id)}
+                  className="text-xs px-2.5 py-1 rounded" style={{ backgroundColor: 'var(--danger)', color: '#fff' }}>Delete</button>
               </div>
             </div>
             {/* Tags */}
