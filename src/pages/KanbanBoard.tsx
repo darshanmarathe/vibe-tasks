@@ -33,7 +33,16 @@ export default function KanbanBoard() {
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
 
   // Filter state
-  const [filterProject, setFilterProject] = useState(0)
+  const [filterProjects, setFilterProjects] = useState<Set<number>>(new Set())
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+
+  const toggleSet = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, id: number) => {
+    setter(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
@@ -161,19 +170,37 @@ export default function KanbanBoard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Kanban Board</h1>
 
-      <div className="flex items-center gap-2">
+      {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+      <div className="flex items-center gap-2 relative z-20">
         <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Project:</label>
-        <select value={filterProject} onChange={e => setFilterProject(Number(e.target.value))}
-          className="border rounded-lg px-3 py-1.5 text-sm"
-          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-          <option value={0}>All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        <div className="relative">
+          <button onClick={() => setOpenDropdown(openDropdown === 'project' ? null : 'project')}
+            className="border rounded-lg px-3 py-1.5 text-sm"
+            style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            {filterProjects.size === 0 ? 'All Projects' : `${filterProjects.size} selected`}
+          </button>
+          {openDropdown === 'project' && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg border p-2 min-w-[180px] shadow-lg"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              {projects.map(p => (
+                <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <input type="checkbox" checked={filterProjects.has(p.id)}
+                    onChange={() => toggleSet(setFilterProjects, p.id)}
+                    className="rounded" style={{ accentColor: 'var(--accent)' }} />
+                  {p.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-4 h-[calc(100vh-160px)] overflow-x-auto">
         {statuses.map(status => {
-          const filtered = filterProject ? tasks.filter(t => t.projectId === filterProject) : tasks
+          const filtered = filterProjects.size > 0 ? tasks.filter(t => filterProjects.has(t.projectId)) : tasks
           const columnTasks = filtered.filter(t => t.statusId === status.id)
 
           return (
@@ -194,7 +221,7 @@ export default function KanbanBoard() {
                     onClick={() => {
                       setAddingToColumn(status.id)
                       setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
-                      setAddProject(filterProject || projects[0]?.id || 0); setAddAssignedTo(0); setAddDueDate('')
+                      setAddProject(projects[0]?.id || 0); setAddAssignedTo(0); setAddDueDate('')
                       setAddRecurrenceType('none'); setAddRecurrenceInterval(1)
                       setAddRecurrenceDaysOfWeek(''); setAddRecurrenceEndDate(''); setAddRecurrenceCount(null)
                     }}
