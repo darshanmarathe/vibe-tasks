@@ -30,7 +30,6 @@ const navGroups: NavGroup[] = [
       { path: '/spreadsheets',  label: 'Spreadsheets', icon: '📗' },
       { path: '/habits',        label: 'Habits',       icon: '✅' },
       { path: '/mindmap',       label: 'Mind Map',     icon: '🧠' },
-      // { path: '/diagrams',     label: 'Diagrams',    icon: '📐' },
       { path: '/draw',         label: 'Draw',        icon: '📐' },
       { path: '/ideas',        label: 'Ideas',       icon: '💡' },
     ],
@@ -203,9 +202,6 @@ export default function Layout() {
                     {!collapsed && (
                       <span className="flex items-center gap-1.5">
                         {item.label}
-                        {(item.label === 'Diagrams' || item.label === 'Draw') && (
-                          <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)', color: '#fff', lineHeight: '1' }}>BETA</span>
-                        )}
                       </span>
                     )}
                   </NavLink>

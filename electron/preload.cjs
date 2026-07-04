@@ -80,13 +80,6 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   renameMindMap: (id, name) => import_electron.ipcRenderer.invoke("mindmap:rename", id, name),
   deleteMindMap: (id) => import_electron.ipcRenderer.invoke("mindmap:delete", id),
   saveMindMap: (id, nodes, edges) => import_electron.ipcRenderer.invoke("mindmap:save", id, nodes, edges),
-  // Diagrams
-  getDiagrams: () => import_electron.ipcRenderer.invoke("diagram:list"),
-  getDiagram: (id) => import_electron.ipcRenderer.invoke("diagram:get", id),
-  createDiagram: (name) => import_electron.ipcRenderer.invoke("diagram:create", name),
-  renameDiagram: (id, name) => import_electron.ipcRenderer.invoke("diagram:rename", id, name),
-  deleteDiagram: (id) => import_electron.ipcRenderer.invoke("diagram:delete", id),
-  saveDiagram: (id, nodes, edges) => import_electron.ipcRenderer.invoke("diagram:save", id, nodes, edges),
   // Habits
   getHabits: () => import_electron.ipcRenderer.invoke("habits:list"),
   getHabit: (id) => import_electron.ipcRenderer.invoke("habits:get", id),

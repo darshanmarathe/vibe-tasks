@@ -12,7 +12,6 @@ import * as priorityRepo from './database/repositories/priorityRepo'
 import * as taskRepo from './database/repositories/taskRepo'
 import * as noteRepo from './database/repositories/noteRepo'
 import * as mindmapRepo from './database/repositories/mindmapRepo'
-import * as diagramRepo from './database/repositories/diagramRepo'
 import * as habitRepo from './database/repositories/habitRepo'
 import * as timeRepo from './database/repositories/timeRepo'
 import * as journalRepo from './database/repositories/journalRepo'
@@ -813,14 +812,6 @@ function registerIpcHandlers() {
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:closeWindow', () => { mainWindow?.close() })
 
-  // Diagrams
-  ipcMain.handle('diagram:list', () => diagramRepo.getDiagrams())
-  ipcMain.handle('diagram:get', (_e, id) => diagramRepo.getDiagram(id))
-  ipcMain.handle('diagram:create', (_e, name) => diagramRepo.createDiagram(name))
-  ipcMain.handle('diagram:rename', (_e, id, name) => diagramRepo.renameDiagram(id, name))
-  ipcMain.handle('diagram:delete', (_e, id) => diagramRepo.deleteDiagram(id))
-  ipcMain.handle('diagram:save', (_e, id, nodes, edges) => diagramRepo.saveDiagram(id, nodes, edges))
-
   // Habits
   ipcMain.handle('habits:list', () => habitRepo.getHabits())
   ipcMain.handle('habits:get', (_e, id) => habitRepo.getHabit(id))
@@ -941,12 +932,21 @@ function registerIpcHandlers() {
       if (provider === 'ollama') {
         console.log(`[${logPrefix}] using ollama`)
         client = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
+      } else if (provider === 'openai') {
+        console.log(`[${logPrefix}] using openai`)
+        client = new OpenAI({ apiKey })
       } else if (provider === 'gemini') {
         console.log(`[${logPrefix}] using gemini`)
         client = new OpenAI({ baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey })
       } else if (provider === 'groq') {
         console.log(`[${logPrefix}] using groq`)
         client = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey })
+      } else if (provider === 'mistral') {
+        console.log(`[${logPrefix}] using mistral`)
+        client = new OpenAI({ baseURL: 'https://api.mistral.ai/v1', apiKey })
+      } else if (provider === 'openrouter') {
+        console.log(`[${logPrefix}] using openrouter`)
+        client = new OpenAI({ baseURL: 'https://openrouter.ai/api/v1', apiKey })
       } else {
         console.log(`[${logPrefix}] using unknown provider, falling back`)
         client = new OpenAI({ apiKey })

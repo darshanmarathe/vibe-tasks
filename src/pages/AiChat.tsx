@@ -6,8 +6,11 @@ interface AiConfig { provider: string; apiKey: string; model: string }
 
 const PROVIDERS = [
   { value: 'ollama', label: 'Ollama (Local)' },
+  { value: 'openai', label: 'OpenAI' },
   { value: 'gemini', label: 'Gemini (Google)' },
   { value: 'groq', label: 'Groq (Cloud)' },
+  { value: 'mistral', label: 'Mistral AI' },
+  { value: 'openrouter', label: 'OpenRouter' },
 ]
 
 const GEMINI_MODELS = [
@@ -28,6 +31,23 @@ const GROQ_MODELS = [
   { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
   { value: 'gemma2-9b-it', label: 'Gemma 2 9B IT' },
   { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill Llama 70B' },
+]
+
+const OPENAI_MODELS = [
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { value: 'o3', label: 'o3' },
+  { value: 'o4-mini', label: 'o4-mini' },
+  { value: 'gpt-4.1', label: 'GPT-4.1' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+]
+
+const MISTRAL_MODELS = [
+  { value: 'mistral-large-latest', label: 'Mistral Large' },
+  { value: 'mistral-small-latest', label: 'Mistral Small' },
+  { value: 'codestral-latest', label: 'Codestral' },
+  { value: 'ministral-3b-latest', label: 'Ministral 3B' },
 ]
 
 function highlightCode(code: string, lang: string): string {
@@ -313,7 +333,7 @@ export default function AiChat() {
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Provider</label>
                 <select value={localConfig.provider} onChange={e => {
                   const p = e.target.value
-                  const defaults: Record<string, string> = { ollama: 'llama3.2', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile' }
+                  const defaults: Record<string, string> = { ollama: 'llama3.2', openai: 'gpt-4o', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', mistral: 'mistral-large-latest', openrouter: 'openai/gpt-4o' }
                   setLocalConfig(c => ({ ...c, provider: p, model: defaults[p] || c.model }))
                 }}
                   className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
@@ -325,6 +345,12 @@ export default function AiChat() {
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Model</label>
                 {localConfig.provider === 'ollama' ? (
                   <OllamaModelSelect value={localConfig.model} onChange={m => setLocalConfig(c => ({ ...c, model: m }))} />
+                ) : localConfig.provider === 'openai' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {OPENAI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
                 ) : localConfig.provider === 'gemini' ? (
                   <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
@@ -336,6 +362,12 @@ export default function AiChat() {
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                     {GROQ_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                ) : localConfig.provider === 'mistral' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {MISTRAL_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 ) : (
                   <input value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}

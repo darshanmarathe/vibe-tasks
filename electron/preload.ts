@@ -90,14 +90,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMindMap: (id: string) => ipcRenderer.invoke('mindmap:delete', id),
   saveMindMap: (id: string, nodes: any[], edges: any[]) => ipcRenderer.invoke('mindmap:save', id, nodes, edges),
 
-  // Diagrams
-  getDiagrams: () => ipcRenderer.invoke('diagram:list'),
-  getDiagram: (id: string) => ipcRenderer.invoke('diagram:get', id),
-  createDiagram: (name: string) => ipcRenderer.invoke('diagram:create', name),
-  renameDiagram: (id: string, name: string) => ipcRenderer.invoke('diagram:rename', id, name),
-  deleteDiagram: (id: string) => ipcRenderer.invoke('diagram:delete', id),
-  saveDiagram: (id: string, nodes: any[], edges: any[]) => ipcRenderer.invoke('diagram:save', id, nodes, edges),
-
   // Habits
   getHabits: () => ipcRenderer.invoke('habits:list'),
   getHabit: (id: number) => ipcRenderer.invoke('habits:get', id),

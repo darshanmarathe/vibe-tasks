@@ -183,15 +183,7 @@ export interface ElectronAPI {
   deleteMindMap: (id: string) => Promise<void>
   saveMindMap: (id: string, nodes: MindMapNode[], edges: MindMapEdge[]) => Promise<void>
 
-  // Diagrams
-  getDiagrams: () => Promise<Diagram[]>
-  getDiagram: (id: string) => Promise<DiagramFull | null>
-  createDiagram: (name: string) => Promise<Diagram>
-  renameDiagram: (id: string, name: string) => Promise<void>
-  deleteDiagram: (id: string) => Promise<void>
-  saveDiagram: (id: string, nodes: DiagramNode[], edges: DiagramEdge[]) => Promise<void>
-
-  // Draw (BETA)
+  // Draw
   getDrawDiagrams:   () => Promise<DrawDiagram[]>
   getDrawDiagram:    (id: string) => Promise<DrawDiagram | null>
   createDrawDiagram: (name: string) => Promise<DrawDiagram>
@@ -418,45 +410,6 @@ export interface MindMapFull extends MindMap {
   edges: MindMapEdge[]
 }
 
-export type DiagramNodeType = 'rectangle' | 'diamond' | 'parallelogram' | 'cylinder' | 'circle' | 'hexagon' | 'server' | 'cloud' | 'mobile' | 'tablet' | 'database' | 'boundary' | 'swimlane-h' | 'swimlane-v'
-  | 'server' | 'cloud' | 'mobile' | 'tablet' | 'database' | 'boundary'
-  | 'lambda' | 's3' | 'ec2' | 'azfunc' | 'azsql'
-
-export interface Diagram {
-  id: string
-  name: string
-  created_at: string
-  updated_at: string
-}
-
-export interface DiagramNode {
-  id: string
-  diagram_id: string
-  type: DiagramNodeType
-  label: string
-  color: string
-  x: number
-  y: number
-  width: number
-  height: number
-  props_json: string
-  parent_id: string | null
-}
-
-export interface DiagramEdge {
-  id: string
-  diagram_id: string
-  source: string
-  target: string
-  label: string
-  edge_type: string
-  dashed: number
-}
-
-export interface DiagramFull extends Diagram {
-  nodes: DiagramNode[]
-  edges: DiagramEdge[]
-}
 
 export interface DrawDiagram {
   id: string

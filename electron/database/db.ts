@@ -264,7 +264,6 @@ function runMigrations() {
   runFlashcardMigrations()
   runAiChatMigrations()
   runSpreadsheetMigrations()
-  runDiagramMigrations()
   runDrawMigrations()
   runIdeaMigrations()
 }
@@ -559,43 +558,6 @@ function runSpreadsheetMigrations() {
       updated_at TEXT NOT NULL
     );
   `)
-}
-
-function runDiagramMigrations() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS diagrams (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL DEFAULT 'Untitled Diagram',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS diagram_nodes (
-      id TEXT PRIMARY KEY,
-      diagram_id TEXT NOT NULL REFERENCES diagrams(id) ON DELETE CASCADE,
-      type TEXT NOT NULL DEFAULT 'rectangle',
-      label TEXT DEFAULT 'Node',
-      color TEXT DEFAULT '#89b4fa',
-      x REAL NOT NULL DEFAULT 0,
-      y REAL NOT NULL DEFAULT 0,
-      width REAL NOT NULL DEFAULT 160,
-      height REAL NOT NULL DEFAULT 80,
-      props_json TEXT DEFAULT '{}'
-    );
-    CREATE TABLE IF NOT EXISTS diagram_edges (
-      id TEXT PRIMARY KEY,
-      diagram_id TEXT NOT NULL REFERENCES diagrams(id) ON DELETE CASCADE,
-      source TEXT NOT NULL,
-      target TEXT NOT NULL,
-      label TEXT DEFAULT '',
-      edge_type TEXT DEFAULT 'default',
-      dashed INTEGER DEFAULT 0
-    );
-  `)
-  // Migrate: add parent_id column if missing
-  const nodeCols = exec('PRAGMA table_info(diagram_nodes)')
-  if (!nodeCols.some((c: any) => c.name === 'parent_id')) {
-    try { db.exec('ALTER TABLE diagram_nodes ADD COLUMN parent_id TEXT') } catch {}
-  }
 }
 
 function runDrawMigrations() {

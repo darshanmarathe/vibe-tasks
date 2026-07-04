@@ -278,7 +278,7 @@ const Draw: FC = () => {
     <div className="flex h-full gap-4">
       <div className="w-64 shrink-0 flex flex-col gap-2" style={{ color: 'var(--text-primary)' }}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold">Draw (BETA)</h2>
+          <h2 className="text-lg font-bold">Draw</h2>
           <button onClick={createNew} className="px-3 py-1 rounded-lg text-sm font-medium transition-colors" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ New</button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-1">
