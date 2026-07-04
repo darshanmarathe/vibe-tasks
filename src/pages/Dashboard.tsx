@@ -230,6 +230,93 @@ export default function Dashboard() {
     }
   }
 
+  // Widget drag-drop reordering
+  const WIDGET_DEFS = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'focus-journal-links', label: 'Focus & Links' },
+    { id: 'charts', label: 'Charts' },
+    { id: 'quick-add', label: 'Quick Add' },
+    { id: 'calendar', label: 'Calendar' },
+    { id: 'recent-tasks', label: 'Recent Tasks' },
+    { id: 'recent-notes', label: 'Recent Notes' },
+    { id: 'recent-ideas', label: 'Recent Ideas' },
+  ]
+  const STORAGE_KEY = 'dashboard-widget-order'
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved)
+        const defaults = WIDGET_DEFS.map(w => w.id)
+        const merged = parsed.filter(id => defaults.includes(id))
+        for (const id of defaults) {
+          if (!merged.includes(id)) merged.push(id)
+        }
+        return merged
+      }
+    } catch { /* ignore */ }
+    return WIDGET_DEFS.map(w => w.id)
+  })
+  const dragItem = useRef<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+
+  function handleDragStart(e: React.DragEvent, id: string) {
+    dragItem.current = id
+    e.dataTransfer.setData('text/plain', id)
+    e.dataTransfer.effectAllowed = 'move'
+    setDropTarget(null)
+    setTimeout(() => {
+      const el = e.currentTarget as HTMLElement
+      el.style.opacity = '0.4'
+    }, 0)
+  }
+
+  function handleDragOver(e: React.DragEvent, id: string) {
+    if (dragItem.current === id) {
+      setDropTarget(null)
+      return
+    }
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dropTarget !== id) setDropTarget(id)
+  }
+
+  function handleDragLeave(e: React.DragEvent, id: string) {
+    if (dragItem.current === id) return
+    const related = e.relatedTarget as Node | null
+    if (!e.currentTarget.contains(related)) {
+      setDropTarget(null)
+    }
+  }
+
+  function handleDragEnd(e: React.DragEvent) {
+    ;(e.currentTarget as HTMLElement).style.opacity = '1'
+    dragItem.current = null
+    setDropTarget(null)
+  }
+
+  function handleDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault()
+    ;(e.currentTarget as HTMLElement).style.opacity = '1'
+    const sourceId = dragItem.current
+    if (!sourceId || sourceId === targetId) {
+      setDropTarget(null)
+      return
+    }
+    const newOrder = [...widgetOrder]
+    const fromIdx = newOrder.indexOf(sourceId)
+    const toIdx = newOrder.indexOf(targetId)
+    if (fromIdx === -1 || toIdx === -1) {
+      setDropTarget(null)
+      return
+    }
+    newOrder.splice(fromIdx, 1)
+    newOrder.splice(toIdx, 0, sourceId)
+    setWidgetOrder(newOrder)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newOrder))
+    setDropTarget(null)
+  }
+
   const handleArchive = async (id: number) => {
     if (!window.confirm('Archive this task?')) return
     await window.electronAPI.archiveTask(id)
@@ -253,506 +340,547 @@ export default function Dashboard() {
     return html
   }
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-5 gap-4">
-        {[
-          { label: 'Total Tasks', value: totalTasks, color: 'var(--text-primary)' },
-          { label: 'Overdue', value: overdueTasks, color: 'var(--danger)' },
-          ...statuses.map(s => ({ label: s.name, value: byStatus(s.name), color: 'var(--text-primary)' })),
-        ].map(card => (
-          <div key={card.label} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{card.label}</p>
-            <p className="text-3xl font-bold mt-1" style={{ color: card.color }}>{card.value}</p>
-          </div>
-        ))}
+  function renderWidget(wid: string) {
+    const isOver = dropTarget === wid && dragItem.current !== wid
+    const common = (content: React.ReactNode) => (
+      <div
+        key={wid}
+        draggable
+        onDragStart={e => handleDragStart(e, wid)}
+        onDragOver={e => handleDragOver(e, wid)}
+        onDragLeave={e => handleDragLeave(e, wid)}
+        onDragEnd={handleDragEnd}
+        onDrop={e => handleDrop(e, wid)}
+        className={'relative group transition-all duration-150'}
+        style={{
+          border: isOver ? '2px dashed var(--accent)' : '2px solid transparent',
+          borderRadius: '12px',
+          padding: isOver ? '0' : '0',
+        }}
+      >
+        <div
+          className="absolute top-2 right-2 z-10 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity text-xs px-1.5 py-0.5 rounded select-none"
+          style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}
+        >⠿</div>
+        {content}
       </div>
+    )
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* Left column: Focus Time + Journal */}
-        <div className="space-y-6">
-          {/* Today's Focus Time card */}
-          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>⏱ Today's Focus Time</h2>
-              <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
-                {todayFocusTotal > 0 ? formatElapsedShort(todayFocusTotal) : '—'}
-              </span>
-            </div>
-            {topFocusTasks.length > 0 ? (
-              <div className="space-y-2">
-                {topFocusTasks.map(g => {
-                  const pct = todayFocusTotal > 0 ? (g.totalSeconds / todayFocusTotal) * 100 : 0
-                  return (
-                    <div key={g.taskId} className="flex items-center gap-3">
-                      <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{g.taskName}</span>
-                      <div className="w-24 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }} />
-                      </div>
-                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatElapsedShort(g.totalSeconds)}</span>
-                    </div>
-                  )
-                })}
+    switch (wid) {
+      case 'summary':
+        return common(
+          <div className="grid grid-cols-5 gap-4">
+            {[
+              { label: 'Total Tasks', value: totalTasks, color: 'var(--text-primary)' },
+              { label: 'Overdue', value: overdueTasks, color: 'var(--danger)' },
+              ...statuses.map(s => ({ label: s.name, value: byStatus(s.name), color: 'var(--text-primary)' })),
+            ].map(card => (
+              <div key={card.label} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{card.label}</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: card.color }}>{card.value}</p>
               </div>
-            ) : (
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
-            )}
+            ))}
           </div>
+        )
 
-          {/* Today's Journal card */}
-          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>📔 Today&apos;s Journal</h2>
-                {todayJournal ? (
-                  <>
-                    <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                      {todayJournal.mood ? <>Mood: {moodEmoji(todayJournal.mood)} · </> : null}
-                      Saved {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                    </p>
-                    <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
-                      {todayJournal.wentWell.trim() || todayJournal.quickNotes.trim() || 'Entry started'}
-                    </p>
-                  </>
+      case 'focus-journal-links':
+        return common(
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>⏱ Today's Focus Time</h2>
+                  <span className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                    {todayFocusTotal > 0 ? formatElapsedShort(todayFocusTotal) : '—'}
+                  </span>
+                </div>
+                {topFocusTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {topFocusTasks.map(g => {
+                      const pct = todayFocusTotal > 0 ? (g.totalSeconds / todayFocusTotal) * 100 : 0
+                      return (
+                        <div key={g.taskId} className="flex items-center gap-3">
+                          <span className="text-xs truncate flex-1" style={{ color: 'var(--text-secondary)', minWidth: 0 }}>{g.taskName}</span>
+                          <div className="w-24 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: 'var(--accent)' }} />
+                          </div>
+                          <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{formatElapsedShort(g.totalSeconds)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 ) : (
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No journal entry yet today.</p>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No focus time logged today. Start a timer from the Tasks page.</p>
                 )}
               </div>
-              <button onClick={() => navigate('/journal')}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
-                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>
-                Open Journal
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right column: Quick Links */}
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>🔗 Quick Links</h2>
-            <button onClick={() => navigate('/links')}
-              className="text-xs px-3 py-1.5 rounded font-semibold"
-              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Manage</button>
-          </div>
-          {dashboardLinks.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No dashboard links yet. Add links from the Links page or link them from tasks, notes, etc.</p>
-          ) : (
-            <div className="space-y-2">
-              {dashboardLinks.map(link => (
-                <div key={link.id} className="flex items-center gap-1 rounded-lg p-2 border transition-colors hover:opacity-80 text-sm w-full"
-                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                  <button onClick={() => window.electronAPI.openExternal(link.url)}
-                    className="flex-1 text-left truncate" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'inherit' }}>
-                    {link.text || link.url}
-                  </button>
-                  {(link as any).category_name && (
-                    <span className="text-xs px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-                      {(link as any).category_name}
-                    </span>
-                  )}
-                  <button onClick={(e) => { e.stopPropagation(); openQrModal(link.url) }}
-                    className="text-sm shrink-0" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                    title="Show QR code">📱</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        {/* Bar chart - Tasks by Status */}
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-          <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Tasks by Status</h2>
-          <svg width="100%" height="180" viewBox="0 0 400 180">
-            {statuses.map((s, i) => {
-              const count = byStatus(s.name)
-              const barWidth = count / maxStatusCount * 280
-              return (
-                <g key={s.id}>
-                  <text x="0" y={i * 36 + 24} fontSize="12" fill="var(--text-secondary)">{s.name}</text>
-                  <rect x="100" y={i * 36 + 10} width={Math.max(barWidth, 4)} height="20" rx="4" fill={statusColors[i % statusColors.length]} opacity="0.8" />
-                  <text x={100 + Math.max(barWidth, 4) + 6} y={i * 36 + 24} fontSize="12" fill="var(--text-primary)" fontWeight="600">{count}</text>
-                </g>
-              )
-            })}
-          </svg>
-        </div>
-
-        {/* Pie chart - Tasks by Priority */}
-        <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-          <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Tasks by Priority</h2>
-          <div className="flex items-center gap-6">
-            <ResponsiveContainer width={220} height={220}>
-              <PieChart>
-                <Pie data={priorities.map(p => ({ name: p.name, value: byPriority(p.name), color: p.color || '#a6adc8' }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
-                  {priorities.map((p, i) => <Cell key={i} fill={p.color || '#a6adc8'} />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2">
-              {priorities.map(p => {
-                const count = byPriority(p.name)
-                return (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: p.color || 'var(--text-muted)' }} />
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{p.name}</span>
-                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{count}</span>
+              <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>📔 Today&apos;s Journal</h2>
+                    {todayJournal ? (
+                      <>
+                        <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                          {todayJournal.mood ? <>Mood: {moodEmoji(todayJournal.mood)} · </> : null}
+                          Saved {new Date(todayJournal.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                        <p className="text-sm truncate" style={{ color: 'var(--text-muted)' }}>
+                          {todayJournal.wentWell.trim() || todayJournal.quickNotes.trim() || 'Entry started'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No journal entry yet today.</p>
+                    )}
                   </div>
-                )
-              })}
+                  <button onClick={() => navigate('/journal')}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium shrink-0"
+                    style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>
+                    Open Journal
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>🔗 Quick Links</h2>
+                <button onClick={() => navigate('/links')}
+                  className="text-xs px-3 py-1.5 rounded font-semibold"
+                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Manage</button>
+              </div>
+              {dashboardLinks.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No dashboard links yet. Add links from the Links page or link them from tasks, notes, etc.</p>
+              ) : (
+                <div className="space-y-2">
+                  {dashboardLinks.map(link => (
+                    <div key={link.id} className="flex items-center gap-1 rounded-lg p-2 border transition-colors hover:opacity-80 text-sm w-full"
+                      style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                      <button onClick={() => window.electronAPI.openExternal(link.url)}
+                        className="flex-1 text-left truncate" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit', color: 'inherit' }}>
+                        {link.text || link.url}
+                      </button>
+                      {(link as any).category_name && (
+                        <span className="text-xs px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                          {(link as any).category_name}
+                        </span>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); openQrModal(link.url) }}
+                        className="text-sm shrink-0" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                        title="Show QR code">📱</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        )
 
-      {/* Quick Add */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Add Task</h2>
-          <button
-            onClick={() => setShowBulkAdd(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-            title="Bulk add multiple tasks"
-          >
-            Bulk Add
-          </button>
-        </div>
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Task Name</label>
-            <input
-              ref={quickNameRef}
-              value={quickName}
-              onChange={e => handleNameChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-              placeholder="Quick add a task... (try: 'do this tomorrow')"
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            />
-            {parsedDueDate && (
-              <p className="text-xs mt-1" style={{ color: 'var(--accent)' }}>
-                Due: {formatDate(parsedDueDate)}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Status</label>
-            <select value={quickStatus} onChange={e => setQuickStatus(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-              {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
-            <select value={quickPriority} onChange={e => setQuickPriority(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-              {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
-            <select value={quickProject} onChange={e => setQuickProject(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assign To</label>
-            <select value={quickAssignedTo} onChange={e => setQuickAssignedTo(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 text-sm"
-              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-              <option value={0}>Unassigned</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-          <button onClick={handleQuickAdd}
-            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-            Add
-          </button>
-        </div>
-      </div>
-
-      {showBulkAdd && (
-        <BulkAddModal
-          statuses={statuses}
-          priorities={priorities}
-          projects={projects}
-          users={users}
-          defaultStatus={quickStatus}
-          defaultPriority={quickPriority}
-          defaultProject={quickProject}
-          defaultAssignedTo={quickAssignedTo}
-          onClose={() => setShowBulkAdd(false)}
-          onDone={loadData}
-        />
-      )}
-
-      {/* Calendar view — 50/50 split */}
-      {(() => {
-        const now = new Date()
-        const year = now.getFullYear()
-        const month = now.getMonth()
-        const daysInMonth = new Date(year, month + 1, 0).getDate()
-        const firstDayOfWeek = new Date(year, month, 1).getDay()
-        const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-
-        const tasksByDate: Record<string, TaskWithRelations[]> = {}
-        activeTasks.filter(t => t.dueDate).forEach(t => {
-          if (!tasksByDate[t.dueDate!]) tasksByDate[t.dueDate!] = []
-          tasksByDate[t.dueDate!].push(t)
-        })
-
-        const selectedTasks = selectedDate ? tasksByDate[selectedDate] || [] : []
-
-        return (
-          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-            <div className="flex gap-6">
-              {/* Left 50% — Calendar */}
-              <div className="w-1/2">
-                <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{monthName}</h2>
-                <div className="grid grid-cols-7 gap-1 text-center">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-xs py-1 font-semibold" style={{ color: 'var(--text-muted)' }}>{d}</div>
-                  ))}
-                  {Array.from({ length: firstDayOfWeek }, (_, i) => (
-                    <div key={`empty-${i}`} />
-                  ))}
-                  {Array.from({ length: daysInMonth }, (_, i) => {
-                    const day = i + 1
-                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                    const dayTasks = tasksByDate[dateStr] || []
-                    const isToday = day === now.getDate()
-                    const isSelected = dateStr === selectedDate
-                    const hasOverdue = dayTasks.some(t => isOverdue(t.dueDate))
-
+      case 'charts':
+        return common(
+          <div className="grid grid-cols-2 gap-6">
+            <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Tasks by Status</h2>
+              <svg width="100%" height="180" viewBox="0 0 400 180">
+                {statuses.map((s, i) => {
+                  const count = byStatus(s.name)
+                  const barWidth = count / maxStatusCount * 280
+                  return (
+                    <g key={s.id}>
+                      <text x="0" y={i * 36 + 24} fontSize="12" fill="var(--text-secondary)">{s.name}</text>
+                      <rect x="100" y={i * 36 + 10} width={Math.max(barWidth, 4)} height="20" rx="4" fill={statusColors[i % statusColors.length]} opacity="0.8" />
+                      <text x={100 + Math.max(barWidth, 4) + 6} y={i * 36 + 24} fontSize="12" fill="var(--text-primary)" fontWeight="600">{count}</text>
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+            <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Tasks by Priority</h2>
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width={220} height={220}>
+                  <PieChart>
+                    <Pie data={priorities.map(p => ({ name: p.name, value: byPriority(p.name), color: p.color || '#a6adc8' }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
+                      {priorities.map((p, i) => <Cell key={i} fill={p.color || '#a6adc8'} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-2">
+                  {priorities.map(p => {
+                    const count = byPriority(p.name)
                     return (
-                      <div
-                        key={day}
-                        onClick={() => {
-                          setSelectedDate(selectedDate === dateStr ? null : dateStr)
-                          setParsedDueDate(dateStr)
-                          quickNameRef.current?.focus()
-                        }}
-                        className="rounded-lg p-1.5 text-xs relative cursor-pointer transition-colors"
-                        style={{
-                          backgroundColor: isSelected ? 'var(--accent)' : isToday ? 'var(--bg-hover)' : 'transparent',
-                          border: isToday ? '1px solid var(--accent)' : '1px solid transparent',
-                        }}
-                      >
-                        <span style={{
-                          color: isSelected ? '#fff' : isToday ? 'var(--accent)' : 'var(--text-primary)',
-                          fontWeight: isToday ? 700 : 400,
-                        }}>
-                          {day}
-                        </span>
-                        {dayTasks.length > 0 && (
-                          <div className="flex justify-center gap-0.5 mt-0.5">
-                            {dayTasks.slice(0, 3).map(t => (
-                              <span key={t.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : hasOverdue ? 'var(--danger)' : 'var(--accent)' }} />
-                            ))}
-                            {dayTasks.length > 3 && <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>+{dayTasks.length - 3}</span>}
-                          </div>
-                        )}
+                      <div key={p.id} className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: p.color || 'var(--text-muted)' }} />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{p.name}</span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{count}</span>
                       </div>
                     )
                   })}
                 </div>
               </div>
-
-              {/* Right 50% — Selected day tasks */}
-              <div className="w-1/2 border-l pl-6" style={{ borderColor: 'var(--border)' }}>
-                <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                  {selectedDate
-                    ? new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
-                    : 'Select a day'}
-                </h2>
-                {selectedTasks.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {selectedDate ? 'No tasks due this day.' : 'Click a date on the calendar to see tasks.'}
-                  </p>
-                ) : (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    {selectedTasks.map(task => (
-                      <div key={task.id} className="rounded-lg p-3 border text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{task.name}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap" style={{
-                            backgroundColor: task.priorityName === 'Critical' ? 'var(--critical)' :
-                              task.priorityName === 'High' ? 'var(--high)' :
-                              task.priorityName === 'Medium' ? 'var(--medium)' : 'var(--low)',
-                            color: '#1e1e2e',
-                          }}>
-                            {task.priorityName}
-                          </span>
-                        </div>
-                        <div className="flex gap-3 mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                          <span>{task.statusName}</span>
-                          <span>{task.projectName}</span>
-                          {task.assignedToName && <span>👤 {task.assignedToName}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )
-      })()}
 
-      {/* Recent tasks */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Recent Tasks</h2>
-        {activeTasks.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No tasks yet.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}>
-                <th className="text-left py-2">Name</th>
-                <th className="text-left py-2">Description</th>
-                <th className="text-left py-2">Status</th>
-                <th className="text-left py-2">Priority</th>
-                <th className="text-left py-2">Project</th>
-                <th className="text-left py-2">Assigned To</th>
-                <th className="text-left py-2">Due</th>
-                <th className="text-left py-2">%</th>
-                <th className="text-left py-2">Time</th>
-                <th className="text-right py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeTasks.slice(0, 8).map(task => (
-                <tr
-                  key={task.id}
-                  className="border-b cursor-pointer transition-colors"
-                  style={{ borderColor: 'var(--border)' }}
-                  onClick={() => openEdit(task)}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+      case 'quick-add':
+        return common(
+          <>
+            <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Quick Add Task</h2>
+                <button
+                  onClick={() => setShowBulkAdd(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                  title="Bulk add multiple tasks"
                 >
-                  <td className="py-2" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
-                  <td className="py-2 max-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
-                    <span className="truncate block">{task.description || '—'}</span>
-                  </td>
-                  <td className="py-2">{task.statusName}</td>
-                  <td className="py-2">{task.priorityName}</td>
-                  <td className="py-2" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>
-                  <td className="py-2" style={{ color: 'var(--text-secondary)' }}>{task.assignedToName || '—'}</td>
-                  <td className="py-2" style={{
-                    color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)',
-                    fontWeight: isOverdue(task.dueDate) ? 600 : 400,
-                  }}>
-                    {formatDate(task.dueDate) || '—'}
-                  </td>
-                  <td className="py-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{task.completionPercent}%</span>
-                      <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-2">
-                    {(taskTimes.get(task.id) ?? 0) > 0 ? (
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>🔥 {formatElapsedShort(taskTimes.get(task.id)!)}</span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
-                  </td>
-                  <td className="py-2 text-right">
-                    <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-                      {task.assignedToEmail && (
-                        <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
-                          onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
-                      )}
-                      {runningEntry?.task_id === task.id ? (
-                        <div className="flex items-center gap-1">
-                          <TimerBadge elapsed={elapsed} />
-                          <button onClick={() => stopTimer()} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }} title="Stop timer">⏹</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => startTimer(task.id)} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')} title="Start timer">▶</button>
-                      )}
-                      <button onClick={() => handleArchive(task.id)} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Recent Notes */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Notes</h2>
-          <button onClick={() => navigate('/notes')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Notes</button>
-        </div>
-        {recentNotes.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No notes yet.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {recentNotes.map(note => {
-              const readingTime = Math.max(1, Math.ceil((note.content?.split(/\s+/).filter(Boolean).length || 0) / 200))
-              return (
-                <div key={note.id} onClick={() => navigate('/notes')}
-                  className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
-                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                  <p className="font-medium truncate">{note.title}</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    {note.notebook_name} · {readingTime} min read · {new Date(note.updated_at).toLocaleDateString()}
-                  </p>
+                  Bulk Add
+                </button>
+              </div>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Task Name</label>
+                  <input
+                    ref={quickNameRef}
+                    value={quickName}
+                    onChange={e => handleNameChange(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                    placeholder="Quick add a task... (try: 'do this tomorrow')"
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  {parsedDueDate && (
+                    <p className="text-xs mt-1" style={{ color: 'var(--accent)' }}>
+                      Due: {formatDate(parsedDueDate)}
+                    </p>
+                  )}
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Status</label>
+                  <select value={quickStatus} onChange={e => setQuickStatus(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {statuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Priority</label>
+                  <select value={quickPriority} onChange={e => setQuickPriority(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {priorities.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Project</label>
+                  <select value={quickProject} onChange={e => setQuickProject(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assign To</label>
+                  <select value={quickAssignedTo} onChange={e => setQuickAssignedTo(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value={0}>Unassigned</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </select>
+                </div>
+                <button onClick={handleQuickAdd}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
+                  Add
+                </button>
+              </div>
+            </div>
+            {showBulkAdd && (
+              <BulkAddModal
+                statuses={statuses}
+                priorities={priorities}
+                projects={projects}
+                users={users}
+                defaultStatus={quickStatus}
+                defaultPriority={quickPriority}
+                defaultProject={quickProject}
+                defaultAssignedTo={quickAssignedTo}
+                onClose={() => setShowBulkAdd(false)}
+                onDone={loadData}
+              />
+            )}
+          </>
+        )
 
-      {/* Recent Ideas */}
-      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Ideas</h2>
-          <button onClick={() => navigate('/ideas')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Ideas</button>
-        </div>
-        {recentIdeas.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No ideas yet.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            {recentIdeas.map(idea => (
-              <div key={idea.id} onClick={() => navigate('/ideas')}
-                className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
-                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-                <p className="font-medium truncate">{idea.title}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-                    style={{
-                      backgroundColor: idea.status === 'completed' ? 'var(--accent)' : 'var(--bg-hover)',
-                      color: idea.status === 'completed' ? '#fff' : 'var(--text-muted)',
-                    }}>
-                    {idea.status}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {new Date(idea.updated_at).toLocaleDateString()}
-                  </span>
+      case 'calendar':
+        return common(
+          (() => {
+            const now = new Date()
+            const year = now.getFullYear()
+            const month = now.getMonth()
+            const daysInMonth = new Date(year, month + 1, 0).getDate()
+            const firstDayOfWeek = new Date(year, month, 1).getDay()
+            const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+
+            const tasksByDate: Record<string, TaskWithRelations[]> = {}
+            activeTasks.filter(t => t.dueDate).forEach(t => {
+              if (!tasksByDate[t.dueDate!]) tasksByDate[t.dueDate!] = []
+              tasksByDate[t.dueDate!].push(t)
+            })
+
+            const selectedTasks = selectedDate ? tasksByDate[selectedDate] || [] : []
+
+            return (
+              <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+                <div className="flex gap-6">
+                  <div className="w-1/2">
+                    <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{monthName}</h2>
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                        <div key={d} className="text-xs py-1 font-semibold" style={{ color: 'var(--text-muted)' }}>{d}</div>
+                      ))}
+                      {Array.from({ length: firstDayOfWeek }, (_, i) => (
+                        <div key={`empty-${i}`} />
+                      ))}
+                      {Array.from({ length: daysInMonth }, (_, i) => {
+                        const day = i + 1
+                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                        const dayTasks = tasksByDate[dateStr] || []
+                        const isToday = day === now.getDate()
+                        const isSelected = dateStr === selectedDate
+                        const hasOverdue = dayTasks.some(t => isOverdue(t.dueDate))
+
+                        return (
+                          <div
+                            key={day}
+                            onClick={() => {
+                              setSelectedDate(selectedDate === dateStr ? null : dateStr)
+                              setParsedDueDate(dateStr)
+                              quickNameRef.current?.focus()
+                            }}
+                            className="rounded-lg p-1.5 text-xs relative cursor-pointer transition-colors"
+                            style={{
+                              backgroundColor: isSelected ? 'var(--accent)' : isToday ? 'var(--bg-hover)' : 'transparent',
+                              border: isToday ? '1px solid var(--accent)' : '1px solid transparent',
+                            }}
+                          >
+                            <span style={{
+                              color: isSelected ? '#fff' : isToday ? 'var(--accent)' : 'var(--text-primary)',
+                              fontWeight: isToday ? 700 : 400,
+                            }}>
+                              {day}
+                            </span>
+                            {dayTasks.length > 0 && (
+                              <div className="flex justify-center gap-0.5 mt-0.5">
+                                {dayTasks.slice(0, 3).map(t => (
+                                  <span key={t.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : hasOverdue ? 'var(--danger)' : 'var(--accent)' }} />
+                                ))}
+                                {dayTasks.length > 3 && <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>+{dayTasks.length - 3}</span>}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="w-1/2 border-l pl-6" style={{ borderColor: 'var(--border)' }}>
+                    <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                      {selectedDate
+                        ? new Date(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+                        : 'Select a day'}
+                    </h2>
+                    {selectedTasks.length === 0 ? (
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {selectedDate ? 'No tasks due this day.' : 'Click a date on the calendar to see tasks.'}
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        {selectedTasks.map(task => (
+                          <div key={task.id} className="rounded-lg p-3 border text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}>
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{task.name}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap" style={{
+                                backgroundColor: task.priorityName === 'Critical' ? 'var(--critical)' :
+                                  task.priorityName === 'High' ? 'var(--high)' :
+                                  task.priorityName === 'Medium' ? 'var(--medium)' : 'var(--low)',
+                                color: '#1e1e2e',
+                              }}>
+                                {task.priorityName}
+                              </span>
+                            </div>
+                            <div className="flex gap-3 mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                              <span>{task.statusName}</span>
+                              <span>{task.projectName}</span>
+                              {task.assignedToName && <span>👤 {task.assignedToName}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+            )
+          })()
+        )
+
+      case 'recent-tasks':
+        return common(
+          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Recent Tasks</h2>
+            {activeTasks.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No tasks yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}>
+                    <th className="text-left py-2">Name</th>
+                    <th className="text-left py-2">Description</th>
+                    <th className="text-left py-2">Status</th>
+                    <th className="text-left py-2">Priority</th>
+                    <th className="text-left py-2">Project</th>
+                    <th className="text-left py-2">Assigned To</th>
+                    <th className="text-left py-2">Due</th>
+                    <th className="text-left py-2">%</th>
+                    <th className="text-left py-2">Time</th>
+                    <th className="text-right py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeTasks.slice(0, 8).map(task => (
+                    <tr
+                      key={task.id}
+                      className="border-b cursor-pointer transition-colors"
+                      style={{ borderColor: 'var(--border)' }}
+                      onClick={() => openEdit(task)}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td className="py-2" style={{ color: 'var(--text-primary)' }}>{task.name}</td>
+                      <td className="py-2 max-w-[200px]" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="truncate block">{task.description || '—'}</span>
+                      </td>
+                      <td className="py-2">{task.statusName}</td>
+                      <td className="py-2">{task.priorityName}</td>
+                      <td className="py-2" style={{ color: 'var(--text-secondary)' }}>{task.projectName}</td>
+                      <td className="py-2" style={{ color: 'var(--text-secondary)' }}>{task.assignedToName || '—'}</td>
+                      <td className="py-2" style={{
+                        color: isOverdue(task.dueDate) ? 'var(--danger)' : 'var(--text-secondary)',
+                        fontWeight: isOverdue(task.dueDate) ? 600 : 400,
+                      }}>
+                        {formatDate(task.dueDate) || '—'}
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{task.completionPercent}%</span>
+                          <div className="w-12 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                            <div className="h-full rounded-full" style={{ width: `${task.completionPercent}%`, backgroundColor: task.completionPercent === 100 ? 'var(--success)' : 'var(--accent)' }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        {(taskTimes.get(task.id) ?? 0) > 0 ? (
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>🔥 {formatElapsedShort(taskTimes.get(task.id)!)}</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+                      <td className="py-2 text-right">
+                        <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                          {task.assignedToEmail && (
+                            <a href={`mailto:${task.assignedToEmail}?subject=${encodeURIComponent(task.name)}&body=${encodeURIComponent(task.description || '')}`}
+                              onClick={e => e.stopPropagation()} className="text-xs" style={{ color: 'var(--accent)' }} title="Email assigned user">📧</a>
+                          )}
+                          {runningEntry?.task_id === task.id ? (
+                            <div className="flex items-center gap-1">
+                              <TimerBadge elapsed={elapsed} />
+                              <button onClick={() => stopTimer()} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--danger)', backgroundColor: 'var(--bg-hover)' }} title="Stop timer">⏹</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => startTimer(task.id)} className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-hover)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')} title="Start timer">▶</button>
+                          )}
+                          <button onClick={() => handleArchive(task.id)} className="text-xs" style={{ color: 'var(--text-muted)' }} title="Archive">📦</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-      </div>
+        )
+
+      case 'recent-notes':
+        return common(
+          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Notes</h2>
+              <button onClick={() => navigate('/notes')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Notes</button>
+            </div>
+            {recentNotes.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No notes yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {recentNotes.map(note => {
+                  const readingTime = Math.max(1, Math.ceil((note.content?.split(/\s+/).filter(Boolean).length || 0) / 200))
+                  return (
+                    <div key={note.id} onClick={() => navigate('/notes')}
+                      className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
+                      style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                      <p className="font-medium truncate">{note.title}</p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {note.notebook_name} · {readingTime} min read · {new Date(note.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+
+      case 'recent-ideas':
+        return common(
+          <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Ideas</h2>
+              <button onClick={() => navigate('/ideas')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Ideas</button>
+            </div>
+            {recentIdeas.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No ideas yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {recentIdeas.map(idea => (
+                  <div key={idea.id} onClick={() => navigate('/ideas')}
+                    className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <p className="font-medium truncate">{idea.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                        style={{
+                          backgroundColor: idea.status === 'completed' ? 'var(--accent)' : 'var(--bg-hover)',
+                          color: idea.status === 'completed' ? '#fff' : 'var(--text-muted)',
+                        }}>
+                        {idea.status}
+                      </span>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {new Date(idea.updated_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+
+      {widgetOrder.map(wid => renderWidget(wid))}
 
       {/* QR Modal */}
       {qrModalUrl !== null && (
