@@ -176,6 +176,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveDrawDiagram:   (id: string, data: string) => ipcRenderer.invoke('draw:save', id, data),
   getDrawioUrl:      () => 'drawio://app/index.html?client=1&proto=json',
 
+  // Ideas
+  getIdeas: (filters?) => ipcRenderer.invoke('ideas:list', filters),
+  getIdea: (id) => ipcRenderer.invoke('ideas:get', id),
+  createIdea: (data) => ipcRenderer.invoke('ideas:create', data),
+  updateIdea: (id, data) => ipcRenderer.invoke('ideas:update', id, data),
+  deleteIdea: (id) => ipcRenderer.invoke('ideas:delete', id),
+  getRecentIdeas: (limit?) => ipcRenderer.invoke('ideas:recent', limit),
+  getIdeaDocuments: (ideaId) => ipcRenderer.invoke('ideas:documents:list', ideaId),
+  addIdeaDocument: (ideaId, filename, data, mimeType) => ipcRenderer.invoke('ideas:documents:add', ideaId, filename, data, mimeType),
+  deleteIdeaDocument: (id) => ipcRenderer.invoke('ideas:documents:delete', id),
+  getIdeaUpdates: (ideaId) => ipcRenderer.invoke('ideas:updates:list', ideaId),
+  addIdeaUpdate: (ideaId, content, updateType) => ipcRenderer.invoke('ideas:updates:add', ideaId, content, updateType),
+  getIdeaTags: (ideaId) => ipcRenderer.invoke('ideas:tags:get', ideaId),
+  addTagToIdea: (ideaId, tagId) => ipcRenderer.invoke('ideas:tags:add', ideaId, tagId),
+  removeTagFromIdea: (ideaId, tagId) => ipcRenderer.invoke('ideas:tags:remove', ideaId, tagId),
+
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),
 

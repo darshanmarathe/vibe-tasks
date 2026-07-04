@@ -56,6 +56,36 @@ export interface TaskWithRelations extends Task {
   assignedToEmail: string | null
 }
 
+export interface Idea {
+  id: number
+  title: string
+  introduction: string
+  status: 'draft' | 'in-progress' | 'completed' | 'archived'
+  stage: 'concept' | 'prototype' | 'review' | 'shipping'
+  impact: number
+  effort: number
+  created_at: string
+  updated_at: string
+}
+
+export interface IdeaDocument {
+  id: number
+  idea_id: number
+  filename: string
+  data: string
+  mime_type: string
+  file_size: number
+  created_at: string
+}
+
+export interface IdeaUpdate {
+  id: number
+  idea_id: number
+  content: string
+  update_type: 'comment' | 'status-change' | 'stage-change'
+  created_at: string
+}
+
 export interface ElectronAPI {
   // Users
   getUsers: () => Promise<User[]>
@@ -236,6 +266,22 @@ export interface ElectronAPI {
   createSpreadsheet: (name?: string) => Promise<Spreadsheet>
   updateSpreadsheet: (id: number, data: { name?: string; data?: string }) => Promise<Spreadsheet>
   deleteSpreadsheet: (id: number) => Promise<void>
+
+  // Ideas
+  getIdeas: (filters?: { status?: string; stage?: string; sortBy?: string }) => Promise<Idea[]>
+  getIdea: (id: number) => Promise<Idea | null>
+  createIdea: (data: Partial<Idea>) => Promise<Idea>
+  updateIdea: (id: number, data: Partial<Idea>) => Promise<Idea>
+  deleteIdea: (id: number) => Promise<void>
+  getIdeaDocuments: (ideaId: number) => Promise<IdeaDocument[]>
+  addIdeaDocument: (ideaId: number, filename: string, data: string, mimeType: string) => Promise<IdeaDocument>
+  deleteIdeaDocument: (id: number) => Promise<void>
+  getIdeaUpdates: (ideaId: number) => Promise<IdeaUpdate[]>
+  addIdeaUpdate: (ideaId: number, content: string, updateType?: string) => Promise<IdeaUpdate>
+  getIdeaTags: (ideaId: number) => Promise<Tag[]>
+  addTagToIdea: (ideaId: number, tagId: string) => Promise<void>
+  removeTagFromIdea: (ideaId: number, tagId: string) => Promise<void>
+  getRecentIdeas: (limit?: number) => Promise<Idea[]>
 
   // Utilities
   showSaveDialog: (options: { defaultPath?: string; filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>

@@ -19,6 +19,11 @@ export default function Links() {
   const [scanError, setScanError] = useState('')
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannerContainerRef = useRef<HTMLDivElement>(null)
+  const [editLink, setEditLink] = useState<Link | null>(null)
+  const [editUrl, setEditUrl] = useState('')
+  const [editText, setEditText] = useState('')
+  const [editCategoryId, setEditCategoryId] = useState(0)
+  const [editDashboard, setEditDashboard] = useState(false)
 
   const load = useCallback(async () => {
     const [l, c] = await Promise.all([
@@ -108,7 +113,9 @@ export default function Links() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Links</h1>
-        <button onClick={() => setShowAdd(true)}
+        <button onClick={() => {
+          setShowAdd(true); setUrl(''); setText(''); setCategoryId(0); setDashboard(false)
+        }}
           className="px-4 py-2 rounded-lg text-sm font-semibold"
           style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ Add Link</button>
       </div>
@@ -212,6 +219,14 @@ export default function Links() {
                 <td className="py-3 px-4 text-right flex items-center justify-end gap-2">
                   <button onClick={() => navigator.clipboard.writeText(link.url)}
                     className="text-xs" style={{ color: 'var(--text-secondary)' }}>Copy</button>
+                  <button onClick={() => {
+                    setEditLink(link)
+                    setEditUrl(link.url)
+                    setEditText(link.text)
+                    setEditCategoryId(link.category_id)
+                    setEditDashboard(!!link.display_on_dashboard)
+                  }}
+                    className="text-xs" style={{ color: 'var(--text-primary)' }}>Edit</button>
                   <button onClick={() => deleteLink(link.id)}
                     className="text-xs" style={{ color: 'var(--danger)' }}>Delete</button>
                 </td>
@@ -223,6 +238,62 @@ export default function Links() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      {editLink !== null && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setEditLink(null)}>
+          <div className="rounded-xl p-6 border w-full max-w-lg" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Link</h2>
+              <button onClick={() => setEditLink(null)} className="text-sm" style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>URL</label>
+                <input value={editUrl} onChange={e => setEditUrl(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Text</label>
+                <input value={editText} onChange={e => setEditText(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div className="flex gap-3 items-end">
+                <div>
+                  <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Category</label>
+                  <select value={editCategoryId} onChange={e => setEditCategoryId(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    <option value={0}>None</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 pb-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <input type="checkbox" checked={editDashboard} onChange={e => setEditDashboard(e.target.checked)} />
+                  Show on Dashboard
+                </label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={async () => {
+                  await window.electronAPI.updateLink(editLink!.id, {
+                    url: editUrl.trim(),
+                    text: editText.trim() || editUrl.trim(),
+                    category_id: editCategoryId || undefined,
+                    display_on_dashboard: editDashboard ? 1 : 0,
+                  })
+                  setEditLink(null)
+                  load()
+                }} className="px-4 py-2 rounded-lg text-sm font-semibold"
+                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Save</button>
+                <button onClick={() => setEditLink(null)} className="px-4 py-2 rounded-lg text-sm"
+                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scanner Modal */}
       {showScanner && (

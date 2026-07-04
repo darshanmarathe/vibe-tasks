@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry, Link } from '../types/models'
+import type { TaskWithRelations, Status, Priority, Project, User, NoteWithNotebook, DailyReportEntry, JournalEntry, Link, Idea } from '../types/models'
 import { moodEmoji } from '../components/MoodPicker'
 import { parseDateFromText } from '../utils/dateParser'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const { runningEntry, elapsed, startTimer, stopTimer } = useTimer()
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
   const [recentNotes, setRecentNotes] = useState<NoteWithNotebook[]>([])
+  const [recentIdeas, setRecentIdeas] = useState<Idea[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -57,7 +58,7 @@ export default function Dashboard() {
 
   const loadData = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0]
-    const [t, s, p, pr, u, rn, focus, journal, dlinks] = await Promise.all([
+    const [t, s, p, pr, u, rn, focus, journal, dlinks, ri] = await Promise.all([
       window.electronAPI.getTasks(),
       window.electronAPI.getStatuses(),
       window.electronAPI.getPriorities(),
@@ -67,6 +68,7 @@ export default function Dashboard() {
       window.electronAPI.getDailyReport(today),
       window.electronAPI.getJournalEntry(today),
       window.electronAPI.getLinks({ displayOnDashboard: 1 }),
+      window.electronAPI.getRecentIdeas(5),
     ])
     setTasks(t)
     setStatuses(s)
@@ -77,6 +79,7 @@ export default function Dashboard() {
     setTodayFocus(focus)
     setTodayJournal(journal)
     setDashboardLinks(dlinks)
+    setRecentIdeas(ri)
     const times = await Promise.all(
       t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
     )
@@ -714,6 +717,39 @@ export default function Dashboard() {
                 </div>
               )
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Ideas */}
+      <div className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Recent Ideas</h2>
+          <button onClick={() => navigate('/ideas')} className="text-xs px-3 py-1.5 rounded font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Open Ideas</button>
+        </div>
+        {recentIdeas.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No ideas yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {recentIdeas.map(idea => (
+              <div key={idea.id} onClick={() => navigate('/ideas')}
+                className="rounded-lg p-3 border cursor-pointer transition-colors hover:opacity-80 text-sm"
+                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                <p className="font-medium truncate">{idea.title}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                    style={{
+                      backgroundColor: idea.status === 'completed' ? 'var(--accent)' : 'var(--bg-hover)',
+                      color: idea.status === 'completed' ? '#fff' : 'var(--text-muted)',
+                    }}>
+                    {idea.status}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {new Date(idea.updated_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

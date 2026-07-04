@@ -32,6 +32,7 @@ const navGroups: NavGroup[] = [
       { path: '/mindmap',       label: 'Mind Map',     icon: '🧠' },
       // { path: '/diagrams',     label: 'Diagrams',    icon: '📐' },
       { path: '/draw',         label: 'Draw',        icon: '📐' },
+      { path: '/ideas',        label: 'Ideas',       icon: '💡' },
     ],
   },
   {

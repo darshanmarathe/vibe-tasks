@@ -21,6 +21,7 @@ import * as flashcardRepo from './database/repositories/flashcardRepo'
 import * as chatRepo from './database/repositories/chatRepo'
 import * as spreadsheetRepo from './database/repositories/spreadsheetRepo'
 import * as drawRepo from './database/repositories/drawRepo'
+import * as ideaRepo from './database/repositories/ideaRepo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -793,6 +794,22 @@ function registerIpcHandlers() {
   ipcMain.handle('mindmap:rename', (_e, id, name) => mindmapRepo.renameMindMap(id, name))
   ipcMain.handle('mindmap:delete', (_e, id) => mindmapRepo.deleteMindMap(id))
   ipcMain.handle('mindmap:save', (_e, id, nodes, edges) => mindmapRepo.saveMindMap(id, nodes, edges))
+  // Ideas
+  ipcMain.handle('ideas:list', (_e, filters) => ideaRepo.getIdeas(filters))
+  ipcMain.handle('ideas:get', (_e, id) => ideaRepo.getIdea(id))
+  ipcMain.handle('ideas:create', (_e, data) => ideaRepo.createIdea(data))
+  ipcMain.handle('ideas:update', (_e, id, data) => ideaRepo.updateIdea(id, data))
+  ipcMain.handle('ideas:delete', (_e, id) => ideaRepo.deleteIdea(id))
+  ipcMain.handle('ideas:recent', (_e, limit) => ideaRepo.getRecentIdeas(limit))
+  ipcMain.handle('ideas:documents:list', (_e, ideaId) => ideaRepo.getIdeaDocuments(ideaId))
+  ipcMain.handle('ideas:documents:add', (_e, ideaId, filename, data, mimeType) => ideaRepo.addIdeaDocument(ideaId, filename, data, mimeType))
+  ipcMain.handle('ideas:documents:delete', (_e, id) => ideaRepo.deleteIdeaDocument(id))
+  ipcMain.handle('ideas:updates:list', (_e, ideaId) => ideaRepo.getIdeaUpdates(ideaId))
+  ipcMain.handle('ideas:updates:add', (_e, ideaId, content, updateType) => ideaRepo.addIdeaUpdate(ideaId, content, updateType))
+  ipcMain.handle('ideas:tags:get', (_e, ideaId) => ideaRepo.getIdeaTags(ideaId))
+  ipcMain.handle('ideas:tags:add', (_e, ideaId, tagId) => ideaRepo.addTagToIdea(ideaId, tagId))
+  ipcMain.handle('ideas:tags:remove', (_e, ideaId, tagId) => ideaRepo.removeTagFromIdea(ideaId, tagId))
+
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:closeWindow', () => { mainWindow?.close() })
 

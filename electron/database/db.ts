@@ -266,6 +266,7 @@ function runMigrations() {
   runSpreadsheetMigrations()
   runDiagramMigrations()
   runDrawMigrations()
+  runIdeaMigrations()
 }
 
 function runNoteMigrations() {
@@ -605,6 +606,48 @@ function runDrawMigrations() {
       data TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    );
+  `)
+}
+
+function runIdeaMigrations() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ideas (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      title           TEXT NOT NULL DEFAULT 'Untitled Idea',
+      introduction    TEXT DEFAULT '',
+      status          TEXT NOT NULL DEFAULT 'draft',
+      stage           TEXT DEFAULT 'concept',
+      impact          INTEGER DEFAULT 0,
+      effort          INTEGER DEFAULT 0,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS idea_documents (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      idea_id         INTEGER NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+      filename        TEXT NOT NULL,
+      data            BLOB NOT NULL,
+      mime_type       TEXT DEFAULT 'application/octet-stream',
+      file_size       INTEGER DEFAULT 0,
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_idea_docs_idea ON idea_documents(idea_id);
+
+    CREATE TABLE IF NOT EXISTS idea_updates (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      idea_id         INTEGER NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+      content         TEXT NOT NULL,
+      update_type     TEXT NOT NULL DEFAULT 'comment',
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_idea_updates_idea ON idea_updates(idea_id);
+
+    CREATE TABLE IF NOT EXISTS idea_tags (
+      idea_id INTEGER NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+      tag_id  TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (idea_id, tag_id)
     );
   `)
 }

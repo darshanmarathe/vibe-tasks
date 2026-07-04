@@ -16,7 +16,6 @@ const Draw: FC = () => {
   const [exporting, setExporting] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const readyRef = useRef(false)
   const pendingExport = useRef<{format: string; resolve: (data: string) => void} | null>(null)
@@ -30,15 +29,6 @@ const Draw: FC = () => {
   useEffect(() => {
     loadDiagrams()
   }, [])
-
-  useEffect(() => {
-    if (!fullscreen) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setFullscreen(false)
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [fullscreen])
 
   async function loadDiagrams() {
     const list = await window.electronAPI.getDrawDiagrams()
@@ -284,20 +274,6 @@ const Draw: FC = () => {
     sendToDrawio(id)
   }
 
-  if (fullscreen && active) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="absolute top-2 right-2 z-10 flex gap-1">
-          <button onClick={() => setFullscreen(false)} className="px-2.5 py-1.5 rounded text-xs font-medium transition-colors"
-            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--accent)'}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}>Exit Full Screen (Esc)</button>
-        </div>
-        <iframe ref={iframeRef} src={window.electronAPI.getDrawioUrl()} className="w-full h-full" title="Draw.io" />
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-full gap-4">
       <div className="w-64 shrink-0 flex flex-col gap-2" style={{ color: 'var(--text-primary)' }}>
@@ -348,9 +324,6 @@ const Draw: FC = () => {
               onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
               onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>{exporting === 'svg' ? '...' : 'SVG'}</button>
             <div className="w-px h-5" style={{ backgroundColor: 'var(--border)' }} />
-            <button onClick={() => setFullscreen(true)} className="px-2 py-1 rounded transition-colors" style={{ color: 'var(--text-secondary)' }}
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>⛶ Full Screen</button>
           </div>
         )}
         <div className="flex-1 rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>

@@ -19,6 +19,7 @@ import Draw from './pages/Draw'
 import Links from './pages/Links'
 import Spreadsheets from './pages/Spreadsheets'
 import Habits from './pages/Habits'
+import Ideas from './pages/Ideas'
 import WeeklyReview from './pages/WeeklyReview'
 import Settings from './pages/Settings/Settings'
 import TimeReports from './pages/TimeReports'
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="/spreadsheets" element={<Spreadsheets />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/ai-chat" element={<AiChat />} />
+              <Route path="/ideas" element={<Ideas />} />
               <Route path="/about" element={<About />} />
             </Route>
           </Routes>
