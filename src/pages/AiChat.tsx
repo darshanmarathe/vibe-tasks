@@ -195,6 +195,7 @@ export default function AiChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
+  const streamErrorRef = useRef<Record<number, boolean>>({})
 
   const streaming = activeId ? !!streamingConvos[activeId] : false
   const streamingContent = activeId ? (streamContents[activeId] || '') : ''
@@ -224,13 +225,22 @@ export default function AiChat() {
         console.log('[AiChat] stream done for conv', convId)
         setStreamingConvos(prev => ({ ...prev, [convId]: false }))
         setStreamContents(prev => ({ ...prev, [convId]: '' }))
-        if (convId === activeIdRef.current) {
+        if (convId === activeIdRef.current && !streamErrorRef.current[convId]) {
           window.electronAPI.getMessages(convId).then(setMessages)
         }
+        delete streamErrorRef.current[convId]
       } else if (data.error) {
         console.error('[AiChat] stream error for conv', convId, ':', data.error)
+        streamErrorRef.current[convId] = true
         setStreamingConvos(prev => ({ ...prev, [convId]: false }))
-        setStreamContents(prev => ({ ...prev, [convId]: `Error: ${data.error}` }))
+        setStreamContents(prev => ({ ...prev, [convId]: '' }))
+        setMessages(prev => [...prev, {
+          id: -Date.now(),
+          conversation_id: convId,
+          role: 'assistant',
+          content: `Error: ${data.error}`,
+          created_at: new Date().toISOString()
+        }])
       } else {
         setStreamContents(prev => ({
           ...prev,
@@ -508,16 +518,7 @@ export default function AiChat() {
                 <div className="flex justify-start">
                   <div className="max-w-[70%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed"
                     style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>
-                    {streamingContent.startsWith('Error:') ? (
-                      <div className="flex items-center gap-2">
-                        <span>{streamingContent}</span>
-                        <button onClick={retryMessage}
-                          className="px-2 py-0.5 rounded text-xs font-medium"
-                          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-                          Retry
-                        </button>
-                      </div>
-                    ) : streamingContent ? (
+                    {streamingContent ? (
                       <>
                         <Markdown text={streamingContent} />
                         <span className="inline-block w-2 h-4 ml-0.5 animate-pulse" style={{ backgroundColor: 'var(--text-primary)' }} />
