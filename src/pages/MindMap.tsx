@@ -772,10 +772,19 @@ export default function MindMapPage() {
     setZoomSpeed(speed)
   }
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('mindmap-sidebar') !== '0')
+
   return (
-    <div className="flex h-[calc(100vh-80px)] gap-0 -m-6">
+    <div className="flex h-[calc(100vh-80px)] gap-0 -m-6" style={{ position: 'relative' }}>
       {/* Sidebar — map list */}
-      <div className="w-52 shrink-0 border-r flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+      <div className="shrink-0 border-r flex flex-col transition-all duration-200 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', width: sidebarOpen ? 208 : 0 }}>
+        <div className="flex items-center justify-between p-2 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+          {sidebarOpen && <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>MAPS</span>}
+          <button onClick={() => { setSidebarOpen(false); localStorage.setItem('mindmap-sidebar', '0') }}
+            className="text-xs px-1" style={{ color: 'var(--text-muted)' }}
+            title="Collapse sidebar">◀</button>
+        </div>
+        {sidebarOpen && (<>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {maps.map(m => (
             <div key={m.id}
@@ -798,7 +807,15 @@ export default function MindMapPage() {
             className="flex-1 border rounded px-2 py-1 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
           <button onClick={handleCreateMap} className="px-2 py-1 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+</button>
         </div>
+        </>)}
       </div>
+
+      {!sidebarOpen && (
+        <button onClick={() => { setSidebarOpen(true); localStorage.setItem('mindmap-sidebar', '1') }}
+          className="absolute left-0 top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand sidebar">▶</button>
+      )}
 
       {/* Canvas */}
       <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>

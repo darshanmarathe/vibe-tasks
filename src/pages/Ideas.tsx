@@ -200,6 +200,8 @@ export default function Ideas() {
     !search || i.title.toLowerCase().includes(search.toLowerCase())
   )
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('ideas-sidebar') !== '0')
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -209,15 +211,21 @@ export default function Ideas() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] gap-0 -m-6">
+    <div className="flex h-[calc(100vh-80px)] gap-0 -m-6" style={{ position: 'relative' }}>
       {/* Left sidebar */}
-      <div className="w-72 shrink-0 border-r flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search ideas..."
-            className="w-full text-sm bg-transparent border rounded-lg px-3 py-2 outline-none"
-            style={{ color: 'var(--text-primary)', borderColor: 'var(--border)' }} />
+      <div className="shrink-0 border-r flex flex-col transition-all duration-200 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', width: sidebarOpen ? 288 : 0 }}>
+        <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+          {sidebarOpen && (
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search ideas..."
+              className="w-full text-sm bg-transparent border rounded-lg px-3 py-2 outline-none"
+              style={{ color: 'var(--text-primary)', borderColor: 'var(--border)' }} />
+          )}
+          <button onClick={() => { setSidebarOpen(false); localStorage.setItem('ideas-sidebar', '0') }}
+            className="text-xs px-1 shrink-0 ml-1" style={{ color: 'var(--text-muted)' }}
+            title="Collapse sidebar">◀</button>
         </div>
+        {sidebarOpen && (<>
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {filtered.map(idea => (
             <div key={idea.id} onClick={() => selectIdea(idea.id)}
@@ -256,7 +264,15 @@ export default function Ideas() {
             + New Idea
           </button>
         </div>
+        </>)}
       </div>
+
+      {!sidebarOpen && (
+        <button onClick={() => { setSidebarOpen(true); localStorage.setItem('ideas-sidebar', '1') }}
+          className="absolute left-0 top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand sidebar">▶</button>
+      )}
 
       {/* Detail panel */}
       <div className="flex-1 flex flex-col overflow-y-auto" style={{ backgroundColor: 'var(--bg-primary)' }}>

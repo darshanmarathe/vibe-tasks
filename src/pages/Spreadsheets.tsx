@@ -150,14 +150,20 @@ export default function Spreadsheets() {
     await window.electronAPI.writeBinaryFile(path, Array.from(new Uint8Array(buf)))
   }
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('spreadsheets-sidebar') !== '0')
+
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <div style={{ width: 240, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)', transition: 'width 0.2s', overflow: 'hidden', width: sidebarOpen ? 240 : 0 }}>
+        {sidebarOpen && (<>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={handleCreate}
-            style={{ width: '100%', padding: '8px 12px', fontSize: 13, fontWeight: 600, borderRadius: 6, border: 'none', cursor: 'pointer', color: '#fff', background: 'var(--accent)' }}>
+            style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, borderRadius: 6, border: 'none', cursor: 'pointer', color: '#fff', background: 'var(--accent)' }}>
             + New Spreadsheet
           </button>
+          <button onClick={() => { setSidebarOpen(false); localStorage.setItem('spreadsheets-sidebar', '0') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', padding: '2px 4px' }}
+            title="Collapse sidebar">◀</button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
           {spreadsheets.map(s => (
@@ -203,7 +209,15 @@ export default function Spreadsheets() {
             </div>
           )}
         </div>
+        </>)}
       </div>
+
+      {!sidebarOpen && (
+        <button onClick={() => { setSidebarOpen(true); localStorage.setItem('spreadsheets-sidebar', '1') }}
+          style={{ position: 'absolute', left: 0, top: 8, zIndex: 10, fontSize: 11, padding: '4px 6px', borderTopRightRadius: 6, borderBottomRightRadius: 6, border: 'none', cursor: 'pointer', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}
+          title="Expand sidebar">▶</button>
+      )}
+
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {selected ? (
           <>

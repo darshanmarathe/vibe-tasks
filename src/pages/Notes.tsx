@@ -499,17 +499,26 @@ export default function Notes() {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
+  const [notebookCollapsed, setNotebookCollapsed] = useState(() => localStorage.getItem('notes-notebook-collapsed') === '1')
+  const [notesListCollapsed, setNotesListCollapsed] = useState(() => localStorage.getItem('notes-list-collapsed') === '1')
+
   return (
     <div className="flex h-[calc(100vh-80px)] gap-0 -m-6" style={{ position: 'relative' }}>
       {showQuickSwitcher && <QuickSwitcher onClose={() => setShowQuickSwitcher(false)} onSelect={selectNote} />}
       <WikiLinkPopup data={wikilinkPopup} onSelect={(id) => { const h = wikilinkHandler.current; const item = h.items.find(i => i.id === id); if (item) { h.idx = h.items.indexOf(item); insertWikilink(h); setWikilinkPopup(null); h.items = [] } }} onClose={() => { setWikilinkPopup(null); wikilinkHandler.current.items = [] }} />
 
       {/* Notebooks sidebar */}
-      <div className="w-52 shrink-0 border-r flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
-        <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Search notes..."
-            className="w-full border rounded-lg px-2.5 py-1.5 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+      <div className="shrink-0 border-r flex flex-col transition-all duration-200 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', width: notebookCollapsed ? 0 : 208 }}>
+        <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+          {!notebookCollapsed && (
+            <input value={search} onChange={e => handleSearch(e.target.value)} placeholder="Search notes..."
+              className="w-full border rounded-lg px-2.5 py-1.5 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+          )}
+          <button onClick={() => { setNotebookCollapsed(true); localStorage.setItem('notes-notebook-collapsed', '1') }}
+            className="text-xs px-1 shrink-0 ml-1" style={{ color: 'var(--text-muted)' }}
+            title="Collapse sidebar">◀</button>
         </div>
+        {!notebookCollapsed && (<>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {notebooks.map(nb => (
             <div key={nb.id}
@@ -570,10 +579,19 @@ export default function Notes() {
             className="flex-1 border rounded px-2 py-1 text-xs" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
           <button onClick={handleCreateNotebook} className="px-2 py-1 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+</button>
         </div>
+        </>)}
       </div>
 
+      {notebookCollapsed && (
+        <button onClick={() => { setNotebookCollapsed(false); localStorage.setItem('notes-notebook-collapsed', '0') }}
+          className="absolute left-0 top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand notebooks">▶</button>
+      )}
+
       {/* Notes list */}
-      <div className="w-60 shrink-0 border-r flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+      <div className="shrink-0 border-r flex flex-col transition-all duration-200 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', width: notesListCollapsed ? 0 : 240 }}>
+        {!notesListCollapsed && (<>
         <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -618,7 +636,20 @@ export default function Notes() {
             <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No notes yet.</p>
           )}
         </div>
+        </>)}
+        <div className="flex items-center justify-between p-2 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={() => { setNotesListCollapsed(true); localStorage.setItem('notes-list-collapsed', '1') }}
+            className="text-xs px-1" style={{ color: 'var(--text-muted)' }}
+            title="Collapse notes list">◀</button>
+        </div>
       </div>
+
+      {notesListCollapsed && (
+        <button onClick={() => { setNotesListCollapsed(false); localStorage.setItem('notes-list-collapsed', '0') }}
+          className="absolute left-[52px] top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand notes list">▶</button>
+      )}
 
       {/* Note editor */}
       <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>

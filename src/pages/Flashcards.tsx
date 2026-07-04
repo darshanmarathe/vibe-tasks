@@ -99,17 +99,23 @@ export default function Flashcards() {
   const s = (c: string) => ({ style: { color: `var(--${c})` } })
   const b = (c: string) => ({ style: { backgroundColor: `var(--${c})` } })
   const btn = 'px-4 py-2 rounded-lg text-sm font-semibold transition-colors'
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('flashcards-sidebar') !== '0')
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full" style={{ position: 'relative' }}>
       {/* Deck sidebar */}
-      <div className="w-56 shrink-0 space-y-2" style={{ color: 'var(--text-primary)' }}>
+      <div className="shrink-0 space-y-2 transition-all duration-200 overflow-hidden" style={{ color: 'var(--text-primary)', width: sidebarOpen ? 224 : 0 }}>
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-lg">Decks</h2>
-          <button onClick={() => setShowNewDeck(true)} className="text-sm px-2 py-1 rounded" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+</button>
+          {sidebarOpen && <h2 className="font-bold text-lg">Decks</h2>}
+          <div className="flex items-center gap-1">
+            {sidebarOpen && <button onClick={() => setShowNewDeck(true)} className="text-sm px-2 py-1 rounded" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+</button>}
+            <button onClick={() => { setSidebarOpen(false); localStorage.setItem('flashcards-sidebar', '0') }}
+              className="text-xs px-1" style={{ color: 'var(--text-muted)' }}
+              title="Collapse sidebar">◀</button>
+          </div>
         </div>
 
-        {showNewDeck && (
+        {sidebarOpen && showNewDeck && (
           <div className="flex gap-1">
             <input value={newDeckName} onChange={e => setNewDeckName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreateDeck()}
@@ -120,6 +126,7 @@ export default function Flashcards() {
           </div>
         )}
 
+        {sidebarOpen && (
         <div className="space-y-1">
           {decks.map(deck => {
             const due = dueCards.filter(c => c.deck_id === deck.id).length
@@ -142,7 +149,15 @@ export default function Flashcards() {
           })}
           {decks.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No decks yet. Create one!</p>}
         </div>
+        )}
       </div>
+
+      {!sidebarOpen && (
+        <button onClick={() => { setSidebarOpen(true); localStorage.setItem('flashcards-sidebar', '1') }}
+          className="absolute left-0 top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand sidebar">▶</button>
+      )}
 
       {/* Main area */}
       <div className="flex-1 space-y-4">

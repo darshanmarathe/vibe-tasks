@@ -274,12 +274,19 @@ const Draw: FC = () => {
     sendToDrawio(id)
   }
 
+  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('draw-sidebar') !== '0')
+
   return (
-    <div className="flex h-full gap-4">
-      <div className="w-64 shrink-0 flex flex-col gap-2" style={{ color: 'var(--text-primary)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold">Draw</h2>
-          <button onClick={createNew} className="px-3 py-1 rounded-lg text-sm font-medium transition-colors" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ New</button>
+    <div className="flex h-full gap-4" style={{ position: 'relative' }}>
+      <div className="shrink-0 flex flex-col gap-2 transition-all duration-200 overflow-hidden" style={{ color: 'var(--text-primary)', width: sidebarOpen ? 256 : 0 }}>
+        <div className="flex items-center justify-between mb-2 shrink-0">
+          {sidebarOpen && <h2 className="text-lg font-bold">Draw</h2>}
+          <div className="flex items-center gap-1">
+            {sidebarOpen && <button onClick={createNew} className="px-3 py-1 rounded-lg text-sm font-medium transition-colors" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ New</button>}
+            <button onClick={() => { setSidebarOpen(false); localStorage.setItem('draw-sidebar', '0') }}
+              className="text-xs px-1 rounded" style={{ color: 'var(--text-muted)' }}
+              title="Collapse sidebar">◀</button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto space-y-1">
           {diagrams.map(d => (
@@ -302,6 +309,13 @@ const Draw: FC = () => {
           ))}
         </div>
       </div>
+
+      {!sidebarOpen && (
+        <button onClick={() => { setSidebarOpen(true); localStorage.setItem('draw-sidebar', '1') }}
+          className="absolute left-0 top-2 z-10 text-xs px-1 py-2 rounded-r transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          title="Expand sidebar">▶</button>
+      )}
 
       <div className="flex-1 flex flex-col gap-2">
         {active && (
