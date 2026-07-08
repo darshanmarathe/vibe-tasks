@@ -266,7 +266,39 @@ export default function Notes() {
         return false
       },
       handleKeyDown: (_view: any, event: KeyboardEvent) => {
-        return wikiRef.current?.onKeyDown(event) === true
+        const h = wikilinkHandler.current
+        if (h.items.length === 0) return false
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          h.idx = Math.min(h.idx + 1, h.items.length - 1)
+          setWikilinkPopup(prev => prev ? { ...prev, idx: h.idx } : prev)
+          return true
+        }
+
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          h.idx = Math.max(h.idx - 1, 0)
+          setWikilinkPopup(prev => prev ? { ...prev, idx: h.idx } : prev)
+          return true
+        }
+
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          insertWikilink(h)
+          setWikilinkPopup(null)
+          h.items = []
+          return true
+        }
+
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          setWikilinkPopup(null)
+          h.items = []
+          return true
+        }
+
+        return false
       },
       handleDrop: (view: any, event: DragEvent, _slice: any, _moved: boolean) => {
         const files = event.dataTransfer?.files
