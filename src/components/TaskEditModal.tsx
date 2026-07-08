@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { TaskWithRelations, Status, Priority, Project, User } from '../types/models'
+import { useTimer } from '../contexts/TimerContext'
 import LinkInput from './LinkInput'
 
 interface Props {
@@ -80,6 +81,7 @@ export default function TaskEditModal({
     return () => window.removeEventListener('keydown', handler)
   }, [editingTask, onClose])
 
+  const { runningEntry, startTimer } = useTimer()
   const [copied, setCopied] = useState(false)
 
   if (!editingTask) return null
@@ -111,6 +113,18 @@ export default function TaskEditModal({
         <div className="rounded-xl p-6 border w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Task</h2>
+            <button onClick={async () => {
+                if (runningEntry?.task_id !== editingTask.id) {
+                  await startTimer(editingTask.id)
+                }
+                window.electronAPI.toggleFocus()
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+              🎯 Focus
+            </button>
             <button onClick={copyTaskDetails}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
               style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>

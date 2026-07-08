@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge } from './TimerBadge'
+import FloatingTaskWidget from './FloatingTaskWidget'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 type NavItem  = { path: string; label: string; icon: string }
@@ -116,12 +117,17 @@ export default function Layout() {
     localStorage.getItem('vibe-sidebar-collapsed') === 'true'
   )
   const [showPalette, setShowPalette] = useState(false)
+  const [showFloatingWidget, setShowFloatingWidget] = useState(false)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault()
         setShowPalette(true)
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        setShowFloatingWidget(prev => !prev)
       }
     }
     window.addEventListener('keydown', handler)
@@ -139,6 +145,7 @@ export default function Layout() {
   return (
     <>
       {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
+      <FloatingTaskWidget visible={showFloatingWidget} onClose={() => setShowFloatingWidget(false)} />
       <div className="flex h-screen" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       {/* ── Sidebar ── */}
       <aside
