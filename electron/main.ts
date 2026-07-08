@@ -97,10 +97,12 @@ function splashHtmlPath() {
 }
 
 function closeSplashWindow() {
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.close()
-  }
+  const win = splashWindow
   splashWindow = null
+  if (win && !win.isDestroyed()) {
+    win.hide()
+    win.destroy()
+  }
 }
 
 function createSplashWindow() {
@@ -129,8 +131,8 @@ function createSplashWindow() {
 function revealMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.show()
-  mainWindow.focus()
   closeSplashWindow()
+  mainWindow.focus()
 }
 
 function createWindow() {
@@ -158,6 +160,8 @@ function createWindow() {
   mainWindow.maximize()
   mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
   mainWindow.once('ready-to-show', revealMainWindow)
+  mainWindow.once('show', closeSplashWindow)
+  mainWindow.once('focus', closeSplashWindow)
 
   // Content Security Policy
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -204,7 +208,10 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  mainWindow.webContents.on('did-finish-load', setLanguages)
+  mainWindow.webContents.on('did-finish-load', () => {
+    setLanguages()
+    if (mainWindow?.isVisible()) closeSplashWindow()
+  })
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F12') {
       mainWindow?.webContents.toggleDevTools()

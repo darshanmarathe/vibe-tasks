@@ -192,7 +192,9 @@ export default function AiChat() {
   const [localConfig, setLocalConfig] = useState<AiConfig | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
   const [lastSentText, setLastSentText] = useState('')
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const historyDraftRef = useRef('')
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
   const streamErrorRef = useRef<Record<number, boolean>>({})
@@ -211,6 +213,8 @@ export default function AiChat() {
 
   useEffect(() => {
     if (activeId === null) return
+    setHistoryIndex(null)
+    historyDraftRef.current = ''
     setLoadingMsgs(true)
     window.electronAPI.getMessages(activeId).then(msgs => {
       setMessages(msgs)
@@ -300,6 +304,8 @@ export default function AiChat() {
     const text = input.trim()
     console.log('[AiChat] sendMessage', { activeId, text, provider: convConfig.provider, model: convConfig.model })
     setLastSentText(text)
+    setHistoryIndex(null)
+    historyDraftRef.current = ''
     setInput('')
     const temp: ChatMsg = {
       id: -Date.now(),
@@ -314,6 +320,38 @@ export default function AiChat() {
     window.electronAPI.sendChatMessage(activeId, text)
   }, [input, activeId, streaming, convConfig])
 
+  const updateInput = (value: string) => {
+    setInput(value)
+    setHistoryIndex(null)
+    historyDraftRef.current = ''
+  }
+
+  const navigateHistory = (direction: 'older' | 'newer') => {
+    const userHistory = messages.filter(msg => msg.role === 'user').map(msg => msg.content)
+    if (userHistory.length === 0) return false
+
+    if (direction === 'older') {
+      const nextIndex = historyIndex === null ? userHistory.length - 1 : Math.max(0, historyIndex - 1)
+      if (historyIndex === null) historyDraftRef.current = input
+      setHistoryIndex(nextIndex)
+      setInput(userHistory[nextIndex])
+      return true
+    }
+
+    if (historyIndex === null) return false
+    const nextIndex = historyIndex + 1
+    if (nextIndex >= userHistory.length) {
+      setHistoryIndex(null)
+      setInput(historyDraftRef.current)
+      historyDraftRef.current = ''
+      return true
+    }
+
+    setHistoryIndex(nextIndex)
+    setInput(userHistory[nextIndex])
+    return true
+  }
+
   const retryMessage = () => {
     if (!activeId) return
     console.log('[AiChat] retryMessage', { activeId, lastSentText })
@@ -323,6 +361,16 @@ export default function AiChat() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp') {
+      if (navigateHistory('older')) e.preventDefault()
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      if (navigateHistory('newer')) e.preventDefault()
+      return
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -547,7 +595,7 @@ export default function AiChat() {
               <div className="flex gap-2">
                 <input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => updateInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={streaming ? 'Waiting for response...' : 'Type a message...'}
                   disabled={streaming}
