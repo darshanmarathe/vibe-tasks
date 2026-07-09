@@ -35,6 +35,10 @@ jobs:
           node-version: 24.13.0
           cache: 'npm'
 
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libfuse2 unzip
+
       - run: npm install --legacy-peer-deps
 
       - name: Build ${{ matrix.name }}

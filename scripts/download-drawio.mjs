@@ -2,6 +2,7 @@ import { execSync } from 'child_process'
 import { existsSync, mkdirSync, rmSync, readdirSync, statSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import os from 'os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
@@ -12,13 +13,19 @@ const RELEASE = 'v30.2.5'
 const WAR_URL = `https://github.com/jgraph/drawio/releases/download/${RELEASE}/draw.war`
 const WAR_PATH = join(tempDir, 'draw.war')
 
+const isWin = os.platform() === 'win32'
+
 console.log(`\n  Downloading draw.io ${RELEASE}...\n`)
 
 if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true })
 
 if (!existsSync(WAR_PATH)) {
   console.log(`  Downloading ${WAR_URL} ...`)
-  execSync(`powershell -Command "Invoke-WebRequest -Uri '${WAR_URL}' -OutFile '${WAR_PATH}'"`, { cwd: root, stdio: 'inherit' })
+  if (isWin) {
+    execSync(`powershell -Command "Invoke-WebRequest -Uri '${WAR_URL}' -OutFile '${WAR_PATH}'"`, { cwd: root, stdio: 'inherit' })
+  } else {
+    execSync(`curl -fsSL '${WAR_URL}' -o '${WAR_PATH}'`, { cwd: root, stdio: 'inherit' })
+  }
 } else {
   console.log('  Already downloaded, skipping.')
 }
@@ -27,7 +34,11 @@ if (existsSync(targetDir)) rmSync(targetDir, { recursive: true })
 mkdirSync(targetDir, { recursive: true })
 
 console.log('  Extracting draw.war ...')
-execSync(`powershell -Command "Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('${WAR_PATH}', '${targetDir}')"`, { cwd: root, stdio: 'inherit' })
+if (isWin) {
+  execSync(`powershell -Command "Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('${WAR_PATH}', '${targetDir}')"`, { cwd: root, stdio: 'inherit' })
+} else {
+  execSync(`unzip -q '${WAR_PATH}' -d '${targetDir}'`, { cwd: root, stdio: 'inherit' })
+}
 
 const webinf = join(targetDir, 'WEB-INF')
 if (existsSync(webinf)) rmSync(webinf, { recursive: true })
