@@ -759,20 +759,20 @@ export default function AiChat() {
                           <>
                             <button onClick={() => copyMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
-                              style={{ color: 'var(--text-muted)' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              style={{ color: 'var(--text-secondary)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Copy">{copiedMsgId === msg.id ? '✓' : '📋'}</button>
                             <button onClick={() => regenerateMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
-                              style={{ color: 'var(--text-muted)' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              style={{ color: 'var(--text-secondary)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Regenerate">🔄</button>
                             <button onClick={() => deleteSingleMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
                               style={{ color: 'var(--danger)' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Delete">✕</button>
                           </>
@@ -781,13 +781,13 @@ export default function AiChat() {
                           <>
                             <button onClick={() => editMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
-                              style={{ color: 'var(--text-muted)' }}
+                              style={{ color: 'rgba(255,255,255,0.85)' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Edit">✎</button>
                             <button onClick={() => deleteSingleMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
-                              style={{ color: 'var(--danger)' }}
+                              style={{ color: 'rgba(255,255,255,0.85)' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Delete">✕</button>
