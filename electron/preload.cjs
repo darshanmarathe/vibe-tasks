@@ -165,6 +165,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   getIdeaTags: (ideaId) => import_electron.ipcRenderer.invoke("ideas:tags:get", ideaId),
   addTagToIdea: (ideaId, tagId) => import_electron.ipcRenderer.invoke("ideas:tags:add", ideaId, tagId),
   removeTagFromIdea: (ideaId, tagId) => import_electron.ipcRenderer.invoke("ideas:tags:remove", ideaId, tagId),
+  getAllIdeaTagMappings: () => import_electron.ipcRenderer.invoke("ideas:tags:all-mappings"),
   // Focus Mode
   toggleFocus: () => import_electron.ipcRenderer.invoke("focus:toggle"),
   // AI Chat

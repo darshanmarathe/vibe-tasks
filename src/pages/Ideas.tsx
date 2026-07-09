@@ -34,12 +34,19 @@ export default function Ideas() {
   const [documents, setDocuments] = useState<any[]>([])
   const [updates, setUpdates] = useState<any[]>([])
   const [tags, setTags] = useState<any[]>([])
+  const [allTags, setAllTags] = useState<any[]>([])
+  const [ideaTagMap, setIdeaTagMap] = useState<Map<number, any[]>>(new Map())
+  const [filterTagIds, setFilterTagIds] = useState<Set<string>>(new Set())
   const [updateContent, setUpdateContent] = useState('')
   const [loading, setLoading] = useState(true)
   const autoSaveTimer = useRef<number | null>(null)
   const isNew = useRef(false)
   const prevStatus = useRef<string | null>(null)
   const prevStage = useRef<string | null>(null)
+  const selectedIdRef = useRef(selectedId)
+  const isSettingContent = useRef(false)
+
+  selectedIdRef.current = selectedId
 
   const selected = ideas.find(i => i.id === selectedId) || null
 
@@ -54,7 +61,10 @@ export default function Ideas() {
         style: 'color: var(--text-primary); font-size: 0.875rem; line-height: 1.7;',
       },
     },
-    onUpdate: () => triggerAutoSave(),
+    onUpdate: () => {
+      if (isSettingContent.current) return
+      triggerAutoSave()
+    },
   })
 
   const loadIdeas = useCallback(async () => {
@@ -63,7 +73,19 @@ export default function Ideas() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadIdeas() }, [loadIdeas])
+  useEffect(() => {
+    loadIdeas()
+    window.electronAPI.getAllTags().then(setAllTags)
+    window.electronAPI.getAllIdeaTagMappings().then(mappings => {
+      const map = new Map<number, any[]>()
+      for (const m of mappings) {
+        const list = map.get(m.idea_id) || []
+        list.push({ id: m.tag_id, name: m.tag_name })
+        map.set(m.idea_id, list)
+      }
+      setIdeaTagMap(map)
+    })
+  }, [loadIdeas])
 
   const loadDetail = useCallback(async (id: number) => {
     const [docs, ups, ts] = await Promise.all([
@@ -88,16 +110,18 @@ export default function Ideas() {
     prevStatus.current = idea.status
     prevStage.current = idea.stage
     if (editor && !editor.isDestroyed) {
+      isSettingContent.current = true
       editor.commands.setContent(idea.introduction || '')
+      isSettingContent.current = false
     }
     loadDetail(selectedId)
-  }, [selectedId, ideas, editor, loadDetail])
+  }, [selectedId, editor, loadDetail])
 
   const triggerAutoSave = (title?: string) => {
-    if (!selectedId || isNew.current) return
+    if (!selectedIdRef.current || isNew.current) return
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = window.setTimeout(async () => {
-      await window.electronAPI.updateIdea(selectedId, {
+      await window.electronAPI.updateIdea(selectedIdRef.current, {
         title: title ?? editTitle,
         introduction: editor?.getHTML() || '',
         status: editStatus,
@@ -196,9 +220,15 @@ export default function Ideas() {
     loadDetail(selectedId!)
   }
 
-  const filtered = ideas.filter(i =>
-    !search || i.title.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = ideas.filter(i => {
+    if (search && !i.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (filterTagIds.size > 0) {
+      const ideaTags = ideaTagMap.get(i.id) || []
+      const hasTag = ideaTags.some(t => filterTagIds.has(t.id))
+      if (!hasTag) return false
+    }
+    return true
+  })
 
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('ideas-sidebar') !== '0')
 
@@ -226,6 +256,33 @@ export default function Ideas() {
             title="Collapse sidebar">◀</button>
         </div>
         {sidebarOpen && (<>
+        {allTags.length > 0 && (
+          <div className="px-3 py-2 border-b flex flex-wrap gap-1" style={{ borderColor: 'var(--border)' }}>
+            {allTags.map(t => {
+              const active = filterTagIds.has(t.id)
+              return (
+                <button key={t.id} onClick={() => {
+                  const next = new Set(filterTagIds)
+                  if (active) { next.delete(t.id) } else { next.add(t.id) }
+                  setFilterTagIds(next)
+                }}
+                  className="text-xs px-2 py-0.5 rounded-full transition-colors"
+                  style={{
+                    backgroundColor: active ? 'var(--accent)' : 'var(--bg-hover)',
+                    color: active ? '#fff' : 'var(--text-secondary)',
+                  }}>
+                  {t.name}
+                </button>
+              )
+            })}
+            {filterTagIds.size > 0 && (
+              <button onClick={() => setFilterTagIds(new Set())}
+                className="text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--text-muted)' }}>
+                ✕
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {filtered.map(idea => (
             <div key={idea.id} onClick={() => selectIdea(idea.id)}

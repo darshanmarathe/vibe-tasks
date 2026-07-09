@@ -109,6 +109,13 @@ export function addTagToIdea(ideaId: number, tagId: string): void {
   db.save()
 }
 
+export function getAllIdeaTags(): { idea_id: number; tag_id: string; tag_name: string }[] {
+  const db = getDatabase()
+  return db.exec(
+    'SELECT it.idea_id, it.tag_id, t.name as tag_name FROM idea_tags it JOIN tags t ON t.id = it.tag_id ORDER BY it.idea_id'
+  )
+}
+
 export function removeTagFromIdea(ideaId: number, tagId: string): void {
   const db = getDatabase()
   db.run('DELETE FROM idea_tags WHERE idea_id = ? AND tag_id = ?', [ideaId, tagId])

@@ -183,6 +183,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIdeaTags: (ideaId) => ipcRenderer.invoke('ideas:tags:get', ideaId),
   addTagToIdea: (ideaId, tagId) => ipcRenderer.invoke('ideas:tags:add', ideaId, tagId),
   removeTagFromIdea: (ideaId, tagId) => ipcRenderer.invoke('ideas:tags:remove', ideaId, tagId),
+  getAllIdeaTagMappings: () => ipcRenderer.invoke('ideas:tags:all-mappings'),
 
   // Focus Mode
   toggleFocus: () => ipcRenderer.invoke('focus:toggle'),

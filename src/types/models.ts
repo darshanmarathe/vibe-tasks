@@ -273,6 +273,7 @@ export interface ElectronAPI {
   getIdeaTags: (ideaId: number) => Promise<Tag[]>
   addTagToIdea: (ideaId: number, tagId: string) => Promise<void>
   removeTagFromIdea: (ideaId: number, tagId: string) => Promise<void>
+  getAllIdeaTagMappings: () => Promise<{ idea_id: number; tag_id: string; tag_name: string }[]>
   getRecentIdeas: (limit?: number) => Promise<Idea[]>
 
   // Utilities

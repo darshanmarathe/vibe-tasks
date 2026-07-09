@@ -815,6 +815,7 @@ function registerIpcHandlers() {
   ipcMain.handle('ideas:tags:get', (_e, ideaId) => ideaRepo.getIdeaTags(ideaId))
   ipcMain.handle('ideas:tags:add', (_e, ideaId, tagId) => ideaRepo.addTagToIdea(ideaId, tagId))
   ipcMain.handle('ideas:tags:remove', (_e, ideaId, tagId) => ideaRepo.removeTagFromIdea(ideaId, tagId))
+  ipcMain.handle('ideas:tags:all-mappings', () => ideaRepo.getAllIdeaTags())
 
   ipcMain.handle('app:openExternal', (_e, url: string) => shell.openExternal(url))
   ipcMain.handle('app:closeWindow', () => { mainWindow?.close() })
