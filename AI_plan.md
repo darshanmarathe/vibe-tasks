@@ -106,5 +106,5 @@ Alternative: better-sqlite3 (SQLite + vectors, unified)
 - Better syntax highlighting (swap keyword regex for a proper highlighter)
 
 ## Other
-- Token counter / cost display
-- Conversation export (JSON / Markdown)
+- [x] Token counter / cost display
+- [x] Conversation export (Markdown)

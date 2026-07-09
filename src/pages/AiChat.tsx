@@ -209,6 +209,10 @@ function OllamaModelSelect({ value, onChange }: { value: string; onChange: (m: s
   )
 }
 
+function estimateTokens(text: string): number {
+  return Math.round(text.length / 4)
+}
+
 function relativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -496,6 +500,25 @@ export default function AiChat() {
   const providerLabel = PROVIDERS.find(p => p.value === convConfig.provider)?.label || convConfig.provider
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('aichat-sidebar') !== '0')
 
+  const tokenCount = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0)
+
+  const exportConversation = async () => {
+    if (!activeId || messages.length === 0) return
+    const md = messages.map(m => {
+      const role = m.role === 'user' ? 'You' : 'Assistant'
+      return `**${role}:**\n\n${m.content}\n\n---\n`
+    }).join('')
+    const header = `# AI Chat — ${activeConv?.title || 'Conversation'}\n\n**Provider:** ${providerLabel} · **Model:** ${convConfig.model}\n\n---\n\n`
+    const full = header + md
+    const path = await window.electronAPI.showSaveDialog({
+      defaultPath: `vibetasks-chat-${activeId}.md`,
+      filters: [{ name: 'Markdown', extensions: ['md'] }, { name: 'Text', extensions: ['txt'] }]
+    })
+    if (path) {
+      await window.electronAPI.writeBinaryFile(path, [...new TextEncoder().encode(full)])
+    }
+  }
+
   return (
     <div className="flex h-full gap-0" style={{ color: 'var(--text-primary)', position: 'relative' }}>
       {/* Config panel overlay */}
@@ -698,13 +721,27 @@ export default function AiChat() {
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {providerLabel} · {convConfig.model}
               </span>
-              <button onClick={() => { setLocalConfig({ ...convConfig }); setShowConfig(true) }}
-                className="text-xs px-2 py-1 rounded transition-colors"
-                style={{ color: 'var(--text-secondary)' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
-                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                ⚙️ Config
-              </button>
+              <div className="flex items-center gap-3">
+                {messages.length > 0 && (
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>~{tokenCount} tokens</span>
+                )}
+                {messages.length > 0 && (
+                  <button onClick={exportConversation}
+                    className="text-xs px-2 py-1 rounded transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    📥 Export
+                  </button>
+                )}
+                <button onClick={() => { setLocalConfig({ ...convConfig }); setShowConfig(true) }}
+                  className="text-xs px-2 py-1 rounded transition-colors"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  ⚙️ Config
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
