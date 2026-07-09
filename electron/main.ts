@@ -2,9 +2,8 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu, protocol, net } from 'electron'
-import OpenAI from 'openai'
+import type OpenAI from 'openai'
 import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
-import TurndownService from 'turndown'
 import * as userRepo from './database/repositories/userRepo'
 import * as projectRepo from './database/repositories/projectRepo'
 import * as statusRepo from './database/repositories/statusRepo'
@@ -40,6 +39,25 @@ const DEFAULT_ZOOM_FACTOR = 1
 const MIN_ZOOM_FACTOR = 0.5
 const MAX_ZOOM_FACTOR = 3
 const ZOOM_STEP = 0.1
+
+let habitsInterval: ReturnType<typeof setInterval> | null = null
+
+function ensureHabitReminders() {
+  if (habitsInterval) return
+  habitsInterval = setInterval(() => {
+    const now = new Date()
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const habits = habitRepo.getHabits()
+    for (const habit of habits) {
+      if (habit.reminder_time === timeStr && !habit.loggedToday) {
+        new Notification({
+          title: 'Habit Reminder',
+          body: `Don't forget to: ${habit.name}`,
+        }).show()
+      }
+    }
+  }, 60000)
+}
 
 type AppConfig = {
   theme?: string
@@ -788,6 +806,7 @@ function registerIpcHandlers() {
       filters: [{ name: 'Markdown', extensions: ['md'] }]
     })
     if (result.canceled || !result.filePath) return
+    const { default: TurndownService } = await import('turndown')
     const turndown = new TurndownService()
     const markdown = turndown.turndown(note.content || '')
     fs.writeFileSync(result.filePath, `# ${note.title}\n\n${markdown}`, 'utf-8')
@@ -821,17 +840,17 @@ function registerIpcHandlers() {
   ipcMain.handle('app:closeWindow', () => { mainWindow?.close() })
 
   // Habits
-  ipcMain.handle('habits:list', () => habitRepo.getHabits())
-  ipcMain.handle('habits:get', (_e, id) => habitRepo.getHabit(id))
-  ipcMain.handle('habits:create', (_e, data) => habitRepo.createHabit(data))
-  ipcMain.handle('habits:update', (_e, id, data) => habitRepo.updateHabit(id, data))
-  ipcMain.handle('habits:delete', (_e, id) => habitRepo.deleteHabit(id))
-  ipcMain.handle('habits:log', (_e, habitId, date, completed) => habitRepo.logHabit(habitId, date, completed))
-  ipcMain.handle('habits:logs', (_e, habitId, startDate, endDate) => habitRepo.getHabitLogs(habitId, startDate, endDate))
-  ipcMain.handle('habits:yearLogs', (_e, habitId, year) => habitRepo.getYearLogs(habitId, year))
-  ipcMain.handle('habits:stats', (_e, habitId) => habitRepo.getHabitStats(habitId))
-  ipcMain.handle('habits:weeklyReview', () => habitRepo.getWeeklyReview())
-  ipcMain.handle('habits:pomodoroLog', (_e, durationMinutes) => habitRepo.logPomodoroSession(durationMinutes))
+  ipcMain.handle('habits:list', () => { ensureHabitReminders(); return habitRepo.getHabits() })
+  ipcMain.handle('habits:get', (_e, id) => { ensureHabitReminders(); return habitRepo.getHabit(id) })
+  ipcMain.handle('habits:create', (_e, data) => { ensureHabitReminders(); return habitRepo.createHabit(data) })
+  ipcMain.handle('habits:update', (_e, id, data) => { ensureHabitReminders(); return habitRepo.updateHabit(id, data) })
+  ipcMain.handle('habits:delete', (_e, id) => { ensureHabitReminders(); return habitRepo.deleteHabit(id) })
+  ipcMain.handle('habits:log', (_e, habitId, date, completed) => { ensureHabitReminders(); return habitRepo.logHabit(habitId, date, completed) })
+  ipcMain.handle('habits:logs', (_e, habitId, startDate, endDate) => { ensureHabitReminders(); return habitRepo.getHabitLogs(habitId, startDate, endDate) })
+  ipcMain.handle('habits:yearLogs', (_e, habitId, year) => { ensureHabitReminders(); return habitRepo.getYearLogs(habitId, year) })
+  ipcMain.handle('habits:stats', (_e, habitId) => { ensureHabitReminders(); return habitRepo.getHabitStats(habitId) })
+  ipcMain.handle('habits:weeklyReview', () => { ensureHabitReminders(); return habitRepo.getWeeklyReview() })
+  ipcMain.handle('habits:pomodoroLog', (_e, durationMinutes) => { ensureHabitReminders(); return habitRepo.logPomodoroSession(durationMinutes) })
 
   // Time Tracking
   ipcMain.handle('time:start', (_e, taskId, note) => {
@@ -942,6 +961,7 @@ function registerIpcHandlers() {
       console.log(`[${logPrefix}] config`, { provider, model, hasApiKey: !!apiKey, convFound: !!conv })
 
       let client: OpenAI
+      const { default: OpenAI } = await import('openai')
       if (provider === 'ollama') {
         console.log(`[${logPrefix}] using ollama`)
         client = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
@@ -1063,7 +1083,6 @@ if (!gotTheLock) {
     createSplashWindow()
     await initDatabase()
     registerIpcHandlers()
-    setupHabitReminders()
 
     const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - (Date.now() - splashShownAt))
     setTimeout(() => createWindow(), remaining)
@@ -1072,22 +1091,6 @@ if (!gotTheLock) {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
   })
-}
-
-function setupHabitReminders() {
-  setInterval(() => {
-    const now = new Date()
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    const habits = habitRepo.getHabits()
-    for (const habit of habits) {
-      if (habit.reminder_time === timeStr && !habit.loggedToday) {
-        new Notification({
-          title: 'Habit Reminder',
-          body: `Don't forget to: ${habit.name}`,
-        }).show()
-      }
-    }
-  }, 60000)
 }
 
 app.on('window-all-closed', () => {
