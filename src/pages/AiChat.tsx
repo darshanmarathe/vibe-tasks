@@ -747,45 +747,53 @@ export default function AiChat() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
-                  <div className="relative max-w-[70%]">
-                    {msg.role === 'assistant' && (
-                      <div
-                        className="absolute -left-8 top-1 hidden group-hover:flex flex-col gap-0.5"
-                      >
-                        <button onClick={() => copyMessage(msg)}
-                          className="px-1 text-xs rounded transition-colors"
-                          style={{ color: 'var(--text-muted)' }}
-                          title="Copy">{copiedMsgId === msg.id ? '✓' : '📋'}</button>
-                        <button onClick={() => regenerateMessage(msg)}
-                          className="px-1 text-xs rounded transition-colors"
-                          style={{ color: 'var(--text-muted)' }}
-                          title="Regenerate">🔄</button>
-                        <button onClick={() => deleteSingleMessage(msg)}
-                          className="px-1 text-xs rounded transition-colors"
-                          style={{ color: 'var(--danger)' }}
-                          title="Delete">✕</button>
-                      </div>
-                    )}
-                    {msg.role === 'user' && (
-                      <div
-                        className="absolute -right-8 top-1 hidden group-hover:flex flex-col gap-0.5"
-                      >
-                        <button onClick={() => editMessage(msg)}
-                          className="px-1 text-xs rounded transition-colors"
-                          style={{ color: 'var(--text-muted)' }}
-                          title="Edit">✎</button>
-                        <button onClick={() => deleteSingleMessage(msg)}
-                          className="px-1 text-xs rounded transition-colors"
-                          style={{ color: 'var(--danger)' }}
-                          title="Delete">✕</button>
-                      </div>
-                    )}
+                  <div className="max-w-[70%]">
                     <div className="rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed"
                       style={{
                         backgroundColor: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-hover)',
                         color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                       }}>
                       {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
+                      <div className={`mt-2 hidden group-hover:flex gap-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.role === 'assistant' && (
+                          <>
+                            <button onClick={() => copyMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title="Copy">{copiedMsgId === msg.id ? '✓' : '📋'}</button>
+                            <button onClick={() => regenerateMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title="Regenerate">🔄</button>
+                            <button onClick={() => deleteSingleMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: 'var(--danger)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title="Delete">✕</button>
+                          </>
+                        )}
+                        {msg.role === 'user' && (
+                          <>
+                            <button onClick={() => editMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: 'var(--text-muted)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title="Edit">✎</button>
+                            <button onClick={() => deleteSingleMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: 'var(--danger)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title="Delete">✕</button>
+                          </>
+                        )}
+                      </div>
                     </div>
                     <div className={`text-xs mt-0.5 ${msg.role === 'user' ? 'text-right' : 'text-left'}`} style={{ color: 'var(--text-muted)' }}>
                       {relativeTime(msg.created_at)}
