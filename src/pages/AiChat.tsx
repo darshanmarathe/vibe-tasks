@@ -11,6 +11,8 @@ const PROVIDERS = [
   { value: 'groq', label: 'Groq (Cloud)' },
   { value: 'mistral', label: 'Mistral AI' },
   { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'opencode', label: 'OpenCode (Zen)' },
+  { value: 'opencode-go', label: 'OpenCode Go' },
 ]
 
 const GEMINI_MODELS = [
@@ -392,7 +394,7 @@ export default function AiChat() {
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Provider</label>
                 <select value={localConfig.provider} onChange={e => {
                   const p = e.target.value
-                  const defaults: Record<string, string> = { ollama: 'llama3.2', openai: 'gpt-4o', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', mistral: 'mistral-large-latest', openrouter: 'openai/gpt-4o' }
+                  const defaults: Record<string, string> = { ollama: 'llama3.2', openai: 'gpt-4o', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', mistral: 'mistral-large-latest', openrouter: 'openai/gpt-4o', opencode: 'big-pickle', 'opencode-go': 'deepseek-v4-pro' }
                   setLocalConfig(c => ({ ...c, provider: p, model: defaults[p] || c.model }))
                 }}
                   className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
@@ -436,10 +438,12 @@ export default function AiChat() {
               </div>
               {localConfig.provider !== 'ollama' && (
                 <div>
-                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>API Key</label>
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                    API Key <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{localConfig.provider === 'opencode' ? '(optional)' : ''}</span>
+                  </label>
                   <div className="relative mt-1">
                     <input type={showApiKey ? 'text' : 'password'} value={localConfig.apiKey} onChange={e => setLocalConfig(c => ({ ...c, apiKey: e.target.value }))}
-                      placeholder="sk-..."
+                      placeholder={localConfig.provider === 'opencode' ? 'optional' : 'sk-...'}
                       className="w-full border rounded-lg px-3 py-2 pr-8 text-sm"
                       style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
                     <button type="button" onClick={() => setShowApiKey(!showApiKey)}

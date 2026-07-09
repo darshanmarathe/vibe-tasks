@@ -1,6 +1,6 @@
 {
   "name": "vibetasks",
-  "version": "1.15.4",
+  "version": "1.15.5",
   "description": "Vibe Tasks - Desktop Task Management Application",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -17,7 +17,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "devDependencies": {
     "@types/dagre": "^0.7.54",

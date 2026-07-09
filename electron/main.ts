@@ -955,6 +955,12 @@ function registerIpcHandlers() {
       } else if (provider === 'openrouter') {
         console.log(`[${logPrefix}] using openrouter`)
         client = new OpenAI({ baseURL: 'https://openrouter.ai/api/v1', apiKey })
+      } else if (provider === 'opencode') {
+        console.log(`[${logPrefix}] using opencode`)
+        client = new OpenAI({ baseURL: 'https://opencode.ai/zen/v1', apiKey })
+      } else if (provider === 'opencode-go') {
+        console.log(`[${logPrefix}] using opencode-go`)
+        client = new OpenAI({ baseURL: 'https://opencode.ai/zen/go/v1', apiKey })
       } else {
         console.log(`[${logPrefix}] using unknown provider, falling back`)
         client = new OpenAI({ apiKey })
