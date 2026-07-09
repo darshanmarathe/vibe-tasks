@@ -12,7 +12,7 @@ const distElectron = join(root, 'dist-electron')
 const require = createRequire(import.meta.url)
 const pkg = require(join(root, 'package.json'))
 
-const platform = process.argv[2] || 'current'
+let platform = process.argv[2] || 'current'
 const version = pkg.version
 
 const targets = {
