@@ -80,3 +80,31 @@ Alternative: better-sqlite3 (SQLite + vectors, unified)
 4. The Ideas feature in `idea_plan.md` already supports adding embeddings later — just add an `embedding BLOB` column to the `ideas` table when ready
 
 **Future consideration:** If the complexity of managing two databases (SQLite + LanceDB) becomes a burden, evaluate switching to `better-sqlite3` + `sqlite-vec` as a unified storage layer. At that point, `sqlite-vec` will likely be post-v1 and stable.
+
+---
+
+# Next Phase: AI Chat UX Improvements
+
+## Message Actions
+- Copy button on every assistant message (not just code blocks)
+- Edit button on user messages (edit in-place and resend)
+- Regenerate response per assistant message
+- Delete individual messages
+
+## Input Quality
+- `<textarea>` with auto-grow instead of single-line `<input>` (Shift+Enter for newlines)
+- Temperature / system prompt / max-tokens controls in config modal
+
+## Conversation UX
+- Search/filter in sidebar
+- Timestamps on conversations and messages
+- AI-suggested titles (auto-generate from first message)
+
+## Markdown Rendering
+- Table rendering
+- URL auto-linkify
+- Better syntax highlighting (swap keyword regex for a proper highlighter)
+
+## Other
+- Token counter / cost display
+- Conversation export (JSON / Markdown)

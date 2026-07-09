@@ -893,8 +893,10 @@ function registerIpcHandlers() {
     chatRepo.createConversation(provider, model, apiKey))
   ipcMain.handle('ai:chat:conversations:delete', (_e, id) => chatRepo.deleteConversation(id))
   ipcMain.handle('ai:chat:conversations:rename', (_e, id, title) => chatRepo.updateConversationTitle(id, title))
-  ipcMain.handle('ai:chat:conversations:updateConfig', (_e, id, provider, model, apiKey) => chatRepo.updateConversationConfig(id, provider, model, apiKey))
+  ipcMain.handle('ai:chat:conversations:updateConfig', (_e, id, provider, model, apiKey, systemPrompt?, temperature?, maxTokens?) => chatRepo.updateConversationConfig(id, provider, model, apiKey, systemPrompt, temperature, maxTokens))
   ipcMain.handle('ai:chat:messages:list', (_e, id) => chatRepo.getMessages(id))
+  ipcMain.handle('ai:chat:messages:delete', (_e, id) => chatRepo.deleteMessage(id))
+  ipcMain.handle('ai:chat:messages:delete-after', (_e, conversationId, afterId) => chatRepo.deleteMessagesAfter(conversationId, afterId))
 
   ipcMain.handle('ai:chat:config:get', () => ({
     provider: chatRepo.getAiConfig('provider') || 'ollama',
@@ -934,6 +936,9 @@ function registerIpcHandlers() {
       const provider = conv?.provider || 'ollama'
       const apiKey = conv?.api_key || ''
       const model = conv?.model || 'llama3.2'
+      const systemPrompt = conv?.system_prompt || ''
+      const temperature = conv?.temperature ?? 0.7
+      const maxTokens = conv?.max_tokens ?? 4096
       console.log(`[${logPrefix}] config`, { provider, model, hasApiKey: !!apiKey, convFound: !!conv })
 
       let client: OpenAI
@@ -968,8 +973,9 @@ function registerIpcHandlers() {
 
       const history = chatRepo.getMessages(conversationId)
       const msgs = history.map((m: any) => ({ role: m.role, content: m.content }))
+      const sp = systemPrompt || 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully.'
       if (!msgs.some(m => m.role === 'system')) {
-        msgs.unshift({ role: 'system', content: 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully.' })
+        msgs.unshift({ role: 'system', content: sp })
       }
 
       let fullContent = ''
@@ -978,6 +984,8 @@ function registerIpcHandlers() {
         model,
         messages: msgs,
         stream: true,
+        temperature,
+        max_tokens: maxTokens,
       }, { signal: abortController.signal })
       console.log(`[${logPrefix}] stream created, iterating...`)
 

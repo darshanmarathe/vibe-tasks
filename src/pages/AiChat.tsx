@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-interface Conversation { id: number; title: string; provider: string; model: string | null; api_key: string; created_at: string; updated_at: string }
+interface Conversation { id: number; title: string; provider: string; model: string | null; api_key: string; system_prompt: string; temperature: number; max_tokens: number; created_at: string; updated_at: string }
 interface ChatMsg { id: number; conversation_id: number; role: string; content: string; created_at: string }
-interface AiConfig { provider: string; apiKey: string; model: string }
+interface AiConfig { provider: string; apiKey: string; model: string; systemPrompt?: string; temperature?: number; maxTokens?: number }
 
 const PROVIDERS = [
   { value: 'ollama', label: 'Ollama (Local)' },
@@ -195,7 +195,10 @@ export default function AiChat() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [lastSentText, setLastSentText] = useState('')
   const [historyIndex, setHistoryIndex] = useState<number | null>(null)
+  const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
+  const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const historyDraftRef = useRef('')
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
@@ -206,7 +209,7 @@ export default function AiChat() {
 
   const activeConv = conversations.find(c => c.id === activeId)
   const convConfig: AiConfig = activeConv
-    ? { provider: activeConv.provider, model: activeConv.model || '', apiKey: activeConv.api_key }
+    ? { provider: activeConv.provider, model: activeConv.model || '', apiKey: activeConv.api_key, systemPrompt: activeConv.system_prompt, temperature: activeConv.temperature, maxTokens: activeConv.max_tokens }
     : { provider: 'ollama', model: 'llama3.2', apiKey: '' }
 
   useEffect(() => {
@@ -295,20 +298,40 @@ export default function AiChat() {
 
   const saveConfig = async () => {
     if (!activeId || !localConfig) return
-    await window.electronAPI.updateConversationConfig(activeId, localConfig.provider, localConfig.model, localConfig.apiKey)
-    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, provider: localConfig.provider, model: localConfig.model, api_key: localConfig.apiKey } : c))
+    await window.electronAPI.updateConversationConfig(activeId, localConfig.provider, localConfig.model, localConfig.apiKey, localConfig.systemPrompt, localConfig.temperature, localConfig.maxTokens)
+    setConversations(prev => prev.map(c => c.id === activeId ? { ...c, provider: localConfig.provider, model: localConfig.model, api_key: localConfig.apiKey, system_prompt: localConfig.systemPrompt || '', temperature: localConfig.temperature || 0.7, max_tokens: localConfig.maxTokens || 4096 } : c))
     setShowConfig(false)
     setLocalConfig(null)
   }
 
-  const sendMessage = useCallback(() => {
+  const autoGrow = () => {
+    const t = textareaRef.current
+    if (!t) return
+    t.style.height = 'auto'
+    t.style.height = Math.min(t.scrollHeight, 200) + 'px'
+  }
+
+  const sendMessage = useCallback(async () => {
     if (!input.trim() || !activeId || streaming) return
     const text = input.trim()
+
+    if (editingMsgId) {
+      await window.electronAPI.deleteMessage(editingMsgId)
+      setMessages(prev => prev.filter(m => m.id !== editingMsgId))
+      setEditingMsgId(null)
+    }
+
     console.log('[AiChat] sendMessage', { activeId, text, provider: convConfig.provider, model: convConfig.model })
     setLastSentText(text)
     setHistoryIndex(null)
     historyDraftRef.current = ''
     setInput('')
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      }
+    }, 0)
     const temp: ChatMsg = {
       id: -Date.now(),
       conversation_id: activeId,
@@ -320,7 +343,7 @@ export default function AiChat() {
     setStreamingConvos(prev => ({ ...prev, [activeId]: true }))
     setStreamContents(prev => ({ ...prev, [activeId]: '' }))
     window.electronAPI.sendChatMessage(activeId, text)
-  }, [input, activeId, streaming, convConfig])
+  }, [input, activeId, streaming, convConfig, editingMsgId])
 
   const updateInput = (value: string) => {
     setInput(value)
@@ -357,6 +380,42 @@ export default function AiChat() {
   const retryMessage = () => {
     if (!activeId) return
     console.log('[AiChat] retryMessage', { activeId, lastSentText })
+    setStreamingConvos(prev => ({ ...prev, [activeId]: true }))
+    setStreamContents(prev => ({ ...prev, [activeId]: '' }))
+    window.electronAPI.retryChatMessage(activeId)
+  }
+
+  const copyMessage = (msg: ChatMsg) => {
+    navigator.clipboard.writeText(msg.content).then(() => {
+      setCopiedMsgId(msg.id)
+      setTimeout(() => setCopiedMsgId(null), 2000)
+    })
+  }
+
+  const editMessage = (msg: ChatMsg) => {
+    setEditingMsgId(msg.id)
+    setInput(msg.content)
+  }
+
+  const deleteSingleMessage = async (msg: ChatMsg) => {
+    const idx = messages.findIndex(m => m.id === msg.id)
+    setMessages(prev => prev.filter(m => m.id !== msg.id))
+    await window.electronAPI.deleteMessage(msg.id)
+    if (editingMsgId === msg.id) setEditingMsgId(null)
+  }
+
+  const regenerateMessage = async (msg: ChatMsg) => {
+    if (!activeId || streaming) return
+    const msgs = messages
+    const msgIndex = msgs.findIndex(m => m.id === msg.id)
+    if (msgIndex < 0) return
+    let userIdx = msgIndex - 1
+    while (userIdx >= 0 && msgs[userIdx].role !== 'user') userIdx--
+    if (userIdx < 0) return
+    const userMsg = msgs[userIdx]
+    const keepMsgs = msgs.slice(0, userIdx + 1)
+    setMessages(keepMsgs)
+    await window.electronAPI.deleteMessagesAfter(activeId, userMsg.id)
     setStreamingConvos(prev => ({ ...prev, [activeId]: true }))
     setStreamContents(prev => ({ ...prev, [activeId]: '' }))
     window.electronAPI.retryChatMessage(activeId)
@@ -454,6 +513,34 @@ export default function AiChat() {
                   </div>
                 </div>
               )}
+              <div>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>System Prompt</label>
+                <textarea value={localConfig.systemPrompt || ''} onChange={e => setLocalConfig(c => ({ ...c, systemPrompt: e.target.value }))}
+                  rows={3}
+                  className="w-full border rounded-lg px-3 py-2 text-sm mt-1 resize-none"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  placeholder="You are a helpful assistant..." />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Temperature</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input type="range" min="0" max="2" step="0.1"
+                      value={localConfig.temperature ?? 0.7}
+                      onChange={e => setLocalConfig(c => ({ ...c, temperature: parseFloat(e.target.value) }))}
+                      className="flex-1" />
+                    <span className="text-xs w-8 text-right" style={{ color: 'var(--text-muted)' }}>{localConfig.temperature ?? 0.7}</span>
+                  </div>
+                </div>
+                <div className="w-28">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Max Tokens</label>
+                  <input type="number" min="1" max="131072"
+                    value={localConfig.maxTokens ?? 4096}
+                    onChange={e => setLocalConfig(c => ({ ...c, maxTokens: parseInt(e.target.value) || 4096 }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => { setShowConfig(false); setLocalConfig(null) }}
@@ -556,13 +643,47 @@ export default function AiChat() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className="max-w-[70%] rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed"
-                    style={{
-                      backgroundColor: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-hover)',
-                      color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
-                    }}>
-                    {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
+                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
+                  <div className="relative max-w-[70%]">
+                    {msg.role === 'assistant' && (
+                      <div
+                        className="absolute -left-8 top-1 hidden group-hover:flex flex-col gap-0.5"
+                      >
+                        <button onClick={() => copyMessage(msg)}
+                          className="px-1 text-xs rounded transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Copy">{copiedMsgId === msg.id ? '✓' : '📋'}</button>
+                        <button onClick={() => regenerateMessage(msg)}
+                          className="px-1 text-xs rounded transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Regenerate">🔄</button>
+                        <button onClick={() => deleteSingleMessage(msg)}
+                          className="px-1 text-xs rounded transition-colors"
+                          style={{ color: 'var(--danger)' }}
+                          title="Delete">✕</button>
+                      </div>
+                    )}
+                    {msg.role === 'user' && (
+                      <div
+                        className="absolute -right-8 top-1 hidden group-hover:flex flex-col gap-0.5"
+                      >
+                        <button onClick={() => editMessage(msg)}
+                          className="px-1 text-xs rounded transition-colors"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Edit">✎</button>
+                        <button onClick={() => deleteSingleMessage(msg)}
+                          className="px-1 text-xs rounded transition-colors"
+                          style={{ color: 'var(--danger)' }}
+                          title="Delete">✕</button>
+                      </div>
+                    )}
+                    <div className="rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed"
+                      style={{
+                        backgroundColor: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-hover)',
+                        color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+                      }}>
+                      {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -596,18 +717,21 @@ export default function AiChat() {
               <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex gap-2">
-                <input
+              <div className="flex gap-2 items-end">
+                <textarea
+                  ref={textareaRef}
                   value={input}
-                  onChange={e => updateInput(e.target.value)}
+                  onChange={e => { updateInput(e.target.value); autoGrow() }}
                   onKeyDown={handleKeyDown}
                   placeholder={streaming ? 'Waiting for response...' : 'Type a message...'}
                   disabled={streaming}
-                  className="flex-1 rounded-lg px-4 py-2 text-sm outline-none border"
+                  rows={1}
+                  className="flex-1 rounded-lg px-4 py-2 text-sm outline-none border resize-none leading-relaxed"
                   style={{
                     backgroundColor: 'var(--bg-secondary)',
                     borderColor: 'var(--border)',
                     color: 'var(--text-primary)',
+                    minHeight: 38,
                   }}
                 />
                 {streaming ? (

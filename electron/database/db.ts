@@ -512,6 +512,15 @@ function runAiChatMigrations() {
   if (!convCols.some((c: any) => c.name === 'api_key')) {
     db.run("ALTER TABLE chat_conversations ADD COLUMN api_key TEXT DEFAULT ''")
   }
+  if (!convCols.some((c: any) => c.name === 'system_prompt')) {
+    db.run("ALTER TABLE chat_conversations ADD COLUMN system_prompt TEXT DEFAULT ''")
+  }
+  if (!convCols.some((c: any) => c.name === 'temperature')) {
+    db.run("ALTER TABLE chat_conversations ADD COLUMN temperature REAL DEFAULT 0.7")
+  }
+  if (!convCols.some((c: any) => c.name === 'max_tokens')) {
+    db.run("ALTER TABLE chat_conversations ADD COLUMN max_tokens INTEGER DEFAULT 4096")
+  }
 
   // Seed default config
   const existing = exec("SELECT value FROM ai_config WHERE key = 'provider'")

@@ -289,8 +289,10 @@ export interface ElectronAPI {
   createConversation: (provider?: string, model?: string, apiKey?: string) => Promise<ChatConversation>
   deleteConversation: (id: number) => Promise<void>
   renameConversation: (id: number, title: string) => Promise<void>
-  updateConversationConfig: (id: number, provider: string, model: string, apiKey: string) => Promise<void>
+  updateConversationConfig: (id: number, provider: string, model: string, apiKey: string, systemPrompt?: string, temperature?: number, maxTokens?: number) => Promise<void>
   getMessages: (conversationId: number) => Promise<ChatMessage[]>
+  deleteMessage: (id: number) => Promise<void>
+  deleteMessagesAfter: (conversationId: number, afterId: number) => Promise<void>
   sendChatMessage: (conversationId: number, message: string) => void
   retryChatMessage: (conversationId: number) => void
   cancelChat: (conversationId: number) => void
@@ -561,6 +563,9 @@ export interface ChatConversation {
   provider: string
   model: string | null
   api_key: string
+  system_prompt: string
+  temperature: number
+  max_tokens: number
   created_at: string
   updated_at: string
 }
@@ -584,6 +589,9 @@ export interface AiConfig {
   provider: string
   apiKey: string
   model: string
+  systemPrompt?: string
+  temperature?: number
+  maxTokens?: number
 }
 
 declare global {
