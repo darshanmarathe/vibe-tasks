@@ -35,7 +35,7 @@ jobs:
           node-version: 24.13.0
           cache: 'npm'
 
-      - run: npm ci
+      - run: npm install --legacy-peer-deps
 
       - name: Build ${{ matrix.name }}
         run: node scripts/build.mjs ${{ matrix.target }}
