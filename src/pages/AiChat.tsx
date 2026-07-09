@@ -104,6 +104,33 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   )
 }
 
+function renderTable(tableHtml: string): string {
+  const rows = tableHtml.split('\n').filter((l: string) => l.trim())
+  if (rows.length < 2) return tableHtml
+  const isTable = rows.every((r: string) => r.trim().startsWith('|') && r.trim().endsWith('|'))
+  if (!isTable) return tableHtml
+  const header = rows[0]
+  const sep = rows[1]
+  const body = rows.slice(2)
+  const align = (sep || '').split('|').map((s: string) => {
+    const t = s.trim()
+    if (t.startsWith(':') && t.endsWith(':')) return 'center'
+    if (t.endsWith(':')) return 'right'
+    return 'left'
+  })
+  const renderRow = (row: string, tag: 'th' | 'td') => {
+    const cells = row.split('|').slice(1, -1)
+    return `<tr>${cells.map((c: string, i: number) => {
+      const a = align[i + 1] || 'left'
+      return `<${tag} style="border:1px solid var(--border);padding:4px 8px;text-align:${a}">${c.trim()}</${tag}>`
+    }).join('')}</tr>`
+  }
+  return `<table style="border-collapse:collapse;margin:8px 0;font-size:13px;width:100%">
+    ${renderRow(header, 'th')}
+    ${body.map((r: string) => renderRow(r, 'td')).join('')}
+  </table>`
+}
+
 function renderInlineMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;')
@@ -112,12 +139,14 @@ function renderInlineMarkdown(text: string): string {
   html = html.replace(/^### (.+)$/gm, '<h3 class="text-sm font-bold mt-3 mb-1">$1</h3>')
   html = html.replace(/^## (.+)$/gm, '<h2 class="text-base font-bold mt-3 mb-1">$1</h2>')
   html = html.replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mt-3 mb-1">$1</h1>')
+  html = html.replace(/^\|.+\|\n\|[-:| ]+\|\n(?:\|.+\|\n?)*/gm, (m) => renderTable(m))
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
   html = html.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded text-xs font-mono" style="background-color:var(--bg-primary);color:var(--accent)">$1</code>')
   html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
   html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4 list-decimal">$1. $2</li>')
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline">$1</a>')
+  html = html.replace(/(?<!")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline">$1</a>')
   html = html.replace(/^---$/gm, '<hr class="my-2" style="border-color:var(--border)" />')
   html = html.replace(/> (.+)$/gm, '<blockquote class="pl-3 py-1 my-1 border-l-2 italic text-sm" style="border-color:var(--accent);color:var(--text-muted)">$1</blockquote>')
   html = html.replace(/\n/g, '<br>')
@@ -180,6 +209,18 @@ function OllamaModelSelect({ value, onChange }: { value: string; onChange: (m: s
   )
 }
 
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'now'
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Date(dateStr).toLocaleDateString()
+}
+
 export default function AiChat() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
@@ -193,6 +234,7 @@ export default function AiChat() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [localConfig, setLocalConfig] = useState<AiConfig | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [lastSentText, setLastSentText] = useState('')
   const [historyIndex, setHistoryIndex] = useState<number | null>(null)
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
@@ -203,6 +245,10 @@ export default function AiChat() {
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
   const streamErrorRef = useRef<Record<number, boolean>>({})
+
+  const filteredConversations = searchQuery
+    ? conversations.filter(c => c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : conversations
 
   const streaming = activeId ? !!streamingConvos[activeId] : false
   const streamingContent = activeId ? (streamContents[activeId] || '') : ''
@@ -235,7 +281,16 @@ export default function AiChat() {
         setStreamingConvos(prev => ({ ...prev, [convId]: false }))
         setStreamContents(prev => ({ ...prev, [convId]: '' }))
         if (convId === activeIdRef.current && !streamErrorRef.current[convId]) {
-          window.electronAPI.getMessages(convId).then(setMessages)
+          window.electronAPI.getMessages(convId).then(msgs => {
+            setMessages(msgs)
+            const firstUser = msgs.find(m => m.role === 'user')
+            const conv = conversations.find(c => c.id === convId)
+            if (firstUser && conv && conv.title === 'New Chat') {
+              const title = firstUser.content.slice(0, 50) + (firstUser.content.length > 50 ? '...' : '')
+              window.electronAPI.renameConversation(convId, title)
+              setConversations(prev => prev.map(c => c.id === convId ? { ...c, title } : c))
+            }
+          })
         }
         delete streamErrorRef.current[convId]
       } else if (data.error) {
@@ -572,8 +627,16 @@ export default function AiChat() {
             </button>
           )}
         </div>
+        {sidebarOpen && (
+          <div className="px-2 pt-2">
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full rounded-lg px-3 py-1.5 text-xs outline-none border"
+              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {conversations.filter(Boolean).map(conv => (
+          {filteredConversations.map(conv => (
             <div key={conv.id}
               className="group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors"
               style={{
@@ -593,7 +656,10 @@ export default function AiChat() {
                   onClick={e => e.stopPropagation()}
                 />
               ) : (
-                <span className="flex-1 truncate">{conv.title}</span>
+                <div className="flex-1 truncate">
+                  <span>{conv.title}</span>
+                  <span className="ml-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>{relativeTime(conv.updated_at)}</span>
+                </div>
               )}
               {streamingConvos[conv.id] && (
                 <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: 'var(--accent)' }} />
@@ -683,6 +749,9 @@ export default function AiChat() {
                         color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                       }}>
                       {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
+                    </div>
+                    <div className={`text-xs mt-0.5 ${msg.role === 'user' ? 'text-right' : 'text-left'}`} style={{ color: 'var(--text-muted)' }}>
+                      {relativeTime(msg.created_at)}
                     </div>
                   </div>
                 </div>
