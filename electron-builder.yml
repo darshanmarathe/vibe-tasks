@@ -47,13 +47,13 @@ nsis:
 
 mac:
   icon: icon.png
+  identity: null
   target:
     - target: dmg
       arch:
         - x64
         - arm64
   category: public.app-category.productivity
-  hardenedRuntime: true
 
 dmg:
   title: "Vibe Tasks ${version}"

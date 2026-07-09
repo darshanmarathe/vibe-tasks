@@ -1,0 +1,42 @@
+appId: com.vibetasks.app
+productName: Vibe Tasks
+copyright: Copyright © 2026
+
+directories:
+  output: build
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+
+extraResources:
+  - from: "dist-electron/"
+    to: "electron/"
+    filter:
+      - "*.cjs"
+      - "*.html"
+  - from: "."
+    to: "."
+    filter:
+      - "xylophone.mp3"
+  - from: "public/drawio/"
+    to: "drawio/"
+    filter:
+      - "**/*"
+
+asar: true
+asarUnpack:
+  - "node_modules/sql.js/**"
+
+mac:
+  icon: icon.png
+  identity: null
+  target:
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.productivity
+
+artifactName: "vibetask-mac-portable.${ext}"

@@ -17,11 +17,18 @@ const version = pkg.version
 
 const targets = {
   win: '--win --x64',
-  portable: '--win --x64 --config electron-builder.portable.yml',
-  mac: '--mac --x64',
+  'win-portable': '--win --x64 --config electron-builder.portable.yml',
+  mac: '--mac --x64 --arm64',
+  'mac-portable': '--mac --x64 --arm64 --config electron-builder.portable.mac.yml',
   linux: '--linux --x64',
+  'linux-portable': '--linux --x64',
   all: '--win --mac --linux --x64',
   current: process.platform === 'win32' ? '--win --x64' : process.platform === 'darwin' ? '--mac --x64,arm64' : '--linux --x64',
+}
+
+// portable alias for backward compatibility
+if (platform === 'portable') {
+  platform = 'win-portable'
 }
 
 const target = targets[platform]
@@ -78,8 +85,8 @@ function preExtractWinCodeSign() {
 
 // Step 3: Package with electron-builder
 console.log('[3/4] Packaging with electron-builder...')
-const usePortableConfig = platform === 'portable'
-const cmd = usePortableConfig
+const hasOwnConfig = target.includes('--config')
+const cmd = hasOwnConfig
   ? `npx electron-builder ${target}`
   : `npx electron-builder ${target} --config electron-builder.yml`
 preExtractWinCodeSign()
