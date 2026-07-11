@@ -175,6 +175,8 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   renameConversation: (id, title) => import_electron.ipcRenderer.invoke("ai:chat:conversations:rename", id, title),
   updateConversationConfig: (id, provider, model, apiKey) => import_electron.ipcRenderer.invoke("ai:chat:conversations:updateConfig", id, provider, model, apiKey),
   getMessages: (id) => import_electron.ipcRenderer.invoke("ai:chat:messages:list", id),
+  deleteMessage: (id) => import_electron.ipcRenderer.invoke("ai:chat:messages:delete", id),
+  deleteMessagesAfter: (conversationId, afterId) => import_electron.ipcRenderer.invoke("ai:chat:messages:delete-after", conversationId, afterId),
   sendChatMessage: (conversationId, message) => import_electron.ipcRenderer.send("ai:chat:send", { conversationId, message }),
   retryChatMessage: (conversationId) => import_electron.ipcRenderer.send("ai:chat:retry", { conversationId }),
   cancelChat: (conversationId) => import_electron.ipcRenderer.send("ai:chat:cancel", conversationId),

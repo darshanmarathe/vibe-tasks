@@ -248,6 +248,8 @@ export default function AiChat() {
   const historyDraftRef = useRef('')
   const activeIdRef = useRef(activeId)
   activeIdRef.current = activeId
+  const conversationsRef = useRef(conversations)
+  conversationsRef.current = conversations
   const streamErrorRef = useRef<Record<number, boolean>>({})
 
   const filteredConversations = searchQuery
@@ -288,7 +290,7 @@ export default function AiChat() {
           window.electronAPI.getMessages(convId).then(msgs => {
             setMessages(msgs)
             const firstUser = msgs.find(m => m.role === 'user')
-            const conv = conversations.find(c => c.id === convId)
+            const conv = conversationsRef.current.find(c => c.id === convId)
             if (firstUser && conv && conv.title === 'New Chat') {
               const title = firstUser.content.slice(0, 50) + (firstUser.content.length > 50 ? '...' : '')
               window.electronAPI.renameConversation(convId, title)

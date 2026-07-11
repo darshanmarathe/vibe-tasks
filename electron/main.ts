@@ -942,12 +942,17 @@ function registerIpcHandlers() {
     }
   })
 
+  const STREAM_TIMEOUT_MS = 120_000
+  let openaiModule: typeof OpenAI | null = null
+
   async function streamAiResponse(event: Electron.IpcMainEvent, conversationId: number, logPrefix: string) {
     const existing = activeStreams.get(conversationId)
     if (existing) existing.abort()
 
     const abortController = new AbortController()
-    activeStreams.set(conversationId, abortController)
+    const streamKey = conversationId
+    activeStreams.set(streamKey, abortController)
+    const thisController = abortController
 
     try {
       const convs = chatRepo.getConversations()
@@ -961,7 +966,10 @@ function registerIpcHandlers() {
       console.log(`[${logPrefix}] config`, { provider, model, hasApiKey: !!apiKey, convFound: !!conv })
 
       let client: OpenAI
-      const { default: OpenAI } = await import('openai')
+      if (!openaiModule) {
+        openaiModule = (await import('openai')).default
+      }
+      const OpenAI = openaiModule
       if (provider === 'ollama') {
         console.log(`[${logPrefix}] using ollama`)
         client = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })
@@ -1009,31 +1017,60 @@ function registerIpcHandlers() {
       }, { signal: abortController.signal })
       console.log(`[${logPrefix}] stream created, iterating...`)
 
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content || ''
-        if (delta) {
-          fullContent += delta
-          event.sender.send('ai:chat:chunk', { conversationId, delta })
+      let lastChunkAt = Date.now()
+      const timeoutInterval = setInterval(() => {
+        if (Date.now() - lastChunkAt > STREAM_TIMEOUT_MS) {
+          console.warn(`[${logPrefix}] stream timeout after ${STREAM_TIMEOUT_MS}ms of inactivity`)
+          abortController.abort()
         }
+      }, 10_000)
+
+      try {
+        for await (const chunk of stream) {
+          lastChunkAt = Date.now()
+          const delta = chunk.choices[0]?.delta?.content || ''
+          if (delta) {
+            fullContent += delta
+            event.sender.send('ai:chat:chunk', { conversationId, delta })
+          }
+        }
+      } finally {
+        clearInterval(timeoutInterval)
       }
 
       console.log(`[${logPrefix}] stream complete, fullContent length:`, fullContent.length)
-      chatRepo.addMessage(conversationId, 'assistant', fullContent)
+      try {
+        chatRepo.addMessage(conversationId, 'assistant', fullContent)
+      } catch (dbErr: any) {
+        console.error(`[${logPrefix}] failed to save assistant message:`, dbErr.message)
+      }
       event.sender.send('ai:chat:chunk', { conversationId, done: true })
     } catch (err: any) {
       console.error(`[${logPrefix}] error:`, err.name, err.message, 'status:', err.status, 'code:', err.code, 'type:', err.type)
-      if (err.name === 'AbortError') return
-      const statusHint = err.status ? ` (HTTP ${err.status})` : ''
-      const bodyHint = err.message.includes('(no body)') ? ' — the API returned no error details. Check your API key is valid and the model is accessible.' : ''
-      event.sender.send('ai:chat:chunk', { conversationId, error: `${err.message}${statusHint}${bodyHint}` })
+      if (err.name === 'AbortError') {
+        console.log(`[${logPrefix}] stream aborted for conv`, conversationId)
+        event.sender.send('ai:chat:chunk', { conversationId, done: true })
+      } else {
+        const statusHint = err.status ? ` (HTTP ${err.status})` : ''
+        const bodyHint = err.message.includes('(no body)') ? ' — the API returned no error details. Check your API key is valid and the model is accessible.' : ''
+        event.sender.send('ai:chat:chunk', { conversationId, error: `${err.message}${statusHint}${bodyHint}` })
+      }
     } finally {
-      activeStreams.delete(conversationId)
+      if (activeStreams.get(streamKey) === thisController) {
+        activeStreams.delete(streamKey)
+      }
     }
   }
 
   ipcMain.on('ai:chat:send', async (event, { conversationId, message }) => {
     console.log('[ai:chat:send] received', { conversationId, message: message.substring(0, 50) })
-    chatRepo.addMessage(conversationId, 'user', message)
+    try {
+      chatRepo.addMessage(conversationId, 'user', message)
+    } catch (err: any) {
+      console.error('[ai:chat:send] failed to save user message:', err.message)
+      event.sender.send('ai:chat:chunk', { conversationId, error: `Failed to save message: ${err.message}` })
+      return
+    }
     await streamAiResponse(event, conversationId, 'ai:chat:send')
   })
 
