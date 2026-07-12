@@ -187,5 +187,6 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   },
   getAiConfig: () => import_electron.ipcRenderer.invoke("ai:chat:config:get"),
   setAiConfig: (config) => import_electron.ipcRenderer.invoke("ai:chat:config:set", config),
-  getOllamaModels: () => import_electron.ipcRenderer.invoke("ai:chat:ollama-models")
+  getOllamaModels: () => import_electron.ipcRenderer.invoke("ai:chat:ollama-models"),
+  getProviderModels: (baseUrl, apiKey) => import_electron.ipcRenderer.invoke("ai:chat:provider-models", baseUrl, apiKey)
 });

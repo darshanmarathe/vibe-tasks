@@ -300,6 +300,7 @@ export interface ElectronAPI {
   getAiConfig: () => Promise<AiConfig>
   setAiConfig: (config: AiConfig) => Promise<void>
   getOllamaModels: () => Promise<string[]>
+  getProviderModels: (baseUrl: string, apiKey?: string) => Promise<string[]>
 }
 
 export interface FlashcardDeck {

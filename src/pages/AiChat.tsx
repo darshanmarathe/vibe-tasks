@@ -58,21 +58,16 @@ function highlightCode(code: string, lang: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
-  const keywords = /\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield|def|import|from|print|int|float|str|bool|None|True|False|and|or|not|is|def|return|if|else|elif|for|while|in|range|len|type|dict|list|set|tuple|lambda|map|filter|reduce|self|__init__|__str__|__repr__)\b/g
-  html = html.replace(keywords, '<span style="color:#c678dd">$1</span>')
+  const tokens: string[] = []
+  const ph = (s: string) => { const i = tokens.length; tokens.push(s); return `\x00${i}\x00` }
 
-  const strings = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g
-  html = html.replace(strings, '<span style="color:#98c379">$1</span>')
+  html = html.replace(/(&lt;!--[\s\S]*?--&gt;)/g, m => ph(`<span style="color:#5c6370;font-style:italic">${m}</span>`))
+  html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, m => ph(`<span style="color:#98c379">${m}</span>`))
+  html = html.replace(/(\/\/.*$|#.*$|\/\*[\s\S]*?\*\/)/gm, m => ph(`<span style="color:#5c6370;font-style:italic">${m}</span>`))
+  html = html.replace(/\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield|def|from|print|int|float|str|bool|None|True|False|and|or|not|is|elif|range|len|type|dict|list|set|tuple|lambda|map|filter|reduce|self|__init__|__str__|__repr__)\b/g, m => ph(`<span style="color:#c678dd">${m}</span>`))
+  html = html.replace(/\b(\d+\.?\d*)\b/g, m => ph(`<span style="color:#d19a66">${m}</span>`))
 
-  const comments = /(\/\/.*$|#.*$|\/\*[\s\S]*?\*\/)/gm
-  html = html.replace(comments, '<span style="color:#5c6370;font-style:italic">$1</span>')
-
-  const numbers = /\b(\d+\.?\d*)\b/g
-  html = html.replace(numbers, '<span style="color:#d19a66">$1</span>')
-
-  html = html.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span style="color:#5c6370;font-style:italic">$1</span>')
-
-  return html
+  return html.replace(/\x00(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
 }
 
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
@@ -202,6 +197,56 @@ function OllamaModelSelect({ value, onChange }: { value: string; onChange: (m: s
       ) : (
         <input value={value} onChange={e => onChange(e.target.value)}
           placeholder="Ollama not running or no models found"
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+      )}
+    </div>
+  )
+}
+
+const PROVIDER_BASE_URLS: Record<string, string> = {
+  opencode: 'https://opencode.ai/zen/v1',
+  'opencode-go': 'https://opencode.ai/zen/go/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+}
+
+function ProviderModelSelect({ provider, apiKey, value, onChange }: { provider: string; apiKey: string; value: string; onChange: (m: string) => void }) {
+  const [models, setModels] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const baseUrl = PROVIDER_BASE_URLS[provider]
+    if (!baseUrl) return
+    setLoading(true)
+    window.electronAPI.getProviderModels(baseUrl, apiKey || undefined).then(list => {
+      const sorted = [...list].sort((a, b) => {
+        const aFree = a.endsWith('-free')
+        const bFree = b.endsWith('-free')
+        if (aFree && !bFree) return -1
+        if (!aFree && bFree) return 1
+        return a.localeCompare(b)
+      })
+      setModels(sorted)
+      setLoading(false)
+    })
+  }, [provider, apiKey])
+
+  const placeholder = loading ? 'Loading models...' : `Type a model name`
+  const isFree = (m: string) => m.endsWith('-free')
+  return (
+    <div className="relative mt-1">
+      {loading ? (
+        <div className="text-xs px-3 py-2" style={{ color: 'var(--text-muted)' }}>Loading models...</div>
+      ) : models.length > 0 ? (
+        <select value={models.includes(value) ? value : ''} onChange={e => onChange(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+          {!models.includes(value) && <option value="" disabled>{value || 'Select a model'}</option>}
+          {models.map(m => <option key={m} value={m}>{m}{isFree(m) ? ' (FREE)' : ''}</option>)}
+        </select>
+      ) : (
+        <input value={value} onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
           className="w-full border rounded-lg px-3 py-2 text-sm"
           style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
       )}
@@ -569,6 +614,8 @@ export default function AiChat() {
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                     {MISTRAL_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
+                ) : localConfig.provider === 'opencode' || localConfig.provider === 'opencode-go' ? (
+                  <ProviderModelSelect provider={localConfig.provider} apiKey={localConfig.apiKey} value={localConfig.model} onChange={m => setLocalConfig(c => ({ ...c, model: m }))} />
                 ) : (
                   <input value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"

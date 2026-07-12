@@ -942,6 +942,21 @@ function registerIpcHandlers() {
     }
   })
 
+  ipcMain.handle('ai:chat:provider-models', async (_e, baseUrl: string, apiKey?: string) => {
+    try {
+      const headers: Record<string, string> = {}
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`
+      const res = await fetch(`${baseUrl}/models`, { headers })
+      const data = await res.json() as any
+      const models: string[] = (data.data || []).map((m: any) => m.id).filter(Boolean)
+      console.log('[AI Chat] fetched provider models from', baseUrl, ':', models)
+      return models
+    } catch (err: any) {
+      console.error('[AI Chat] failed to fetch provider models:', err.message)
+      return []
+    }
+  })
+
   const STREAM_TIMEOUT_MS = 120_000
   let openaiModule: typeof OpenAI | null = null
 
