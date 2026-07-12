@@ -52,6 +52,35 @@ const MISTRAL_MODELS = [
   { value: 'ministral-3b-latest', label: 'Ministral 3B' },
 ]
 
+const KW_JS = 'async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield'
+const KW_TS = 'abstract|any|as|asserts|boolean|declare|enum|implements|interface|keyof|module|namespace|never|number|private|protected|public|readonly|record|string|symbol|type|unknown|infer|satisfies|using'
+const KW_PY = 'False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield|self|cls|super|print|len|range|type|int|float|str|bool|dict|list|set|tuple|map|filter|reduce|__init__|__str__|__repr__|__name__|__main__'
+const KW_RS = 'Self|as|async|await|box|break|const|continue|crate|dyn|else|enum|extern|false|fn|for|if|impl|in|let|loop|macro_rules|match|mod|move|mut|pub|ref|return|self|static|struct|super|trait|true|type|unsafe|use|where|while|Some|None|Ok|Err|Option|Result|String|Vec|HashMap|bool|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|char|str|println|format'
+const KW_GO = 'append|bool|break|byte|cap|chan|close|complex64|complex128|const|continue|copy|default|defer|delete|else|error|fallthrough|false|float32|float64|for|func|go|goto|if|int|int8|int16|int32|int64|interface|iota|len|make|map|new|nil|panic|print|println|package|range|recover|return|select|string|struct|switch|true|type|uint|uint8|uint16|uint32|uint64|var|rune'
+const KW_SQL = 'ALL|ALTER|AND|AS|ASC|AVG|BETWEEN|BIGINT|BOOLEAN|BY|CASCADE|CASE|COUNT|CREATE|CROSS|DATE|DECIMAL|DELETE|DESC|DISTINCT|DOUBLE|DROP|ELSE|END|EXISTS|FLOAT|FOREIGN|FROM|GROUP|HAVING|IN|INDEX|INNER|INSERT|INT|INTEGER|INTO|IS|JOIN|KEY|LEFT|LIKE|LIMIT|MAX|MIN|NOT|NULL|OFFSET|ON|OR|ORDER|OUTER|PRIMARY|REFERENCES|RIGHT|SELECT|SET|SMALLINT|SUM|TABLE|TEXT|THEN|TIMESTAMP|TRUE|UNION|UPDATE|VARCHAR|VALUES|VIEW|WHEN|WHERE'
+const KW_CS = 'abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|get|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|private|protected|public|readonly|ref|return|sbyte|sealed|set|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|value|var|virtual|void|volatile|while|yield|Task|async|await|var|dynamic|string|int|bool|float|double|decimal|char|byte|long|short|object|Console|StringBuilder|IEnumerable|IQueryable|Dictionary|List|Tuple|Action|Func|Exception'
+const KW_JSX = 'className|onClick|onChange|onSubmit|onKeyDown|onBlur|onFocus|onMouseEnter|onMouseLeave|useState|useEffect|useRef|useCallback|useMemo|useReducer|useContext|useImperativeHandle|useLayoutEffect|React|useTransition|useDeferredValue|useSyncExternalStore|useOptimistic|useActionState'
+const KW_TSX = `${KW_JSX}|JSX|FC|ReactNode|ReactElement|ReactPortal|RefObject|RefCallback|SetStateAction|Dispatch|MouseEvent|KeyboardEvent|ChangeEvent|FormEvent|FocusEvent`
+
+const KW_BY_LANG: Record<string, string> = {
+  javascript: KW_JS,
+  js: KW_JS,
+  jsx: `${KW_JS}|${KW_JSX}`,
+  typescript: `${KW_JS}|${KW_TS}`,
+  ts: `${KW_JS}|${KW_TS}`,
+  tsx: `${KW_JS}|${KW_TS}|${KW_TSX}`,
+  python: KW_PY,
+  py: KW_PY,
+  rust: KW_RS,
+  rs: KW_RS,
+  go: KW_GO,
+  golang: KW_GO,
+  sql: KW_SQL,
+  csharp: KW_CS,
+  cs: KW_CS,
+  'c#': KW_CS,
+}
+
 function highlightCode(code: string, lang: string): string {
   let html = code
     .replace(/&/g, '&amp;')
@@ -64,14 +93,38 @@ function highlightCode(code: string, lang: string): string {
   html = html.replace(/(&lt;!--[\s\S]*?--&gt;)/g, m => ph(`<span style="color:#5c6370;font-style:italic">${m}</span>`))
   html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, m => ph(`<span style="color:#98c379">${m}</span>`))
   html = html.replace(/(\/\/.*$|#.*$|\/\*[\s\S]*?\*\/)/gm, m => ph(`<span style="color:#5c6370;font-style:italic">${m}</span>`))
-  html = html.replace(/\b(async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|function|if|import|in|instanceof|let|new|null|of|return|static|super|switch|this|throw|true|try|typeof|var|void|while|with|yield|def|from|print|int|float|str|bool|None|True|False|and|or|not|is|elif|range|len|type|dict|list|set|tuple|lambda|map|filter|reduce|self|__init__|__str__|__repr__)\b/g, m => ph(`<span style="color:#c678dd">${m}</span>`))
+
+  const kw = KW_BY_LANG[lang.toLowerCase()]
+  if (kw) {
+    html = html.replace(new RegExp(`\\b(${kw})\\b`, 'g'), m => ph(`<span style="color:#c678dd">${m}</span>`))
+  }
+
   html = html.replace(/\b(\d+\.?\d*)\b/g, m => ph(`<span style="color:#d19a66">${m}</span>`))
 
   return html.replace(/\x00(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
 }
 
+function stripLineNumbers(s: string): string {
+  return s.split('\n').map(line => {
+    if (/^\s*\d+\s*$/.test(line)) return ''
+    let r = line
+      .replace(/^\s*(?:\d+\.\s+|\d+\s+|\d+(?=\.?[a-zA-Z_!(\[]))+/g, '')
+      .replace(/&\d+\s*/g, '&')
+      .replace(/<\d+>/g, '<>')
+      .replace(/\b\d+(?=\s*::)/g, '')
+      .replace(/\b\d+(?=!\()/g, '')
+      .replace(/=>\s*\d+\b/g, '=>')
+      .replace(/;\s*\d+\s*$/, ';')
+      .replace(/\s\d+(?=\s*\[)/g, ' ')
+    return r
+  }).join('\n')
+}
+
 function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const [copied, setCopied] = useState(false)
+  const stripped = stripLineNumbers(code)
+  const lines = stripped.split('\n')
+  const lineCount = lines.length
 
   const copyCode = () => {
     navigator.clipboard.writeText(code).then(() => {
@@ -91,9 +144,13 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
           {copied ? 'Copied!' : 'Copy'}
         </button>
       </div>
-      <pre className="m-0 p-3 overflow-x-auto" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <code className="text-xs leading-relaxed font-mono" style={{ color: 'var(--text-primary)' }}
-          dangerouslySetInnerHTML={{ __html: highlightCode(code, lang) }} />
+      <pre className="m-0 overflow-x-auto flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="select-none text-right py-3 leading-relaxed font-mono text-xs shrink-0"
+          style={{ color: 'var(--text-muted)', minWidth: `${2 + String(lineCount).length}ch`, borderRight: '1px solid var(--border)', paddingLeft: '12px', paddingRight: '12px' }}>
+          {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
+        </div>
+        <code className="text-xs leading-relaxed font-mono p-3" style={{ color: 'var(--text-primary)' }}
+          dangerouslySetInnerHTML={{ __html: highlightCode(stripped, lang) }} />
       </pre>
     </div>
   )
@@ -131,19 +188,40 @@ function renderInlineMarkdown(text: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+
+  html = html.replace(/~~(.+?)~~/g, '<del style="text-decoration:line-through;color:var(--text-muted)">$1</del>')
+
   html = html.replace(/^### (.+)$/gm, '<h3 class="text-sm font-bold mt-3 mb-1">$1</h3>')
   html = html.replace(/^## (.+)$/gm, '<h2 class="text-base font-bold mt-3 mb-1">$1</h2>')
   html = html.replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mt-3 mb-1">$1</h1>')
+
   html = html.replace(/^\|.+\|\n\|[-:| ]+\|\n(?:\|.+\|\n?)*/gm, (m) => renderTable(m))
+
+  html = html.replace(/^- \[( |x)\] (.+)$/gm, (_, checked, content) =>
+    `<li style="list-style:none;margin-left:1rem;display:flex;align-items:center;gap:0.375rem"><input type="checkbox" ${checked === 'x' ? 'checked' : ''} disabled style="accent-color:var(--accent)" /> ${content}</li>`)
+
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+
   html = html.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded text-xs font-mono" style="background-color:var(--bg-primary);color:var(--accent)">$1</code>')
+
   html = html.replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
   html = html.replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4 list-decimal">$1. $2</li>')
+
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline">$1</a>')
   html = html.replace(/(?<!")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline">$1</a>')
+
   html = html.replace(/^---$/gm, '<hr class="my-2" style="border-color:var(--border)" />')
-  html = html.replace(/> (.+)$/gm, '<blockquote class="pl-3 py-1 my-1 border-l-2 italic text-sm" style="border-color:var(--accent);color:var(--text-muted)">$1</blockquote>')
+
+  html = html.replace(/^((?:>\s?)+) ?(.+)$/gm, (_, prefix, content) => {
+    const depth = (prefix.match(/>/g) || []).length
+    let result = content
+    for (let i = 0; i < depth; i++) {
+      result = `<blockquote class="pl-3 py-1 my-1 border-l-2 italic text-sm" style="border-color:var(--accent);color:var(--text-muted)">${result}</blockquote>`
+    }
+    return result
+  })
+
   html = html.replace(/\n/g, '<br>')
   return html
 }

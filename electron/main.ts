@@ -1016,7 +1016,7 @@ function registerIpcHandlers() {
 
       const history = chatRepo.getMessages(conversationId)
       const msgs = history.map((m: any) => ({ role: m.role, content: m.content }))
-      const sp = systemPrompt || 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully.'
+      const sp = systemPrompt || 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully. IMPORTANT: Do NOT add line numbers to code blocks. Never prefix code lines with numbers like "1 ", "2 ", etc. The editor displays its own line numbers automatically.'
       if (!msgs.some(m => m.role === 'system')) {
         msgs.unshift({ role: 'system', content: sp })
       }
