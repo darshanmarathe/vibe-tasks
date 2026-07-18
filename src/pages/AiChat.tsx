@@ -88,7 +88,15 @@ function highlightCode(code: string, lang: string): string {
     .replace(/>/g, '&gt;')
 
   const tokens: string[] = []
-  const ph = (s: string) => { const i = tokens.length; tokens.push(s); return `\x00${i}\x00` }
+  const encodeTokenIndex = (index: number) =>
+    String(index).split('').map(ch => String.fromCharCode(0xe100 + Number(ch))).join('')
+  const decodeTokenIndex = (encoded: string) =>
+    Number([...encoded].map(ch => String(ch.charCodeAt(0) - 0xe100)).join(''))
+  const ph = (s: string) => {
+    const i = tokens.length
+    tokens.push(s)
+    return `\ue000${encodeTokenIndex(i)}\ue001`
+  }
 
   html = html.replace(/(&lt;!--[\s\S]*?--&gt;)/g, m => ph(`<span style="color:#5c6370;font-style:italic">${m}</span>`))
   html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, m => ph(`<span style="color:#98c379">${m}</span>`))
@@ -101,7 +109,7 @@ function highlightCode(code: string, lang: string): string {
 
   html = html.replace(/\b(\d+\.?\d*)\b/g, m => ph(`<span style="color:#d19a66">${m}</span>`))
 
-  return html.replace(/\x00(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
+  return html.replace(/\ue000([\ue100-\ue109]+)\ue001/g, (_, encoded) => tokens[decodeTokenIndex(encoded)] ?? '')
 }
 
 function stripLineNumbers(s: string): string {
@@ -127,7 +135,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const lineCount = lines.length
 
   const copyCode = () => {
-    navigator.clipboard.writeText(code).then(() => {
+    navigator.clipboard.writeText(stripped).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -145,11 +153,21 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         </button>
       </div>
       <pre className="m-0 overflow-x-auto flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="select-none text-right py-3 leading-relaxed font-mono text-xs shrink-0"
-          style={{ color: 'var(--text-muted)', minWidth: `${2 + String(lineCount).length}ch`, borderRight: '1px solid var(--border)', paddingLeft: '12px', paddingRight: '12px' }}>
+        <div
+          aria-hidden="true"
+          className="select-none text-right py-3 leading-relaxed font-mono text-xs shrink-0"
+          style={{
+            color: 'var(--text-muted)',
+            minWidth: `${2 + String(lineCount).length}ch`,
+            borderRight: '1px solid var(--border)',
+            paddingLeft: '12px',
+            paddingRight: '12px',
+            userSelect: 'none',
+          }}
+        >
           {lines.map((_, i) => <div key={i}>{i + 1}</div>)}
         </div>
-        <code className="text-xs leading-relaxed font-mono p-3" style={{ color: 'var(--text-primary)' }}
+        <code className="block text-xs leading-relaxed font-mono p-3" style={{ color: 'var(--text-primary)' }}
           dangerouslySetInnerHTML={{ __html: highlightCode(stripped, lang) }} />
       </pre>
     </div>

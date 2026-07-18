@@ -148,9 +148,15 @@ function createSplashWindow() {
 
 function revealMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isVisible()) return
   mainWindow.show()
   closeSplashWindow()
   mainWindow.focus()
+}
+
+function logRendererEvent(message: string, details?: unknown) {
+  const suffix = details === undefined ? '' : ` ${JSON.stringify(details)}`
+  console.error(`[renderer] ${message}${suffix}`)
 }
 
 function createWindow() {
@@ -180,6 +186,8 @@ function createWindow() {
   mainWindow.once('ready-to-show', revealMainWindow)
   mainWindow.once('show', closeSplashWindow)
   mainWindow.once('focus', closeSplashWindow)
+  mainWindow.webContents.once('did-finish-load', revealMainWindow)
+  setTimeout(revealMainWindow, 5000)
 
   // Content Security Policy
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -226,6 +234,18 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logRendererEvent('load failed', { errorCode, errorDescription, validatedURL })
+    revealMainWindow()
+  })
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logRendererEvent('process gone', details)
+    revealMainWindow()
+  })
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level < 2) return
+    logRendererEvent(message, { line, sourceId })
+  })
   mainWindow.webContents.on('did-finish-load', () => {
     setLanguages()
     if (mainWindow?.isVisible()) closeSplashWindow()
@@ -1016,7 +1036,7 @@ function registerIpcHandlers() {
 
       const history = chatRepo.getMessages(conversationId)
       const msgs = history.map((m: any) => ({ role: m.role, content: m.content }))
-      const sp = systemPrompt || 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully. IMPORTANT: Do NOT add line numbers to code blocks. Never prefix code lines with numbers like "1 ", "2 ", etc. The editor displays its own line numbers automatically.'
+      const sp = systemPrompt || 'You are a helpful assistant integrated into Vibe Tasks, a desktop task management app. You help users manage tasks, notes, habits, and productivity. Respond concisely and helpfully. IMPORTANT: Do NOT add line numbers inside code blocks. Never prefix code lines with numbers like "1 ", "2 ", etc. The code viewer displays its own line-number gutter automatically.'
       if (!msgs.some(m => m.role === 'system')) {
         msgs.unshift({ role: 'system', content: sp })
       }
