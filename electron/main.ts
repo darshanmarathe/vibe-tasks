@@ -125,6 +125,7 @@ function closeSplashWindow() {
 
 function createSplashWindow() {
   const theme = getThemeFromConfig()
+  console.log('[splash] creating with theme:', theme)
   splashWindow = new BrowserWindow({
     width: 480,
     height: 320,
@@ -140,7 +141,10 @@ function createSplashWindow() {
     },
   })
 
-  splashWindow.once('ready-to-show', () => splashWindow?.show())
+  splashWindow.once('ready-to-show', () => {
+    console.log('[splash] ready-to-show')
+    splashWindow?.show()
+  })
   splashWindow.loadFile(splashHtmlPath(), {
     query: { theme, version: app.getVersion() },
   })
@@ -149,6 +153,7 @@ function createSplashWindow() {
 function revealMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (mainWindow.isVisible()) return
+  console.log('[main] revealing window')
   mainWindow.show()
   closeSplashWindow()
   mainWindow.focus()
@@ -161,6 +166,7 @@ function logRendererEvent(message: string, details?: unknown) {
 
 function createWindow() {
   const theme = getThemeFromConfig()
+  console.log('[main] createWindow called with theme:', theme)
   const overlay = theme === 'light'
     ? { color: '#f5f5f9', symbolColor: '#1e1e2e', height: 40 }
     : { color: '#1e1e2e', symbolColor: '#cdd6f4', height: 40 }
@@ -183,11 +189,27 @@ function createWindow() {
 
   mainWindow.maximize()
   mainWindow.webContents.setZoomFactor(getZoomFactorFromConfig())
-  mainWindow.once('ready-to-show', revealMainWindow)
-  mainWindow.once('show', closeSplashWindow)
-  mainWindow.once('focus', closeSplashWindow)
-  mainWindow.webContents.once('did-finish-load', revealMainWindow)
-  setTimeout(revealMainWindow, 5000)
+
+  mainWindow.once('ready-to-show', () => {
+    console.log('[main] ready-to-show')
+    revealMainWindow()
+  })
+  mainWindow.once('show', () => {
+    console.log('[main] window shown')
+    closeSplashWindow()
+  })
+  mainWindow.once('focus', () => {
+    console.log('[main] window focused')
+    closeSplashWindow()
+  })
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('[main] did-finish-load')
+    revealMainWindow()
+  })
+  setTimeout(() => {
+    console.log('[main] 5s timeout fallback reveal')
+    revealMainWindow()
+  }, 5000)
 
   // Content Security Policy
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -228,23 +250,29 @@ function createWindow() {
   mainWindow.webContents.session.on('spellcheck-dictionary-initialized', () => setLanguages())
 
   if (process.env.VITE_DEV_SERVER_URL) {
+    console.log('[main] loading dev URL:', process.env.VITE_DEV_SERVER_URL)
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    const file = path.join(__dirname, '../dist/index.html')
+    console.log('[main] loading file:', file)
+    mainWindow.loadFile(file)
   }
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('[main] did-fail-load:', { errorCode, errorDescription, validatedURL })
     logRendererEvent('load failed', { errorCode, errorDescription, validatedURL })
     revealMainWindow()
   })
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[main] render-process-gone:', details)
     logRendererEvent('process gone', details)
     revealMainWindow()
   })
-  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (level < 2) return
-    logRendererEvent(message, { line, sourceId })
+  mainWindow.webContents.on('console-message', (details) => {
+    const { level, message, lineNumber, sourceId } = details
+    if (level === 'info' || level === 'debug') return
+    logRendererEvent(message, { level, line: lineNumber, sourceId })
   })
   mainWindow.webContents.on('did-finish-load', () => {
     setLanguages()
@@ -1151,13 +1179,21 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(async () => {
+    console.log('[startup] app ready, creating splash...')
     splashShownAt = Date.now()
     createSplashWindow()
+    console.log('[startup] splash created, initializing database...')
     await initDatabase()
+    console.log('[startup] database initialized, registering IPC handlers...')
     registerIpcHandlers()
+    console.log('[startup] IPC handlers registered')
 
     const remaining = Math.max(0, SPLASH_MIN_DURATION_MS - (Date.now() - splashShownAt))
-    setTimeout(() => createWindow(), remaining)
+    console.log(`[startup] splash min duration remaining: ${remaining}ms, creating main window...`)
+    setTimeout(() => {
+      console.log('[startup] creating main window now')
+      createWindow()
+    }, remaining)
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
