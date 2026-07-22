@@ -975,6 +975,8 @@ function registerIpcHandlers() {
   ipcMain.handle('ai:chat:messages:list', (_e, id) => chatRepo.getMessages(id))
   ipcMain.handle('ai:chat:messages:delete', (_e, id) => chatRepo.deleteMessage(id))
   ipcMain.handle('ai:chat:messages:delete-after', (_e, conversationId, afterId) => chatRepo.deleteMessagesAfter(conversationId, afterId))
+  ipcMain.handle('ai:chat:messages:pin', (_e, id) => chatRepo.togglePinMessage(id))
+  ipcMain.handle('ai:chat:messages:pinned', (_e, conversationId) => chatRepo.getPinnedMessages(conversationId))
 
   ipcMain.handle('ai:chat:config:get', () => ({
     provider: chatRepo.getAiConfig('provider') || 'ollama',

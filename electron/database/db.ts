@@ -522,6 +522,12 @@ function runAiChatMigrations() {
     db.run("ALTER TABLE chat_conversations ADD COLUMN max_tokens INTEGER DEFAULT 4096")
   }
 
+  // Migration: add pinned column to chat_messages
+  const msgCols = exec('PRAGMA table_info(chat_messages)')
+  if (!msgCols.some((c: any) => c.name === 'pinned')) {
+    db.run("ALTER TABLE chat_messages ADD COLUMN pinned INTEGER DEFAULT 0")
+  }
+
   // Seed default config
   const existing = exec("SELECT value FROM ai_config WHERE key = 'provider'")
   if (existing.length === 0) {

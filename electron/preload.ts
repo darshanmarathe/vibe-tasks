@@ -198,6 +198,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMessages: (id: number) => ipcRenderer.invoke('ai:chat:messages:list', id),
   deleteMessage: (id: number) => ipcRenderer.invoke('ai:chat:messages:delete', id),
   deleteMessagesAfter: (conversationId: number, afterId: number) => ipcRenderer.invoke('ai:chat:messages:delete-after', conversationId, afterId),
+  pinMessage: (id: number) => ipcRenderer.invoke('ai:chat:messages:pin', id),
+  getPinnedMessages: (conversationId: number) => ipcRenderer.invoke('ai:chat:messages:pinned', conversationId),
   sendChatMessage: (conversationId: number, message: string) => ipcRenderer.send('ai:chat:send', { conversationId, message }),
   retryChatMessage: (conversationId: number) => ipcRenderer.send('ai:chat:retry', { conversationId }),
   cancelChat: (conversationId: number) => ipcRenderer.send('ai:chat:cancel', conversationId),

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 interface Conversation { id: number; title: string; provider: string; model: string | null; api_key: string; system_prompt: string; temperature: number; max_tokens: number; created_at: string; updated_at: string }
-interface ChatMsg { id: number; conversation_id: number; role: string; content: string; created_at: string }
+interface ChatMsg { id: number; conversation_id: number; role: string; content: string; pinned: number; created_at: string }
 interface AiConfig { provider: string; apiKey: string; model: string; systemPrompt?: string; temperature?: number; maxTokens?: number }
 
 const PROVIDERS = [
@@ -384,6 +384,8 @@ export default function AiChat() {
   const [historyIndex, setHistoryIndex] = useState<number | null>(null)
   const [editingMsgId, setEditingMsgId] = useState<number | null>(null)
   const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null)
+  const [showPinned, setShowPinned] = useState(false)
+  const [pinnedMessages, setPinnedMessages] = useState<ChatMsg[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const historyDraftRef = useRef('')
@@ -450,6 +452,7 @@ export default function AiChat() {
           conversation_id: convId,
           role: 'assistant',
           content: `Error: ${data.error}`,
+          pinned: 0,
           created_at: new Date().toISOString()
         }])
       } else {
@@ -539,6 +542,7 @@ export default function AiChat() {
       conversation_id: activeId,
       role: 'user',
       content: text,
+      pinned: 0,
       created_at: new Date().toISOString()
     }
     setMessages(prev => [...prev, temp])
@@ -604,6 +608,31 @@ export default function AiChat() {
     setMessages(prev => prev.filter(m => m.id !== msg.id))
     await window.electronAPI.deleteMessage(msg.id)
     if (editingMsgId === msg.id) setEditingMsgId(null)
+  }
+
+  const pinMessage = async (msg: ChatMsg) => {
+    const updated = await window.electronAPI.pinMessage(msg.id)
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, pinned: updated.pinned } : m))
+    if (showPinned) {
+      const pinned = await window.electronAPI.getPinnedMessages(activeId!)
+      setPinnedMessages(pinned)
+    }
+  }
+
+  const loadPinned = async () => {
+    if (!activeId) return
+    const pinned = await window.electronAPI.getPinnedMessages(activeId)
+    setPinnedMessages(pinned)
+    setShowPinned(true)
+  }
+
+  const scrollToMessage = (msgId: number) => {
+    const el = document.getElementById(`msg-${msgId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.style.transition = 'box-shadow 0.3s'
+    el.style.boxShadow = '0 0 0 2px var(--accent)'
+    setTimeout(() => { el.style.boxShadow = '' }, 1500)
   }
 
   const regenerateMessage = async (msg: ChatMsg) => {
@@ -879,6 +908,15 @@ export default function AiChat() {
                     📥 Export
                   </button>
                 )}
+                {messages.some(m => m.pinned === 1) && (
+                  <button onClick={loadPinned}
+                    className="text-xs px-2 py-1 rounded transition-colors"
+                    style={{ color: showPinned ? '#f59e0b' : 'var(--text-secondary)' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    📌 Pinned ({messages.filter(m => m.pinned === 1).length})
+                  </button>
+                )}
                 <button onClick={() => { setLocalConfig({ ...convConfig }); setShowConfig(true) }}
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ color: 'var(--text-secondary)' }}
@@ -889,15 +927,54 @@ export default function AiChat() {
               </div>
             </div>
 
+            {showPinned && (
+              <div className="border-b shrink-0" style={{ borderColor: 'var(--border)', maxHeight: 240, overflowY: 'auto' }}>
+                <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>📌 Pinned Messages</span>
+                  <button onClick={() => setShowPinned(false)} className="text-xs px-1 rounded" style={{ color: 'var(--text-muted)' }}>✕</button>
+                </div>
+                {pinnedMessages.length === 0 ? (
+                  <p className="text-xs px-4 py-3" style={{ color: 'var(--text-muted)' }}>No pinned messages</p>
+                ) : (
+                  <div className="px-4 py-2 space-y-2">
+                    {pinnedMessages.map(pm => (
+                      <div key={pm.id} onClick={() => scrollToMessage(pm.id)}
+                        className="flex items-start gap-2 text-xs rounded-lg px-3 py-2 cursor-pointer transition-colors"
+                        style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}>
+                        <span className="shrink-0 mt-0.5" style={{ color: pm.role === 'user' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                          {pm.role === 'user' ? '👤' : '🤖'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                            {pm.content.length > 200 ? pm.content.slice(0, 200) + '...' : pm.content}
+                          </p>
+                          <span className="text-xs mt-1 block" style={{ color: 'var(--text-muted)' }}>{relativeTime(pm.created_at)}</span>
+                        </div>
+                        <button onClick={e => { e.stopPropagation(); pinMessage(pm) }}
+                          className="shrink-0 text-xs px-1 rounded"
+                          style={{ color: 'var(--danger)' }}
+                          title="Unpin">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map(msg => (
-                <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
+                <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
                   <div className="max-w-[70%]">
-                    <div className="rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed"
+                    <div className="rounded-xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed relative"
                       style={{
                         backgroundColor: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-hover)',
                         color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                       }}>
+                      {msg.pinned === 1 && (
+                        <span className="absolute -top-2 -right-2 text-xs" title="Pinned">📌</span>
+                      )}
                       {msg.role === 'user' ? msg.content : <Markdown text={msg.content} />}
                       <div className={`mt-2 hidden group-hover:flex gap-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         {msg.role === 'assistant' && (
@@ -908,6 +985,12 @@ export default function AiChat() {
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                               title="Copy">{copiedMsgId === msg.id ? '✓' : '📋'}</button>
+                            <button onClick={() => pinMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: msg.pinned ? '#f59e0b' : 'var(--text-secondary)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--border)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title={msg.pinned ? 'Unpin' : 'Pin'}>{msg.pinned ? '📌' : '📍'}</button>
                             <button onClick={() => regenerateMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
                               style={{ color: 'var(--text-secondary)' }}
@@ -924,6 +1007,12 @@ export default function AiChat() {
                         )}
                         {msg.role === 'user' && (
                           <>
+                            <button onClick={() => pinMessage(msg)}
+                              className="px-1.5 py-0.5 text-xs rounded transition-colors"
+                              style={{ color: msg.pinned ? '#f59e0b' : 'rgba(255,255,255,0.85)' }}
+                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)')}
+                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                              title={msg.pinned ? 'Unpin' : 'Pin'}>{msg.pinned ? '📌' : '📍'}</button>
                             <button onClick={() => editMessage(msg)}
                               className="px-1.5 py-0.5 text-xs rounded transition-colors"
                               style={{ color: 'rgba(255,255,255,0.85)' }}

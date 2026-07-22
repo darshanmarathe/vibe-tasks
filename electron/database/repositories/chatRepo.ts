@@ -22,6 +22,7 @@ export interface ChatMessageRow {
   conversation_id: number
   role: string
   content: string
+  pinned: number
   created_at: string
 }
 
@@ -74,6 +75,18 @@ export function deleteMessage(id: number): void {
   const { run, save } = getDatabase()
   run('DELETE FROM chat_messages WHERE id = ?', [id])
   save()
+}
+
+export function togglePinMessage(id: number): ChatMessageRow {
+  const { exec, run, save } = getDatabase()
+  run('UPDATE chat_messages SET pinned = CASE WHEN pinned = 1 THEN 0 ELSE 1 END WHERE id = ?', [id])
+  save()
+  return exec('SELECT * FROM chat_messages WHERE id = ?', [id])[0]
+}
+
+export function getPinnedMessages(conversationId: number): ChatMessageRow[] {
+  const { exec } = getDatabase()
+  return exec('SELECT * FROM chat_messages WHERE conversation_id = ? AND pinned = 1 ORDER BY id ASC', [conversationId])
 }
 
 export function deleteMessagesAfter(conversationId: number, afterId: number): void {
