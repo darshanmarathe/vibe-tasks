@@ -166,6 +166,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameDrawDiagram: (id: string, name: string) => ipcRenderer.invoke('draw:rename', id, name),
   deleteDrawDiagram: (id: string) => ipcRenderer.invoke('draw:delete', id),
   saveDrawDiagram:   (id: string, data: string) => ipcRenderer.invoke('draw:save', id, data),
+  importDrawioFile:  () => ipcRenderer.invoke('draw:import'),
   getDrawioUrl:      () => 'drawio://app/index.html?client=1&proto=json',
 
   // Ideas

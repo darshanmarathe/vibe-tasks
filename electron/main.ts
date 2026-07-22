@@ -467,6 +467,17 @@ function registerIpcHandlers() {
   ipcMain.handle('draw:rename', (_e, id, name) => drawRepo.renameDiagram(id, name))
   ipcMain.handle('draw:delete', (_e, id) => drawRepo.deleteDiagram(id))
   ipcMain.handle('draw:save', (_e, id, data) => drawRepo.saveDiagram(id, data))
+  ipcMain.handle('draw:import', async () => {
+    const r = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Import Draw.io Diagram',
+      filters: [{ name: 'Draw.io Diagram', extensions: ['drawio', 'xml'] }],
+      properties: ['openFile'],
+    })
+    if (r.canceled || r.filePaths.length === 0) return null
+    const content = fs.readFileSync(r.filePaths[0], 'utf-8')
+    const name = path.basename(r.filePaths[0], path.extname(r.filePaths[0]))
+    return { name, data: content }
+  })
 
   const drawioPath = app.isPackaged
     ? path.join(process.resourcesPath, 'drawio')

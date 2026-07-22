@@ -226,6 +226,20 @@ const Draw: FC = () => {
     postWithRetry({ action: 'load', xml: template(), autosave: 1 })
   }
 
+  async function importDrawio() {
+    const result = await window.electronAPI.importDrawioFile()
+    if (!result) return
+    const diag = await window.electronAPI.createDrawDiagram(result.name)
+    await window.electronAPI.saveDrawDiagram(diag.id, result.data)
+    const updated = { ...diag, data: result.data }
+    setDiagrams(prev => [updated, ...prev])
+    setActiveId(diag.id)
+    loadedRef.current = diag.id
+    setDirty(false)
+    setSavedFlash(false)
+    postWithRetry({ action: 'load', xml: result.data, autosave: 1 })
+  }
+
   async function deleteDiag(id: string) {
     await window.electronAPI.deleteDrawDiagram(id)
     setDiagrams(prev => prev.filter(d => d.id !== id))
@@ -283,6 +297,7 @@ const Draw: FC = () => {
           {sidebarOpen && <h2 className="text-lg font-bold">Draw</h2>}
           <div className="flex items-center gap-1">
             {sidebarOpen && <button onClick={createNew} className="px-3 py-1 rounded-lg text-sm font-medium transition-colors" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ New</button>}
+            {sidebarOpen && <button onClick={importDrawio} className="px-3 py-1 rounded-lg text-sm font-medium transition-colors" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} title="Import .drawio file">Import</button>}
             <button onClick={() => { setSidebarOpen(false); localStorage.setItem('draw-sidebar', '0') }}
               className="text-xs px-1 rounded" style={{ color: 'var(--text-muted)' }}
               title="Collapse sidebar">◀</button>
