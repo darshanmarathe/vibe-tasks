@@ -481,6 +481,8 @@ export default function AiChat() {
   }
 
   const removeConv = async (id: number) => {
+    const conv = conversations.find(c => c.id === id)
+    if (!window.confirm(`Delete "${conv?.title || 'this conversation'}"? This cannot be undone.`)) return
     if (streamingConvos[id]) window.electronAPI.cancelChat(id)
     await window.electronAPI.deleteConversation(id)
     setConversations(prev => prev.filter(c => c.id !== id))
@@ -689,6 +691,15 @@ export default function AiChat() {
     if (path) {
       await window.electronAPI.writeBinaryFile(path, [...new TextEncoder().encode(full)])
     }
+  }
+
+  const purgeHistory = async () => {
+    if (!activeId) return
+    if (!window.confirm('Purge all messages in this conversation? This cannot be undone.')) return
+    await window.electronAPI.purgeConversation(activeId)
+    setMessages([])
+    setPinnedMessages([])
+    setShowPinned(false)
   }
 
   return (
@@ -915,6 +926,15 @@ export default function AiChat() {
                     onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                     📌 Pinned ({messages.filter(m => m.pinned === 1).length})
+                  </button>
+                )}
+                {messages.length > 0 && (
+                  <button onClick={purgeHistory}
+                    className="text-xs px-2 py-1 rounded transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    🗑 Purge
                   </button>
                 )}
                 <button onClick={() => { setLocalConfig({ ...convConfig }); setShowConfig(true) }}

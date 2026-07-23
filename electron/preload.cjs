@@ -178,6 +178,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   getMessages: (id) => import_electron.ipcRenderer.invoke("ai:chat:messages:list", id),
   deleteMessage: (id) => import_electron.ipcRenderer.invoke("ai:chat:messages:delete", id),
   deleteMessagesAfter: (conversationId, afterId) => import_electron.ipcRenderer.invoke("ai:chat:messages:delete-after", conversationId, afterId),
+  purgeConversation: (conversationId) => import_electron.ipcRenderer.invoke("ai:chat:messages:purge", conversationId),
   pinMessage: (id) => import_electron.ipcRenderer.invoke("ai:chat:messages:pin", id),
   getPinnedMessages: (conversationId) => import_electron.ipcRenderer.invoke("ai:chat:messages:pinned", conversationId),
   sendChatMessage: (conversationId, message) => import_electron.ipcRenderer.send("ai:chat:send", { conversationId, message }),

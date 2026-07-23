@@ -98,6 +98,31 @@ export function deleteMessagesAfter(conversationId: number, afterId: number): vo
   save()
 }
 
+export function purgeConversation(conversationId: number): void {
+  const { run, save } = getDatabase()
+  run('DELETE FROM chat_messages WHERE conversation_id = ?', [conversationId])
+  run('UPDATE chat_conversations SET updated_at = ? WHERE id = ?', [new Date().toISOString(), conversationId])
+  save()
+}
+
+export function duplicateConversation(id: number): ChatConversationRow {
+  const { exec, run, save } = getDatabase()
+  const src = exec('SELECT * FROM chat_conversations WHERE id = ?', [id])[0]
+  if (!src) throw new Error('Conversation not found')
+  const n = now()
+  run('INSERT INTO chat_conversations (title, provider, model, api_key, system_prompt, temperature, max_tokens, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [src.title + ' (copy)', src.provider, src.model, src.api_key, src.system_prompt, src.temperature, src.max_tokens, n, n])
+  save()
+  const newConv = exec('SELECT * FROM chat_conversations WHERE id = last_insert_rowid()')[0]
+  const msgs = exec('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC', [id])
+  for (const m of msgs) {
+    run('INSERT INTO chat_messages (conversation_id, role, content, pinned, created_at) VALUES (?, ?, ?, ?, ?)',
+      [newConv.id, m.role, m.content, m.pinned || 0, m.created_at])
+  }
+  save()
+  return newConv
+}
+
 export function getMessages(conversationId: number): ChatMessageRow[] {
   const { exec } = getDatabase()
   return exec('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC', [conversationId])
