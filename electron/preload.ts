@@ -194,6 +194,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createConversation: (provider?: string, model?: string, apiKey?: string) => ipcRenderer.invoke('ai:chat:conversations:create', provider, model, apiKey),
   deleteConversation: (id: number) => ipcRenderer.invoke('ai:chat:conversations:delete', id),
   renameConversation: (id: number, title: string) => ipcRenderer.invoke('ai:chat:conversations:rename', id, title),
+  duplicateConversation: (id: number) => ipcRenderer.invoke('ai:chat:conversations:duplicate', id),
   updateConversationConfig: (id: number, provider: string, model: string, apiKey: string, systemPrompt?: string, temperature?: number, maxTokens?: number) => ipcRenderer.invoke('ai:chat:conversations:updateConfig', id, provider, model, apiKey, systemPrompt, temperature, maxTokens),
   getMessages: (id: number) => ipcRenderer.invoke('ai:chat:messages:list', id),
   deleteMessage: (id: number) => ipcRenderer.invoke('ai:chat:messages:delete', id),

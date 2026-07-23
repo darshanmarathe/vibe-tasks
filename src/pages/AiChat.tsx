@@ -489,6 +489,13 @@ export default function AiChat() {
     if (activeId === id) { setActiveId(null); setMessages([]) }
   }
 
+  const duplicateConv = async (id: number) => {
+    const newConv = await window.electronAPI.duplicateConversation(id)
+    const list = await window.electronAPI.getConversations()
+    setConversations(list)
+    setActiveId(newConv.id)
+  }
+
   const startRename = (conv: Conversation) => {
     setEditingId(conv.id)
     setEditTitle(conv.title)
@@ -876,6 +883,9 @@ export default function AiChat() {
                 <button onClick={e => { e.stopPropagation(); startRename(conv) }}
                   className="px-1 text-xs rounded" style={{ color: 'var(--text-secondary)' }}
                   title="Rename">✎</button>
+                <button onClick={e => { e.stopPropagation(); duplicateConv(conv.id) }}
+                  className="px-1 text-xs rounded" style={{ color: 'var(--text-secondary)' }}
+                  title="Duplicate">📋</button>
                 <button onClick={e => { e.stopPropagation(); removeConv(conv.id) }}
                   className="px-1 text-xs rounded" style={{ color: 'var(--danger)' }}
                   title="Delete">✕</button>
