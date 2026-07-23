@@ -971,6 +971,7 @@ function registerIpcHandlers() {
     chatRepo.createConversation(provider, model, apiKey))
   ipcMain.handle('ai:chat:conversations:delete', (_e, id) => chatRepo.deleteConversation(id))
   ipcMain.handle('ai:chat:conversations:rename', (_e, id, title) => chatRepo.updateConversationTitle(id, title))
+  ipcMain.handle('ai:chat:conversations:duplicate', (_e, id) => chatRepo.duplicateConversation(id))
   ipcMain.handle('ai:chat:conversations:updateConfig', (_e, id, provider, model, apiKey, systemPrompt?, temperature?, maxTokens?) => chatRepo.updateConversationConfig(id, provider, model, apiKey, systemPrompt, temperature, maxTokens))
   ipcMain.handle('ai:chat:messages:list', (_e, id) => chatRepo.getMessages(id))
   ipcMain.handle('ai:chat:messages:delete', (_e, id) => chatRepo.deleteMessage(id))
@@ -1078,10 +1079,11 @@ function registerIpcHandlers() {
 
       const history = chatRepo.getMessages(conversationId)
       const msgs = history.map((m: any) => ({ role: m.role, content: m.content }))
-      const sp = systemPrompt || 'You are a generic assistant which knowledgeable in programming, math, and science. Respond concisely and helpfully. Do NOT identify yourself as a specific AI model or brand. IMPORTANT: Do NOT add line numbers inside code blocks. Never prefix code lines with numbers like "1 ", "2 ", etc. The code viewer displays its own line-number gutter automatically.'
+      const sp = systemPrompt || 'You are a generic assistant knowledgeable in programming, math, and science. You help users manage their tasks, notes, habits, and overall productivity within Vibe Tasks. Respond concisely and helpfully. Do NOT identify yourself as a specific AI model or brand. IMPORTANT: Do NOT add line numbers inside code blocks. Never prefix code lines with numbers like "1 ", "2 ", etc. The code viewer displays its own line-number gutter automatically.'
       if (!msgs.some(m => m.role === 'system')) {
         msgs.unshift({ role: 'system', content: sp })
       }
+      console.log(`[${logPrefix}] sending ${msgs.length} messages (system + ${msgs.length - 1} history), system prompt: "${sp.slice(0, 80)}..."`)
 
       let fullContent = ''
       console.log(`[${logPrefix}] creating stream...`)

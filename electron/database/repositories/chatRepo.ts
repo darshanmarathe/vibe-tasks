@@ -111,9 +111,10 @@ export function duplicateConversation(id: number): ChatConversationRow {
   if (!src) throw new Error('Conversation not found')
   const n = now()
   run('INSERT INTO chat_conversations (title, provider, model, api_key, system_prompt, temperature, max_tokens, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [src.title + ' (copy)', src.provider, src.model, src.api_key, src.system_prompt, src.temperature, src.max_tokens, n, n])
+    [src.title + ' - Copy', src.provider, src.model, src.api_key, src.system_prompt, src.temperature, src.max_tokens, n, n])
   save()
-  const newConv = exec('SELECT * FROM chat_conversations WHERE id = last_insert_rowid()')[0]
+  const newConv = exec('SELECT * FROM chat_conversations WHERE created_at = ? AND title = ?', [n, src.title + ' - Copy'])[0]
+  if (!newConv) throw new Error('Failed to create duplicate')
   const msgs = exec('SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC', [id])
   for (const m of msgs) {
     run('INSERT INTO chat_messages (conversation_id, role, content, pinned, created_at) VALUES (?, ?, ?, ?, ?)',
