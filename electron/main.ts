@@ -21,6 +21,11 @@ import * as spreadsheetRepo from './database/repositories/spreadsheetRepo'
 import * as drawRepo from './database/repositories/drawRepo'
 import * as ideaRepo from './database/repositories/ideaRepo'
 
+if (process.argv.includes('--app-version') || process.argv.includes('-V')) {
+  console.log(app.getVersion())
+  process.exit(0)
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 protocol.registerSchemesAsPrivileged([
