@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import 'frappe-gantt/dist/frappe-gantt.css'
 import Gantt from 'frappe-gantt'
 import type { GanttTask, GanttOptions } from 'frappe-gantt'
 import type { TaskWithRelations, Status, Priority, Project } from '../types/models'
