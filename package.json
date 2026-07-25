@@ -42,10 +42,12 @@
   "dependencies": {
     "@fortune-sheet/react": "^1.0.4",
     "@tiptap/core": "^3.23.6",
+    "@tiptap/extension-list": "^3.29.0",
     "@tiptap/extension-placeholder": "^3.23.6",
     "@tiptap/extension-table": "^3.23.6",
     "@tiptap/extension-task-item": "^3.23.6",
     "@tiptap/extension-task-list": "^3.23.6",
+    "@tiptap/extensions": "^3.29.0",
     "@tiptap/pm": "^3.23.6",
     "@tiptap/react": "^3.23.6",
     "@tiptap/starter-kit": "^3.23.6",

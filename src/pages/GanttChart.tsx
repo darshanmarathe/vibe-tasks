@@ -4,6 +4,36 @@ import type { GanttTask, GanttOptions } from 'frappe-gantt'
 import type { TaskWithRelations, Status, Priority, Project } from '../types/models'
 import TaskEditModal from '../components/TaskEditModal'
 
+const FRAPPE_GANTT_CSS = `
+.gantt-container{line-height:14.5px;position:relative;overflow:auto;font-size:12px;height:var(--gv-grid-height);width:100%;border-radius:8px;isolation:isolate}
+.gantt .grid-row{fill:var(--gantt-row-bg, var(--bg-secondary))}
+.gantt .bar{fill:var(--accent)}
+.gantt .bar-progress{fill:var(--success)}
+.gantt .bar-label{fill:var(--text-primary);font-size:11px}
+.gantt .bar-wrapper .bar{outline:1px solid var(--border)}
+.gantt .bar-wrapper{cursor:pointer}
+.gantt .arrow{stroke:var(--text-muted);stroke-width:1.5}
+.gantt .handle-group circle{opacity:0}
+.gantt .grid-column{fill:transparent;pointer-events:all}
+.gantt .row-line{stroke:var(--border)}
+.gantt .tick{stroke:var(--text-muted)}
+.gantt .lower-text,.gantt .upper-text{fill:var(--text-secondary);font-size:11px}
+.gantt .today-highlight{fill:var(--accent);opacity:0.15}
+.gantt .weekend-highlight{fill:rgba(128,128,128,0.06)}
+.gantt .bar-wrapper:hover .bar{opacity:0.85}
+.gantt .bar-wrapper.gantt-prio-38B761 .bar{fill:#38B761}
+.gantt .bar-wrapper.gantt-prio-F9E2AF .bar{fill:#F9E2AF}
+.gantt .bar-wrapper.gantt-prio-FAB387 .bar{fill:#FAB387}
+.gantt .bar-wrapper.gantt-prio-F38BA8 .bar{fill:#F38BA8}
+.gantt .bar-wrapper.gantt-prio-A6ADC8 .bar{fill:#A6ADC8}
+.gantt .popup-wrapper{position:absolute;top:0;left:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);padding:10px;z-index:1000;color:var(--text-primary);font-size:13px}
+.gantt .popup-wrapper .title{font-weight:600;margin-bottom:4px}
+.gantt .popup-wrapper .subtitle{color:var(--text-secondary);font-size:.8rem;margin-bottom:2px}
+.gantt .popup-wrapper .details{color:var(--text-secondary);font-size:.7rem}
+`
+
+const VIEW_MODES = ['Day', 'Week', 'Month', 'Quarter Day', 'Year']
+
 function renderMarkdown(text: string): string {
   if (!text) return ''
   let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -13,11 +43,10 @@ function renderMarkdown(text: string): string {
   return html
 }
 
-const VIEW_MODES = ['Day', 'Week', 'Month', 'Quarter', 'Year']
-
 export default function GanttChart() {
   const ganttRef = useRef<HTMLDivElement>(null)
   const ganttInstance = useRef<Gantt | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
@@ -27,7 +56,6 @@ export default function GanttChart() {
   const [selectedProjects, setSelectedProjects] = useState<number[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<number[]>([])
 
-  // Edit state
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -124,6 +152,7 @@ export default function GanttChart() {
       const dependencies = predIds.map(id => String(id)).join(', ')
 
       const prioColor = t.priorityColor || '#a6adc8'
+      const colorClass = `gantt-prio-${prioColor.replace('#', '')}`
 
       return {
         id: String(t.id),
@@ -132,14 +161,14 @@ export default function GanttChart() {
         end,
         progress: t.completionPercent || 0,
         dependencies,
-        custom_class: `gantt-prio-${prioColor.replace('#', '')}`,
+        custom_class: colorClass,
         _task: t,
-      }
+      } as GanttTask & { _task: TaskWithRelations }
     })
   }
 
   useEffect(() => {
-    if (!ganttRef.current) return
+    if (!ganttRef.current || !containerRef.current) return
 
     const ganttTasks = toGanttTasks(filteredTasks)
 
@@ -147,13 +176,16 @@ export default function GanttChart() {
 
     if (ganttTasks.length === 0) return
 
+    const rect = containerRef.current.getBoundingClientRect()
+    const containerHeight = Math.max(rect.height - 40, 400)
+
     const options: GanttOptions = {
       view_mode: viewMode,
       date_format: 'YYYY-MM-DD',
       bar_height: 28,
       bar_corner_radius: 4,
       padding: 14,
-      container_height: 'auto',
+      container_height: containerHeight,
       today_button: true,
       readonly: false,
       readonly_dates: false,
@@ -163,7 +195,7 @@ export default function GanttChart() {
       lines: 'both',
       move_dependencies: true,
       custom_popup_html: (task: GanttTask) => {
-        const t = task._task as TaskWithRelations | undefined
+        const t = (task as any)._task as TaskWithRelations | undefined
         const progress = Math.floor((task.progress || 0) * 100) / 100
         const statusName = t?.statusName || ''
         const priorityName = t?.priorityName || ''
@@ -180,7 +212,7 @@ export default function GanttChart() {
         `
       },
       on_click: (task: GanttTask) => {
-        const t = task._task as TaskWithRelations | undefined
+        const t = (task as any)._task as TaskWithRelations | undefined
         if (t) openEdit(t)
       },
       on_date_change: async (task: GanttTask, start: Date, end: Date) => {
@@ -225,7 +257,7 @@ export default function GanttChart() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gantt Chart</h1>
         <div className="flex items-center gap-3">
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {VIEW_MODES.map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -288,8 +320,8 @@ export default function GanttChart() {
         </span>
       </div>
 
-      <div className="flex-1 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
-        <div ref={ganttRef} className="gantt-container p-2" />
+      <div ref={containerRef} className="flex-1 min-h-0 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+        <div ref={ganttRef} className="gantt-container" />
         {filteredTasks.length === 0 && (
           <div className="flex items-center justify-center h-48">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No tasks with dates. Set a start date or due date on your tasks to see them on the Gantt chart.</p>
@@ -316,78 +348,7 @@ export default function GanttChart() {
         renderMarkdown={renderMarkdown}
       />
 
-      <style>{`
-        .gantt-container .gantt {
-          background: var(--gantt-bg, var(--bg-secondary));
-        }
-        .gantt-container .gantt .grid-header,
-        .gantt-container .gantt .grid-row {
-          fill: var(--gantt-row-bg, var(--bg-secondary));
-        }
-        .gantt-container .gantt .row-line,
-        .gantt-container .gantt .tick {
-          stroke: var(--gantt-line-color, var(--border));
-        }
-        .gantt-container .gantt .today-highlight {
-          fill: var(--accent);
-          opacity: 0.15;
-        }
-        .gantt-container .gantt .bar-label {
-          fill: var(--text-primary, #fff);
-          font-size: 11px;
-        }
-        .gantt-container .gantt .bar {
-          fill: var(--accent);
-        }
-        .gantt-container .gantt .bar-progress {
-          fill: var(--success, #a6e3a1);
-        }
-        .gantt-container .gantt .lower-text,
-        .gantt-container .gantt .upper-text {
-          fill: var(--text-secondary, #888);
-          font-size: 11px;
-        }
-        .gantt-container .gantt .arrow {
-          stroke: var(--text-muted, #666);
-          stroke-width: 1.5;
-        }
-        .gantt-container .gantt .handle-group {
-          fill: rgba(255,255,255,0.5);
-        }
-        .gantt-container .gantt .handle-group circle {
-          fill: var(--text-primary);
-          opacity: 0.3;
-        }
-        .gantt-container .gantt .handle-group circle:hover {
-          opacity: 0.8;
-        }
-        .gantt-container .gantt .bar-wrapper:hover .bar {
-          opacity: 0.85;
-        }
-        .gantt-container .gantt .bar-wrapper:hover .bar-progress {
-          opacity: 0.9;
-        }
-        .gantt-container .gantt .popup-wrapper {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          color: var(--text-primary);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        .gantt-container .gantt .popup-wrapper .pointer {
-          border-top-color: var(--bg-secondary);
-        }
-        .gantt-container .gantt .weekend-highlight {
-          fill: var(--gantt-weekend-color, rgba(128,128,128,0.08));
-        }
-        .gantt-container .gantt .today-button {
-          fill: var(--accent);
-          cursor: pointer;
-        }
-        .gantt-container .gantt .today-button:hover {
-          opacity: 0.8;
-        }
-      `}</style>
+      <style>{FRAPPE_GANTT_CSS}</style>
     </div>
   )
 }
