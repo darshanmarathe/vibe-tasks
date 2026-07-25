@@ -48,6 +48,8 @@ export default function Dashboard() {
   const [editAssignedTo, setEditAssignedTo] = useState(0)
   const [editCompletionPercent, setEditCompletionPercent] = useState(0)
   const [editDueDate, setEditDueDate] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editDurationDays, setEditDurationDays] = useState(1)
   const [editNotes, setEditNotes] = useState('')
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
   const [editRecurrenceType, setEditRecurrenceType] = useState('none')
@@ -151,12 +153,14 @@ export default function Dashboard() {
     const sid = quickStatus || statuses[0]?.id || 1
     const pid = quickPriority || priorities[0]?.id || 1
     const prid = quickProject || projects[0]?.id || 1
-    await window.electronAPI.createTask({
-      name: cleaned,
-      description: '',
-      notes: '',
-      dueDate: dueDate,
-      statusId: sid,
+     await window.electronAPI.createTask({
+       name: cleaned,
+       description: '',
+       notes: '',
+       dueDate: dueDate,
+       startDate: dueDate,
+       durationDays: 1,
+       statusId: sid,
       priorityId: pid,
       projectId: prid,
       predecessorIds: '[]',
@@ -188,6 +192,8 @@ export default function Dashboard() {
     setEditAssignedTo(task.assignedTo || 0)
     setEditCompletionPercent(task.completionPercent ?? 0)
     setEditDueDate(task.dueDate || '')
+    setEditStartDate(task.startDate || '')
+    setEditDurationDays(task.durationDays ?? 1)
     setEditNotes(task.notes || '')
     setEditRecurrenceType(task.recurrence_type || 'none')
     setEditRecurrenceInterval(task.recurrence_interval ?? 1)
@@ -209,7 +215,9 @@ export default function Dashboard() {
       projectId: editProject,
       assignedTo: editAssignedTo || null,
       completionPercent: editCompletionPercent,
-      dueDate: editDueDate || null,
+        dueDate: editDueDate || null,
+        startDate: editStartDate || null,
+        durationDays: editDurationDays || 1,
       notes: editNotes,
       recurrence_type: editRecurrenceType,
       recurrence_interval: editRecurrenceInterval,
@@ -909,6 +917,8 @@ export default function Dashboard() {
         editProject={editProject} setEditProject={setEditProject}
         editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
         editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editStartDate={editStartDate} setEditStartDate={setEditStartDate}
+        editDurationDays={editDurationDays} setEditDurationDays={setEditDurationDays}
         editNotes={editNotes} setEditNotes={setEditNotes}
         editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
         showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}

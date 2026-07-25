@@ -12,6 +12,8 @@ interface Props {
   editProject: number; setEditProject: (v: number) => void
   editAssignedTo: number; setEditAssignedTo: (v: number) => void
   editDueDate: string; setEditDueDate: (v: string) => void
+  editStartDate: string; setEditStartDate: (v: string) => void
+  editDurationDays: number; setEditDurationDays: (v: number) => void
   editNotes: string; setEditNotes: (v: string) => void
   editCompletionPercent: number; setEditCompletionPercent: (v: number) => void
   showMarkdownPreview: boolean; setShowMarkdownPreview: (v: boolean) => void
@@ -35,7 +37,7 @@ export default function TaskEditModal({
   editingTask, editName, setEditName, editDesc, setEditDesc,
   editStatus, setEditStatus, editPriority, setEditPriority,
   editProject, setEditProject, editAssignedTo, setEditAssignedTo,
-  editDueDate, setEditDueDate, editNotes, setEditNotes,
+  editDueDate, setEditDueDate, editStartDate, setEditStartDate, editDurationDays, setEditDurationDays, editNotes, setEditNotes,
   editCompletionPercent, setEditCompletionPercent,
   showMarkdownPreview, setShowMarkdownPreview,
   statuses, priorities, projects, users,
@@ -162,8 +164,18 @@ export default function TaskEditModal({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
+                <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+              <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Due Date</label>
                 <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Duration (days)</label>
+                <input type="number" min={1} value={editDurationDays} onChange={e => setEditDurationDays(Math.max(1, Number(e.target.value)))} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
               </div>
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Assigned To</label>

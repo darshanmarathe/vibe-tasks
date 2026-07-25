@@ -51,6 +51,8 @@ export default function Calendar() {
   const [editAssignedTo, setEditAssignedTo] = useState(0)
   const [editCompletionPercent, setEditCompletionPercent] = useState(0)
   const [editDueDate, setEditDueDate] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editDurationDays, setEditDurationDays] = useState(1)
   const [editNotes, setEditNotes] = useState('')
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
   const [editRecurrenceType, setEditRecurrenceType] = useState('none')
@@ -158,6 +160,8 @@ export default function Calendar() {
     setEditAssignedTo(task.assignedTo || 0)
     setEditCompletionPercent(task.completionPercent ?? 0)
     setEditDueDate(task.dueDate || '')
+    setEditStartDate(task.startDate || '')
+    setEditDurationDays(task.durationDays ?? 1)
     setEditNotes(task.notes || '')
     setEditRecurrenceType(task.recurrence_type || 'none')
     setEditRecurrenceInterval(task.recurrence_interval ?? 1)
@@ -179,7 +183,9 @@ export default function Calendar() {
       projectId: editProject,
       assignedTo: editAssignedTo || null,
       completionPercent: editCompletionPercent,
-      dueDate: editDueDate || null,
+        dueDate: editDueDate || null,
+        startDate: editStartDate || null,
+        durationDays: editDurationDays || 1,
       notes: editNotes,
       recurrence_type: editRecurrenceType,
       recurrence_interval: editRecurrenceInterval,
@@ -410,12 +416,14 @@ export default function Calendar() {
                 className="px-4 py-2 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }}>Cancel</button>
               <button onClick={async () => {
                 if (!addName.trim() || !showAddForDate) return
-                await window.electronAPI.createTask({
-                  name: addName.trim(),
-                  description: addDesc,
-                  notes: '',
-                  dueDate: showAddForDate,
-                  statusId: statuses[0]?.id || 1,
+                 await window.electronAPI.createTask({
+                   name: addName.trim(),
+                   description: addDesc,
+                   notes: '',
+                   dueDate: showAddForDate,
+                   startDate: showAddForDate,
+                   durationDays: 1,
+                   statusId: statuses[0]?.id || 1,
                   priorityId: addPriority || priorities[0]?.id || 1,
                   projectId: addProject || projects[0]?.id || 1,
                   predecessorIds: '[]',
@@ -497,6 +505,8 @@ export default function Calendar() {
         editProject={editProject} setEditProject={setEditProject}
         editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
         editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editStartDate={editStartDate} setEditStartDate={setEditStartDate}
+        editDurationDays={editDurationDays} setEditDurationDays={setEditDurationDays}
         editNotes={editNotes} setEditNotes={setEditNotes}
         editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
         showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}

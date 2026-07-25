@@ -24,6 +24,7 @@ import Settings from './pages/Settings/Settings'
 import TimeReports from './pages/TimeReports'
 import DailyJournal from './pages/DailyJournal'
 import AiChat from './pages/AiChat'
+import GanttChart from './pages/GanttChart'
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/weekly-review" element={<WeeklyReview />} />
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/calendar" element={<Calendar />} />
+              <Route path="/gantt" element={<GanttChart />} />
               <Route path="/completed" element={<Completed />} />
               <Route path="/data" element={<ExportImport />} />
               <Route path="/flashcards" element={<Flashcards />} />

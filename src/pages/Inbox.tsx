@@ -55,6 +55,8 @@ export default function Inbox() {
   const [editAssignedTo, setEditAssignedTo] = useState(0)
   const [editCompletionPercent, setEditCompletionPercent] = useState(0)
   const [editDueDate, setEditDueDate] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editDurationDays, setEditDurationDays] = useState(1)
   const [editNotes, setEditNotes] = useState('')
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
 
@@ -148,6 +150,8 @@ export default function Inbox() {
     setEditAssignedTo(task.assignedTo || 0)
     setEditCompletionPercent(task.completionPercent ?? 0)
     setEditDueDate(task.dueDate || '')
+    setEditStartDate(task.startDate || '')
+    setEditDurationDays(task.durationDays ?? 1)
     setEditNotes(task.notes || '')
     setShowMarkdownPreview(false)
   }
@@ -164,7 +168,9 @@ export default function Inbox() {
       projectId: editProject,
       assignedTo: editAssignedTo || null,
       completionPercent: editCompletionPercent,
-      dueDate: editDueDate || null,
+        dueDate: editDueDate || null,
+        startDate: editStartDate || null,
+        durationDays: editDurationDays || 1,
       notes: editNotes,
     })
     closeEdit()
@@ -410,6 +416,8 @@ export default function Inbox() {
         editProject={editProject} setEditProject={setEditProject}
         editAssignedTo={editAssignedTo} setEditAssignedTo={setEditAssignedTo}
         editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+        editStartDate={editStartDate} setEditStartDate={setEditStartDate}
+        editDurationDays={editDurationDays} setEditDurationDays={setEditDurationDays}
         editNotes={editNotes} setEditNotes={setEditNotes}
         editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
         showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}

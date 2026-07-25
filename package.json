@@ -51,6 +51,7 @@
     "@tiptap/starter-kit": "^3.23.6",
     "@xyflow/react": "^12.10.2",
     "dagre": "^0.8.5",
+    "frappe-gantt": "^1.2.2",
     "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "openai": "^4.0.0",

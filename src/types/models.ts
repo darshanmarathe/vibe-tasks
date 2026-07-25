@@ -29,6 +29,8 @@ export interface Task {
   description: string
   notes: string
   dueDate: string | null
+  startDate: string | null
+  durationDays: number | null
   statusId: number
   priorityId: number
   projectId: number

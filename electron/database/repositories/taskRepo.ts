@@ -45,8 +45,8 @@ export function createTask(data: Omit<Task, 'id'>): TaskWithRelations {
     const completeStatus = db.getSingle('SELECT id FROM statuses WHERE complete = 1')
     if (completeStatus) statusId = completeStatus.id
   }
-  db.run(`INSERT INTO tasks (name, description, notes, dueDate, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at, recurrence_type, recurrence_interval, recurrence_days_of_week, recurrence_end_date, recurrence_count, recurrence_parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null, data.recurrence_type ?? 'none', data.recurrence_interval ?? 1, data.recurrence_days_of_week ?? null, data.recurrence_end_date ?? null, data.recurrence_count ?? null, data.recurrence_parent_id ?? null])
+  db.run(`INSERT INTO tasks (name, description, notes, dueDate, startDate, durationDays, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at, recurrence_type, recurrence_interval, recurrence_days_of_week, recurrence_end_date, recurrence_count, recurrence_parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.name, data.description, data.notes ?? '', data.dueDate ?? null, data.startDate ?? null, data.durationDays ?? 1, statusId, data.priorityId, data.projectId, data.predecessorIds ?? '[]', data.successorIds ?? '[]', data.archived ?? 0, data.assignedTo ?? null, data.completionPercent ?? 0, now, data.completionPercent === 100 ? now : null, data.recurrence_type ?? 'none', data.recurrence_interval ?? 1, data.recurrence_days_of_week ?? null, data.recurrence_end_date ?? null, data.recurrence_count ?? null, data.recurrence_parent_id ?? null])
   db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
   if (data.recurrence_type && data.recurrence_type !== 'none') {
@@ -94,6 +94,8 @@ export function updateTask(id: number, data: Partial<Task>): TaskWithRelations {
   if (data.description !== undefined) { fields.push('description = ?'); values.push(data.description) }
   if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes) }
   if (data.dueDate !== undefined) { fields.push('dueDate = ?'); values.push(data.dueDate) }
+  if (data.startDate !== undefined) { fields.push('startDate = ?'); values.push(data.startDate) }
+  if (data.durationDays !== undefined) { fields.push('durationDays = ?'); values.push(data.durationDays) }
   if (data.statusId !== undefined) { fields.push('statusId = ?'); values.push(data.statusId) }
   if (data.priorityId !== undefined) { fields.push('priorityId = ?'); values.push(data.priorityId) }
   if (data.projectId !== undefined) { fields.push('projectId = ?'); values.push(data.projectId) }

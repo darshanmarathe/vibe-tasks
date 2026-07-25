@@ -239,6 +239,16 @@ function runMigrations() {
     db.run('ALTER TABLE tasks ADD COLUMN recurrence_parent_id INTEGER REFERENCES tasks(id)')
   }
 
+  // Migration: add startDate and durationDays columns for Gantt chart
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'startDate')) {
+    db.run('ALTER TABLE tasks ADD COLUMN startDate TEXT')
+  }
+  cols = exec('PRAGMA table_info(tasks)')
+  if (!cols.some((c: any) => c.name === 'durationDays')) {
+    db.run('ALTER TABLE tasks ADD COLUMN durationDays INTEGER DEFAULT 1')
+  }
+
   // Migration: add ord column to statuses if missing
   const statusCols = exec('PRAGMA table_info(statuses)')
   if (!statusCols.some((c: any) => c.name === 'ord')) {
