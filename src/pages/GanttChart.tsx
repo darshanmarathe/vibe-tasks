@@ -161,7 +161,13 @@ export default function GanttChart() {
         end,
         progress: t.completionPercent || 0,
         dependencies,
-        custom_class: colorClass,
+      return {
+        id: String(t.id),
+        name: t.name,
+        start,
+        end,
+        progress: t.completionPercent || 0,
+        dependencies,
         _task: t,
       } as GanttTask & { _task: TaskWithRelations }
     })
