@@ -1,7 +1,7 @@
 # Gantt Chart Implementation Plan
 
 ## Overview
-Add a full-featured Gantt chart view to Vibe Tasks using `frappe-gantt`, including `startDate`/`durationDays` fields on tasks, dependency arrows, drag-to-resize/move, zoom levels, and a today marker. Bars are color-coded by priority.
+Add a full-featured Gantt chart view to Vibe Tasks using `gantt-task-react`, including `startDate`/`durationDays` fields on tasks, dependency arrows, drag-to-resize/move, zoom levels, and a today marker. Bars are color-coded by priority.
 
 ---
 
@@ -33,7 +33,7 @@ durationDays: number | null
 ## Phase 2: Install Dependency
 
 ```bash
-npm install frappe-gantt
+npm install gantt-task-react
 ```
 
 ---
@@ -42,17 +42,18 @@ npm install frappe-gantt
 
 ### 3.1 New Page — `src/pages/GanttChart.tsx`
 - Fetch all tasks via `window.electronAPI.getTasks()`
-- Transform tasks into frappe-gantt format:
-  - `start` = `task.startDate` (fallback: `task.dueDate` or `task.created_at`)
+- Transform tasks into gantt-task-react format:
+  - `start` = `task.startDate` (fallback: `task.dueDate` or today)
   - `end` = `task.dueDate` (fallback: `start + durationDays`)
-  - `dependencies` = `task.predecessorIds` (JSON array)
+  - `dependencies` = `task.predecessorIds` (JSON array → string[])
   - `progress` = `task.completionPercent`
   - Color by priority using `priorityColor`
-- View modes: Day, Week, Month, Quarter, Year
-- Today marker (built-in to frappe-gantt)
+- View modes: Hour, Day, Week, Month, Year
+- Today marker (built-in to gantt-task-react)
 - Click task bar → opens TaskEditModal
 - Drag/resize task bar → persists new dates via IPC
 - Filter by project and status (multi-select dropdowns)
+- Custom tooltip showing task details
 
 ### 3.2 Route — `src/App.tsx`
 Add route: `/gantt` → `<GanttChart />`
@@ -67,18 +68,19 @@ Add nav item: `{ path: '/gantt', label: 'Gantt', icon: '📊' }` in the core gro
 | File | Change |
 |---|---|
 | `gnatt.md` | This plan |
-| `electron/database/db.ts` | Add `startDate` + `durationDays` migration |
+| `electron/database/db.ts` | Add `startDate` + `durationDays` migration + sample seed data |
 | `src/types/models.ts` | Add 2 fields to `Task` interface |
 | `electron/database/repositories/taskRepo.ts` | Add fields to createTask/updateTask |
 | `src/components/TaskEditModal.tsx` | Add Start Date + Duration form fields |
-| `src/pages/GanttChart.tsx` | **New** — Gantt chart page |
+| `src/pages/GanttChart.tsx` | **New** — Gantt chart page (uses gantt-task-react) |
 | `src/App.tsx` | Add `/gantt` route |
 | `src/components/Layout.tsx` | Add Gantt sidebar entry |
-| `package.json` | New dependency: `frappe-gantt` |
+| `package.json` | New dependency: `gantt-task-react` |
 
 ---
 
 ## Decisions
 - **Color coding**: By priority (uses existing `priorityColor`)
-- **Library**: `frappe-gantt` (lightweight, supports drag/drop, dependencies, zoom)
+- **Library**: `gantt-task-react` (React component, drag/drop, dependencies, zoom, CSS-import theming)
 - **Data model**: New `startDate` + `durationDays` fields (nullable, backward-compatible)
+- **Replaced frappe-gantt** due to CSS/theme conflicts and classList crash bugs

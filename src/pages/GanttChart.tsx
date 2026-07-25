@@ -1,38 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import Gantt from 'frappe-gantt'
-import type { GanttTask, GanttOptions } from 'frappe-gantt'
+import { useState, useCallback, useEffect } from 'react'
+import { Gantt, Task as GanttTask, ViewMode } from 'gantt-task-react'
+import 'gantt-task-react/dist/index.css'
 import type { TaskWithRelations, Status, Priority, Project } from '../types/models'
 import TaskEditModal from '../components/TaskEditModal'
 
-const FRAPPE_GANTT_CSS = `
-.gantt-container{line-height:14.5px;position:relative;overflow:auto;font-size:12px;height:var(--gv-grid-height);width:100%;border-radius:8px;isolation:isolate}
-.gantt .grid-row{fill:var(--gantt-row-bg, var(--bg-secondary))}
-.gantt .bar{fill:var(--accent)}
-.gantt .bar-progress{fill:var(--success)}
-.gantt .bar-label{fill:var(--text-primary);font-size:11px}
-.gantt .bar-wrapper .bar{outline:1px solid var(--border)}
-.gantt .bar-wrapper{cursor:pointer}
-.gantt .arrow{stroke:var(--text-muted);stroke-width:1.5}
-.gantt .handle-group circle{opacity:0}
-.gantt .grid-column{fill:transparent;pointer-events:all}
-.gantt .row-line{stroke:var(--border)}
-.gantt .tick{stroke:var(--text-muted)}
-.gantt .lower-text,.gantt .upper-text{fill:var(--text-secondary);font-size:11px}
-.gantt .today-highlight{fill:var(--accent);opacity:0.15}
-.gantt .weekend-highlight{fill:rgba(128,128,128,0.06)}
-.gantt .bar-wrapper:hover .bar{opacity:0.85}
-.gantt .bar-wrapper.gantt-prio-38B761 .bar{fill:#38B761}
-.gantt .bar-wrapper.gantt-prio-F9E2AF .bar{fill:#F9E2AF}
-.gantt .bar-wrapper.gantt-prio-FAB387 .bar{fill:#FAB387}
-.gantt .bar-wrapper.gantt-prio-F38BA8 .bar{fill:#F38BA8}
-.gantt .bar-wrapper.gantt-prio-A6ADC8 .bar{fill:#A6ADC8}
-.gantt .popup-wrapper{position:absolute;top:0;left:0;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);padding:10px;z-index:1000;color:var(--text-primary);font-size:13px}
-.gantt .popup-wrapper .title{font-weight:600;margin-bottom:4px}
-.gantt .popup-wrapper .subtitle{color:var(--text-secondary);font-size:.8rem;margin-bottom:2px}
-.gantt .popup-wrapper .details{color:var(--text-secondary);font-size:.7rem}
-`
-
-const VIEW_MODES = ['Day', 'Week', 'Month', 'Quarter Day', 'Year']
+const VIEW_MODES = [
+  { mode: ViewMode.Hour, label: 'Hour' },
+  { mode: ViewMode.Day, label: 'Day' },
+  { mode: ViewMode.Week, label: 'Week' },
+  { mode: ViewMode.Month, label: 'Month' },
+  { mode: ViewMode.Year, label: 'Year' },
+]
 
 function renderMarkdown(text: string): string {
   if (!text) return ''
@@ -43,19 +21,31 @@ function renderMarkdown(text: string): string {
   return html
 }
 
-export default function GanttChart() {
-  const ganttRef = useRef<HTMLDivElement>(null)
-  const ganttInstance = useRef<Gantt | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+function prioColor(p: Priority | undefined): string {
+  return p?.color || 'var(--accent)'
+}
 
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+function parseDate(s: string | null, fallback: Date): Date {
+  if (!s) return fallback
+  const d = new Date(s + 'T00:00:00')
+  return isNaN(d.getTime()) ? fallback : d
+}
+
+export default function GanttChart() {
   const [tasks, setTasks] = useState<TaskWithRelations[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
   const [priorities, setPriorities] = useState<Priority[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [viewMode, setViewMode] = useState('Week')
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Week)
   const [selectedProjects, setSelectedProjects] = useState<number[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<number[]>([])
-
+  const [isEditing, setIsEditing] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -120,13 +110,7 @@ export default function GanttChart() {
     loadData()
   }
 
-  const todayStr = () => new Date().toISOString().slice(0, 10)
-
-  const addDays = (dateStr: string, days: number): string => {
-    const d = new Date(dateStr)
-    d.setDate(d.getDate() + days)
-    return d.toISOString().slice(0, 10)
-  }
+  const today = new Date()
 
   const filteredTasks = tasks.filter(t => {
     if (selectedProjects.length > 0 && !selectedProjects.includes(t.projectId)) return false
@@ -136,119 +120,55 @@ export default function GanttChart() {
 
   const toGanttTasks = (taskList: TaskWithRelations[]): GanttTask[] => {
     return taskList.map(t => {
-      let start = t.startDate || t.dueDate || todayStr()
-      let end = t.dueDate || addDays(start, Math.max((t.durationDays ?? 1) - 1, 0))
-
-      if (!t.startDate && t.dueDate) {
-        const dur = t.durationDays ?? 1
-        const d = new Date(t.dueDate)
-        d.setDate(d.getDate() - dur + 1)
-        start = d.toISOString().slice(0, 10)
-      }
-
-      if (start > end) end = start
+      const start = parseDate(t.startDate, parseDate(t.dueDate, today))
+      let end = parseDate(t.dueDate, addDays(start, Math.max((t.durationDays ?? 1) - 1, 0)))
+      if (start > end) end = addDays(start, Math.max((t.durationDays ?? 1) - 1, 0))
 
       const predIds = JSON.parse(t.predecessorIds || '[]') as number[]
-      const dependencies = predIds.map(id => String(id)).join(', ')
+      const dependencies = predIds.map(id => String(id))
 
-      const prioColor = t.priorityColor || '#a6adc8'
-      const colorClass = `gantt-prio-${prioColor.replace('#', '')}`
+      const priority = priorities.find(p => p.id === t.priorityId)
 
       return {
         id: String(t.id),
         name: t.name,
+        type: 'task' as const,
         start,
         end,
         progress: t.completionPercent || 0,
         dependencies,
-      return {
-        id: String(t.id),
-        name: t.name,
-        start,
-        end,
-        progress: t.completionPercent || 0,
-        dependencies,
-        _task: t,
-      } as GanttTask & { _task: TaskWithRelations }
+        styles: {
+          backgroundColor: prioColor(priority),
+          backgroundSelectedColor: prioColor(priority),
+          progressColor: 'var(--success, #22c55e)',
+          progressSelectedColor: 'var(--success, #22c55e)',
+        },
+      }
     })
   }
 
-  useEffect(() => {
-    if (!ganttRef.current || !containerRef.current) return
+  const ganttTasks = toGanttTasks(filteredTasks)
 
-    const ganttTasks = toGanttTasks(filteredTasks)
+  const handleDateChange = async (task: GanttTask) => {
+    const id = Number(task.id)
+    const startStr = task.start.toISOString().slice(0, 10)
+    const endStr = task.end.toISOString().slice(0, 10)
+    const durDays = Math.max(1, Math.round((task.end.getTime() - task.start.getTime()) / 86400000) + 1)
+    await window.electronAPI.updateTask(id, {
+      startDate: startStr,
+      dueDate: endStr,
+      durationDays: durDays,
+    })
+    loadData()
+  }
 
-    ganttInstance.current?.clear()
-
-    if (ganttTasks.length === 0) return
-
-    const rect = containerRef.current.getBoundingClientRect()
-    const containerHeight = Math.max(rect.height - 40, 400)
-
-    const options: GanttOptions = {
-      view_mode: viewMode,
-      date_format: 'YYYY-MM-DD',
-      bar_height: 28,
-      bar_corner_radius: 4,
-      padding: 14,
-      container_height: containerHeight,
-      today_button: true,
-      readonly: false,
-      readonly_dates: false,
-      readonly_progress: false,
-      popup_on: 'click',
-      scroll_to: 'today',
-      lines: 'both',
-      move_dependencies: true,
-      custom_popup_html: (task: GanttTask) => {
-        const t = (task as any)._task as TaskWithRelations | undefined
-        const progress = Math.floor((task.progress || 0) * 100) / 100
-        const statusName = t?.statusName || ''
-        const priorityName = t?.priorityName || ''
-        const projectName = t?.projectName || ''
-        return `
-          <div style="padding:8px 12px;font-size:13px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);min-width:180px">
-            <div style="font-weight:600;margin-bottom:4px">${task.name}</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:2px">${task.start} → ${task.end}</div>
-            <div style="font-size:11px;color:var(--text-secondary);margin-bottom:2px">Progress: ${progress}%</div>
-            ${statusName ? `<div style="font-size:11px;color:var(--text-secondary)">Status: ${statusName}</div>` : ''}
-            ${priorityName ? `<div style="font-size:11px;color:${t?.priorityColor || 'var(--text-secondary)'}">Priority: ${priorityName}</div>` : ''}
-            ${projectName ? `<div style="font-size:11px;color:var(--text-secondary)">Project: ${projectName}</div>` : ''}
-          </div>
-        `
-      },
-      on_click: (task: GanttTask) => {
-        const t = (task as any)._task as TaskWithRelations | undefined
-        if (t) openEdit(t)
-      },
-      on_date_change: async (task: GanttTask, start: Date, end: Date) => {
-        const id = Number(task.id)
-        const startStr = start.toISOString().slice(0, 10)
-        const endStr = end.toISOString().slice(0, 10)
-        const durDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
-        await window.electronAPI.updateTask(id, {
-          startDate: startStr,
-          dueDate: endStr,
-          durationDays: durDays,
-        })
-        loadData()
-      },
-      on_progress_change: async (task: GanttTask, progress: number) => {
-        const id = Number(task.id)
-        await window.electronAPI.updateTask(id, {
-          completionPercent: Math.round(progress),
-        })
-        loadData()
-      },
-    }
-
-    ganttInstance.current = new Gantt(ganttRef.current, ganttTasks, options)
-
-    return () => {
-      ganttInstance.current?.clear()
-      ganttInstance.current = null
-    }
-  }, [filteredTasks, viewMode, loadData])
+  const handleProgressChange = async (task: GanttTask) => {
+    const id = Number(task.id)
+    await window.electronAPI.updateTask(id, {
+      completionPercent: Math.round(task.progress),
+    })
+    loadData()
+  }
 
   const toggleProject = (id: number) => {
     setSelectedProjects(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -258,20 +178,22 @@ export default function GanttChart() {
     setSelectedStatuses(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
+  const columnWidth = viewMode === ViewMode.Week ? 250 : viewMode === ViewMode.Month ? 300 : 65
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gantt Chart</h1>
         <div className="flex items-center gap-3">
           <div className="flex gap-1 flex-wrap">
-            {VIEW_MODES.map(mode => (
+            {VIEW_MODES.map(({ mode, label }) => (
               <button key={mode} onClick={() => setViewMode(mode)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                 style={{
                   backgroundColor: viewMode === mode ? 'var(--accent)' : 'var(--bg-hover)',
                   color: viewMode === mode ? '#fff' : 'var(--text-secondary)',
                 }}>
-                {mode}
+                {label}
               </button>
             ))}
           </div>
@@ -324,14 +246,67 @@ export default function GanttChart() {
         <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
           {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
         </span>
+
+        <button
+          onClick={() => setIsEditing(prev => !prev)}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+          style={{
+            backgroundColor: isEditing ? 'var(--success, #22c55e)' : 'var(--bg-hover)',
+            color: isEditing ? '#fff' : 'var(--text-secondary)',
+          }}>
+          {isEditing ? '✓ Editing' : '✎ Edit Mode'}
+        </button>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
-        <div ref={ganttRef} className="gantt-container" />
-        {filteredTasks.length === 0 && (
+      <div className="flex-1 min-h-0 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+        {ganttTasks.length === 0 ? (
           <div className="flex items-center justify-center h-48">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No tasks with dates. Set a start date or due date on your tasks to see them on the Gantt chart.</p>
           </div>
+        ) : (
+          <Gantt
+            tasks={ganttTasks}
+            viewMode={viewMode}
+            columnWidth={columnWidth}
+            listCellWidth="180px"
+            rowHeight={40}
+            barCornerRadius={5}
+            barFill={70}
+            handleWidth={8}
+            headerHeight={40}
+            ganttHeight={0}
+            timeStep={86400000}
+            onClick={(task) => {
+              const t = tasks.find(x => String(x.id) === task.id)
+              if (t) openEdit(t)
+            }}
+            onDateChange={isEditing ? handleDateChange : undefined}
+            onProgressChange={isEditing ? handleProgressChange : undefined}
+            barBackgroundColor="var(--accent, #6366f1)"
+            barBackgroundSelectedColor="var(--accent, #6366f1)"
+            barProgressColor="var(--success, #22c55e)"
+            barProgressSelectedColor="var(--success, #22c55e)"
+            arrowColor="var(--text-muted, #6b7280)"
+            todayColor="rgba(99, 102, 241, 0.15)"
+            TooltipContent={({ task: t }) => {
+              const tWithRelations = tasks.find(x => String(x.id) === t.id)
+              const statusName = tWithRelations?.statusName || ''
+              const priorityName = tWithRelations?.priorityName || ''
+              const projectName = tWithRelations?.projectName || ''
+              const startStr = t.start.toISOString().slice(0, 10)
+              const endStr = t.end.toISOString().slice(0, 10)
+              return (
+                <div style={{ padding: '8px 12px', fontSize: 13, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', minWidth: 180 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{startStr} → {endStr}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>Progress: {Math.round(t.progress)}%</div>
+                  {statusName && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Status: {statusName}</div>}
+                  {priorityName && <div style={{ fontSize: 11, color: tWithRelations?.priorityColor || 'var(--text-secondary)' }}>Priority: {priorityName}</div>}
+                  {projectName && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Project: {projectName}</div>}
+                </div>
+              )
+            }}
+          />
         )}
       </div>
 
@@ -353,8 +328,6 @@ export default function GanttChart() {
         onClose={() => setEditingTask(null)} onSave={saveEdit}
         renderMarkdown={renderMarkdown}
       />
-
-      <style>{FRAPPE_GANTT_CSS}</style>
     </div>
   )
 }

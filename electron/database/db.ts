@@ -276,6 +276,42 @@ function runMigrations() {
   runSpreadsheetMigrations()
   runDrawMigrations()
   runIdeaMigrations()
+
+  // Seed sample Gantt tasks if DB is empty
+  const taskCount = exec('SELECT COUNT(*) as count FROM tasks')
+  if (taskCount[0].count === 0) {
+    const projCount = exec('SELECT COUNT(*) as count FROM projects')
+    if (projCount[0].count === 0) {
+      db.run("INSERT INTO projects (name, description) VALUES ('Sample Project', 'Demo project for Gantt chart')")
+    }
+    const proj = exec('SELECT id FROM projects LIMIT 1')[0]
+    const pid = proj.id
+    const today = new Date()
+    const d = (offset: number) => { const dt = new Date(today); dt.setDate(dt.getDate() + offset); return dt.toISOString().slice(0, 10) }
+
+    db.run(`INSERT INTO tasks (name, description, notes, dueDate, startDate, durationDays, statusId, priorityId, projectId, predecessorIds, successorIds, archived, assignedTo, completionPercent, created_at, completed_at, recurrence_type, recurrence_interval, recurrence_days_of_week, recurrence_end_date, recurrence_count, recurrence_parent_id) VALUES
+      ('Research requirements', 'Gather and document project requirements', '', '${d(7)}', '${d(0)}', 5, 4, 2, ${pid}, '[]', '[2,3]', 0, null, 100, datetime('now'), datetime('now'), 'none', 1, null, null, null, null),
+      ('Design mockups', 'Create UI/UX mockups for all screens', '', '${d(14)}', '${d(5)}', 7, 2, 3, ${pid}, '[1]', '[4]', 0, null, 60, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Set up database', 'Design and implement database schema', '', '${d(14)}', '${d(5)}', 7, 2, 3, ${pid}, '[1]', '[4]', 0, null, 40, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Implement backend API', 'Build REST API endpoints', '', '${d(21)}', '${d(12)}', 10, 2, 4, ${pid}, '[2,3]', '[5]', 0, null, 20, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Build frontend', 'Implement React UI components', '', '${d(28)}', '${d(22)}', 7, 1, 3, ${pid}, '[4]', '[6]', 0, null, 0, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Testing & QA', 'Write tests and perform QA', '', '${d(35)}', '${d(29)}', 6, 1, 2, ${pid}, '[5]', '[]', 0, null, 0, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Documentation', 'Write user and API documentation', '', '${d(32)}', '${d(26)}', 5, 1, 1, ${pid}, '[4]', '[]', 0, null, 0, datetime('now'), null, 'none', 1, null, null, null, null),
+      ('Deploy to staging', 'Deploy the app to staging environment', '', '${d(38)}', '${d(35)}', 2, 1, 4, ${pid}, '[6,7]', '[]', 0, null, 0, datetime('now'), null, 'none', 1, null, null, null, null)`)
+  } else {
+    // Assign dates to existing tasks that lack both startDate and dueDate
+    const undated = exec('SELECT id FROM tasks WHERE startDate IS NULL AND dueDate IS NULL')
+    if (undated.length > 0) {
+      const today = new Date()
+      const d = (offset: number) => { const dt = new Date(today); dt.setDate(dt.getDate() + offset); return dt.toISOString().slice(0, 10) }
+      undated.forEach((t: any, i: number) => {
+        const start = d(i * 4)
+        const dur = 3 + (i % 4)
+        const due = d(i * 4 + dur - 1)
+        db.run('UPDATE tasks SET startDate = ?, durationDays = ?, dueDate = ? WHERE id = ?', [start, dur, due, t.id])
+      })
+    }
+  }
 }
 
 function runNoteMigrations() {
