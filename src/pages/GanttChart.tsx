@@ -45,7 +45,6 @@ export default function GanttChart() {
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Week)
   const [selectedProjects, setSelectedProjects] = useState<number[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<number[]>([])
-  const [isEditing, setIsEditing] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -59,6 +58,13 @@ export default function GanttChart() {
   const [editNotes, setEditNotes] = useState('')
   const [editCompletionPercent, setEditCompletionPercent] = useState(0)
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false)
+  const [editPredecessorIds, setEditPredecessorIds] = useState<number[]>([])
+  const [editSuccessorIds, setEditSuccessorIds] = useState<number[]>([])
+  const [showDepPicker, setShowDepPicker] = useState<'predecessor' | 'successor' | null>(null)
+  const [depSearch, setDepSearch] = useState('')
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; taskId: number } | null>(null)
+  const [depPickerTarget, setDepPickerTarget] = useState<{ taskId: number; type: 'predecessor' | 'successor' } | null>(null)
+  const [depPickerSearch, setDepPickerSearch] = useState('')
 
   const loadData = useCallback(async () => {
     const [t, s, p, pr] = await Promise.all([
@@ -88,6 +94,8 @@ export default function GanttChart() {
     setEditDurationDays(task.durationDays ?? 1)
     setEditNotes(task.notes)
     setEditCompletionPercent(task.completionPercent)
+    setEditPredecessorIds(JSON.parse(task.predecessorIds || '[]'))
+    setEditSuccessorIds(JSON.parse(task.successorIds || '[]'))
     setShowMarkdownPreview(false)
   }
 
@@ -105,6 +113,8 @@ export default function GanttChart() {
       durationDays: editDurationDays || 1,
       notes: editNotes,
       completionPercent: editCompletionPercent,
+      predecessorIds: JSON.stringify(editPredecessorIds),
+      successorIds: JSON.stringify(editSuccessorIds),
     })
     setEditingTask(null)
     loadData()
@@ -149,6 +159,8 @@ export default function GanttChart() {
 
   const ganttTasks = toGanttTasks(filteredTasks)
 
+  const columnWidth = viewMode === ViewMode.Week ? 250 : viewMode === ViewMode.Month ? 300 : 65
+
   const handleDateChange = async (task: GanttTask) => {
     const id = Number(task.id)
     const startStr = task.start.toISOString().slice(0, 10)
@@ -178,7 +190,76 @@ export default function GanttChart() {
     setSelectedStatuses(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  const columnWidth = viewMode === ViewMode.Week ? 250 : viewMode === ViewMode.Month ? 300 : 65
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('contextmenu', close)
+    return () => { window.removeEventListener('click', close); window.removeEventListener('contextmenu', close) }
+  }, [contextMenu])
+
+  const addDep = async (targetId: number, type: 'predecessor' | 'successor') => {
+    if (!contextMenu) return
+    const sourceId = contextMenu.taskId
+    const source = tasks.find(t => t.id === sourceId)
+    const target = tasks.find(t => t.id === targetId)
+    if (!source || !target) return
+    if (sourceId === targetId) return
+
+    if (type === 'predecessor') {
+      const preds = JSON.parse(source.predecessorIds || '[]') as number[]
+      if (preds.includes(targetId)) return
+      const newPreds = [...preds, targetId]
+      const succs = JSON.parse(target.successorIds || '[]') as number[]
+      const newSuccs = succs.includes(sourceId) ? succs : [...succs, sourceId]
+      await Promise.all([
+        window.electronAPI.updateTask(sourceId, { predecessorIds: JSON.stringify(newPreds) }),
+        window.electronAPI.updateTask(targetId, { successorIds: JSON.stringify(newSuccs) }),
+      ])
+    } else {
+      const succs = JSON.parse(source.successorIds || '[]') as number[]
+      if (succs.includes(targetId)) return
+      const newSuccs = [...succs, targetId]
+      const preds = JSON.parse(target.predecessorIds || '[]') as number[]
+      const newPreds = preds.includes(sourceId) ? preds : [...preds, sourceId]
+      await Promise.all([
+        window.electronAPI.updateTask(sourceId, { successorIds: JSON.stringify(newSuccs) }),
+        window.electronAPI.updateTask(targetId, { predecessorIds: JSON.stringify(newPreds) }),
+      ])
+    }
+    setContextMenu(null)
+    loadData()
+  }
+
+  const removeDep = async (targetId: number, type: 'predecessor' | 'successor') => {
+    if (!contextMenu) return
+    const sourceId = contextMenu.taskId
+    const source = tasks.find(t => t.id === sourceId)
+    const target = tasks.find(t => t.id === targetId)
+    if (!source || !target) return
+
+    if (type === 'predecessor') {
+      const preds = JSON.parse(source.predecessorIds || '[]') as number[]
+      const newPreds = preds.filter(id => id !== targetId)
+      const succs = JSON.parse(target.successorIds || '[]') as number[]
+      const newSuccs = succs.filter(id => id !== sourceId)
+      await Promise.all([
+        window.electronAPI.updateTask(sourceId, { predecessorIds: JSON.stringify(newPreds) }),
+        window.electronAPI.updateTask(targetId, { successorIds: JSON.stringify(newSuccs) }),
+      ])
+    } else {
+      const succs = JSON.parse(source.successorIds || '[]') as number[]
+      const newSuccs = succs.filter(id => id !== targetId)
+      const preds = JSON.parse(target.predecessorIds || '[]') as number[]
+      const newPreds = preds.filter(id => id !== sourceId)
+      await Promise.all([
+        window.electronAPI.updateTask(sourceId, { successorIds: JSON.stringify(newSuccs) }),
+        window.electronAPI.updateTask(targetId, { predecessorIds: JSON.stringify(newPreds) }),
+      ])
+    }
+    setContextMenu(null)
+    loadData()
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -246,19 +327,9 @@ export default function GanttChart() {
         <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
           {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
         </span>
-
-        <button
-          onClick={() => setIsEditing(prev => !prev)}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-          style={{
-            backgroundColor: isEditing ? 'var(--success, #22c55e)' : 'var(--bg-hover)',
-            color: isEditing ? '#fff' : 'var(--text-secondary)',
-          }}>
-          {isEditing ? '✓ Editing' : '✎ Edit Mode'}
-        </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="relative flex-1 min-h-0 overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
         {ganttTasks.length === 0 ? (
           <div className="flex items-center justify-center h-48">
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No tasks with dates. Set a start date or due date on your tasks to see them on the Gantt chart.</p>
@@ -268,7 +339,7 @@ export default function GanttChart() {
             tasks={ganttTasks}
             viewMode={viewMode}
             columnWidth={columnWidth}
-            listCellWidth="180px"
+            listCellWidth={350}
             rowHeight={40}
             barCornerRadius={5}
             barFill={70}
@@ -276,12 +347,59 @@ export default function GanttChart() {
             headerHeight={40}
             ganttHeight={0}
             timeStep={86400000}
-            onClick={(task) => {
-              const t = tasks.find(x => String(x.id) === task.id)
-              if (t) openEdit(t)
+            onDateChange={handleDateChange}
+            onProgressChange={handleProgressChange}
+            TaskListTable={({ tasks: ganttTaskList, rowHeight, rowWidth, fontFamily, fontSize, selectedTaskId, setSelectedTask }) => {
+              return (
+                <div>
+                  {ganttTaskList.map(task => {
+                    const t = tasks.find(x => String(x.id) === task.id)
+                    const isSelected = selectedTaskId === task.id
+                    const startStr = task.start.toISOString().slice(0, 10)
+                    const endStr = task.end.toISOString().slice(0, 10)
+                    return (
+                      <div
+                        key={task.id}
+                        onClick={() => {
+                          setSelectedTask(task.id)
+                          if (t) openEdit(t)
+                        }}
+                        className="flex items-center border-b cursor-pointer hover:bg-[var(--bg-hover)]"
+                        style={{
+                          height: rowHeight,
+                          width: rowWidth,
+                          fontFamily,
+                          fontSize,
+                          borderColor: 'var(--border)',
+                          backgroundColor: isSelected ? 'var(--bg-hover)' : 'transparent',
+                        }}
+                      >
+                        <div className="flex-1 px-3 text-sm" style={{ color: 'var(--text-primary)' }}>{task.name}</div>
+                        <div className="w-[100px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{startStr}</div>
+                        <div className="w-[100px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{endStr}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
             }}
-            onDateChange={isEditing ? handleDateChange : undefined}
-            onProgressChange={isEditing ? handleProgressChange : undefined}
+            TaskListHeader={({ headerHeight, rowWidth, fontFamily, fontSize }) => (
+              <div
+                className="flex items-center border-b"
+                style={{
+                  height: headerHeight,
+                  width: rowWidth,
+                  fontFamily,
+                  fontSize,
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'var(--bg-secondary)',
+                }}
+              >
+                <div className="flex-1 px-3 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Task</div>
+                <div className="w-[100px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>From</div>
+                <div className="w-[100px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>To</div>
+              </div>
+            )}
             barBackgroundColor="var(--accent, #6366f1)"
             barBackgroundSelectedColor="var(--accent, #6366f1)"
             barProgressColor="var(--success, #22c55e)"
@@ -310,6 +428,105 @@ export default function GanttChart() {
         )}
       </div>
 
+      {contextMenu && (() => {
+        const ctxTask = tasks.find(t => t.id === contextMenu.taskId)
+        if (!ctxTask) return null
+        const preds = JSON.parse(ctxTask.predecessorIds || '[]') as number[]
+        const succs = JSON.parse(ctxTask.successorIds || '[]') as number[]
+        return (
+          <div className="fixed z-[70] rounded-lg border shadow-xl py-1 min-w-[180px]"
+            style={{ left: contextMenu.x, top: contextMenu.y, backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+            <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border)' }}>
+              {ctxTask.name}
+            </div>
+            <button onClick={() => { setDepPickerTarget({ taskId: contextMenu.taskId, type: 'predecessor' }); setDepPickerSearch(''); setContextMenu(null) }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-hover)]"
+              style={{ color: 'var(--text-secondary)' }}>
+              Add predecessor...
+            </button>
+            <button onClick={() => { setDepPickerTarget({ taskId: contextMenu.taskId, type: 'successor' }); setDepPickerSearch(''); setContextMenu(null) }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-[var(--bg-hover)]"
+              style={{ color: 'var(--text-secondary)' }}>
+              Add successor...
+            </button>
+            {preds.length > 0 && (
+              <div className="border-t" style={{ borderColor: 'var(--border)' }}>
+                <div className="px-3 py-1 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>Predecessors</div>
+                {preds.map(id => {
+                  const t = tasks.find(x => x.id === id)
+                  return (
+                    <div key={id} className="flex items-center justify-between px-3 py-1 text-xs hover:bg-[var(--bg-hover)]">
+                      <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
+                      <button onClick={() => removeDep(id, 'predecessor')} className="text-[10px]" style={{ color: 'var(--danger)' }}>✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {succs.length > 0 && (
+              <div className="border-t" style={{ borderColor: 'var(--border)' }}>
+                <div className="px-3 py-1 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>Successors</div>
+                {succs.map(id => {
+                  const t = tasks.find(x => x.id === id)
+                  return (
+                    <div key={id} className="flex items-center justify-between px-3 py-1 text-xs hover:bg-[var(--bg-hover)]">
+                      <span style={{ color: 'var(--text-primary)' }}>{t?.name || `#${id}`}</span>
+                      <button onClick={() => removeDep(id, 'successor')} className="text-[10px]" style={{ color: 'var(--danger)' }}>✕</button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {depPickerTarget && (() => {
+        const source = tasks.find(t => t.id === depPickerTarget.taskId)
+        const sourcePreds = JSON.parse(source?.predecessorIds || '[]') as number[]
+        const sourceSuccs = JSON.parse(source?.successorIds || '[]') as number[]
+        const existing = depPickerTarget.type === 'predecessor' ? sourcePreds : sourceSuccs
+        const candidates = tasks.filter(t => t.id !== depPickerTarget.taskId)
+        const filtered = depPickerSearch
+          ? candidates.filter(t => t.name.toLowerCase().includes(depPickerSearch.toLowerCase()))
+          : candidates
+        return (
+          <div className="fixed inset-0 flex items-center justify-center z-[80]" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="rounded-xl p-4 border w-full max-w-lg max-h-[60vh] flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {depPickerTarget.type === 'predecessor' ? 'Add Predecessor to' : 'Add Successor to'} {source?.name}
+                </h3>
+                <button onClick={() => setDepPickerTarget(null)} className="text-xs" style={{ color: 'var(--text-secondary)' }}>✕</button>
+              </div>
+              <input value={depPickerSearch} onChange={e => setDepPickerSearch(e.target.value)}
+                placeholder="Search tasks..." autoFocus
+                className="w-full border rounded-lg px-3 py-1.5 text-sm mb-3"
+                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              <div className="flex-1 overflow-y-auto space-y-1">
+                {filtered.map(t => {
+                  const alreadyLinked = existing.includes(t.id)
+                  return (
+                    <div key={t.id}
+                      onClick={() => { if (!alreadyLinked) addDep(t.id, depPickerTarget.type) }}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm"
+                      style={{ backgroundColor: alreadyLinked ? 'var(--bg-hover)' : 'transparent', borderLeft: `3px solid ${t.priorityColor || 'var(--text-muted)'}`, opacity: alreadyLinked ? 0.5 : 1 }}>
+                      <input type="checkbox" checked={alreadyLinked} readOnly className="rounded" />
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium" style={{ color: 'var(--text-primary)' }}>{t.name}</p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{t.projectName} · {t.statusName}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+                {filtered.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>No tasks found.</p>}
+              </div>
+              <button onClick={() => setDepPickerTarget(null)} className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold self-end" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Done</button>
+            </div>
+          </div>
+        )
+      })()}
+
       <TaskEditModal
         editingTask={editingTask}
         editName={editName} setEditName={setEditName}
@@ -325,7 +542,13 @@ export default function GanttChart() {
         editCompletionPercent={editCompletionPercent} setEditCompletionPercent={setEditCompletionPercent}
         showMarkdownPreview={showMarkdownPreview} setShowMarkdownPreview={setShowMarkdownPreview}
         statuses={statuses} priorities={priorities} projects={projects} users={[]}
-        onClose={() => setEditingTask(null)} onSave={saveEdit}
+        showCompletion={true}
+        editPredecessorIds={editPredecessorIds} setEditPredecessorIds={setEditPredecessorIds}
+        editSuccessorIds={editSuccessorIds} setEditSuccessorIds={setEditSuccessorIds}
+        showDepPicker={showDepPicker} setShowDepPicker={setShowDepPicker}
+        depSearch={depSearch} setDepSearch={setDepSearch}
+        allTasks={tasks}
+        onClose={() => { setEditingTask(null); setShowDepPicker(null) }} onSave={saveEdit}
         renderMarkdown={renderMarkdown}
       />
     </div>
