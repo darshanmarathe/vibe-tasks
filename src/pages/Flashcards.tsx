@@ -46,7 +46,7 @@ export default function Flashcards() {
   const studyCards = studyingDue ? dueCards : cards
   const currentCard = studyCards[currentCardIdx] || null
 
-  const flash = (text: string) => { setMsg(text); setTimeout(() => setMsg(''), 3000) }
+  const flash = (text: string) => { setMsg(text) }
 
   const handleCreateDeck = async () => {
     if (!newDeckName.trim()) return
@@ -162,7 +162,10 @@ export default function Flashcards() {
       {/* Main area */}
       <div className="flex-1 space-y-4">
         {msg && (
-          <div className="px-4 py-2 rounded-lg text-sm text-white" style={{ backgroundColor: 'var(--accent)' }}>{msg}</div>
+          <div className="px-4 py-2 rounded-lg text-sm text-white flex items-center justify-between" style={{ backgroundColor: 'var(--accent)' }}>
+            <span>{msg}</span>
+            <button onClick={() => setMsg('')} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+          </div>
         )}
 
         {!selectedDeck ? (

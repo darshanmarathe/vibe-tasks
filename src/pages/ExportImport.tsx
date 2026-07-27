@@ -16,7 +16,6 @@ export default function ExportImport() {
 
   const showStatus = (type: 'success' | 'error', text: string) => {
     setStatusMsg({ type, text })
-    setTimeout(() => setStatusMsg(null), 5000)
   }
 
   const handleExportJson = async () => {
@@ -109,13 +108,14 @@ export default function ExportImport() {
       <h1 className="text-2xl font-bold" {...s('text-primary')}>Data Portability</h1>
 
       {statusMsg && (
-        <div className={`px-4 py-3 rounded-lg text-sm ${statusMsg.type === 'success' ? '' : ''}`}
+        <div className={`px-4 py-3 rounded-lg text-sm flex items-center justify-between`}
           style={{
             backgroundColor: statusMsg.type === 'success' ? 'var(--accent)' : 'var(--danger)',
             color: '#fff',
           }}
         >
-          {statusMsg.text}
+          <span>{statusMsg.text}</span>
+          <button onClick={() => setStatusMsg(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
         </div>
       )}
 
