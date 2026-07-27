@@ -121,6 +121,7 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   getLinkCategories: () => import_electron.ipcRenderer.invoke("links:categories:list"),
   createLinkCategory: (name) => import_electron.ipcRenderer.invoke("links:categories:create", name),
   deleteLinkCategory: (id) => import_electron.ipcRenderer.invoke("links:categories:delete", id),
+  getAllLinkTags: () => import_electron.ipcRenderer.invoke("links:tags:list"),
   // Flashcards
   getFlashcardDecks: () => import_electron.ipcRenderer.invoke("flashcard:decks:list"),
   createFlashcardDeck: (name, description) => import_electron.ipcRenderer.invoke("flashcard:decks:create", name, description),

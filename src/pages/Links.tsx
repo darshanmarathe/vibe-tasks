@@ -7,12 +7,15 @@ import { Html5Qrcode } from 'html5-qrcode'
 export default function Links() {
   const [links, setLinks] = useState<Link[]>([])
   const [categories, setCategories] = useState<LinkCategory[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
   const [filterCat, setFilterCat] = useState(0)
+  const [filterTag, setFilterTag] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
   const [categoryId, setCategoryId] = useState(0)
   const [dashboard, setDashboard] = useState(false)
+  const [tagInput, setTagInput] = useState('')
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null)
   const [qrModalData, setQrModalData] = useState('')
   const [showScanner, setShowScanner] = useState(false)
@@ -24,15 +27,21 @@ export default function Links() {
   const [editText, setEditText] = useState('')
   const [editCategoryId, setEditCategoryId] = useState(0)
   const [editDashboard, setEditDashboard] = useState(false)
+  const [editTagInput, setEditTagInput] = useState('')
 
   const load = useCallback(async () => {
-    const [l, c] = await Promise.all([
-      window.electronAPI.getLinks(filterCat ? { categoryId: filterCat } : undefined),
+    const filters: any = {}
+    if (filterCat) filters.categoryId = filterCat
+    if (filterTag) filters.tag = filterTag
+    const [l, c, t] = await Promise.all([
+      window.electronAPI.getLinks(Object.keys(filters).length > 0 ? filters : undefined),
       window.electronAPI.getLinkCategories(),
+      window.electronAPI.getAllLinkTags(),
     ])
     setLinks(l)
     setCategories(c)
-  }, [filterCat])
+    setAllTags(t)
+  }, [filterCat, filterTag])
 
   useEffect(() => { load() }, [load])
 
@@ -86,6 +95,10 @@ export default function Links() {
     return () => { cancelled = true; scannerRef.current?.stop().catch(() => {}) }
   }, [showScanner])
 
+  const parseTags = (input: string): string[] => {
+    return input.split(',').map(t => t.trim()).filter(Boolean)
+  }
+
   const addLink = async () => {
     if (!url.trim()) return
     await window.electronAPI.createLink({
@@ -93,8 +106,9 @@ export default function Links() {
       text: text.trim() || url.trim(),
       category_id: categoryId || categories[0]?.id || undefined,
       display_on_dashboard: dashboard ? 1 : 0,
+      tags: parseTags(tagInput),
     })
-    setUrl(''); setText(''); setDashboard(false); setShowAdd(false)
+    setUrl(''); setText(''); setDashboard(false); setTagInput(''); setShowAdd(false)
     load()
   }
 
@@ -114,7 +128,7 @@ export default function Links() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Links</h1>
         <button onClick={() => {
-          setShowAdd(true); setUrl(''); setText(''); setCategoryId(0); setDashboard(false)
+          setShowAdd(true); setUrl(''); setText(''); setCategoryId(0); setDashboard(false); setTagInput('')
         }}
           className="px-4 py-2 rounded-lg text-sm font-semibold"
           style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>+ Add Link</button>
@@ -154,6 +168,13 @@ export default function Links() {
                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
+            <div className="flex-1">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Tags (comma-separated)</label>
+              <input value={tagInput} onChange={e => setTagInput(e.target.value)}
+                placeholder="e.g. work, important, reference"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+            </div>
             <label className="flex items-center gap-2 pb-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" checked={dashboard} onChange={e => setDashboard(e.target.checked)} />
               Show on Dashboard
@@ -168,15 +189,31 @@ export default function Links() {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="flex items-center gap-2">
-        <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Category:</label>
-        <select value={filterCat} onChange={e => setFilterCat(Number(e.target.value))}
-          className="border rounded-lg px-3 py-1.5 text-sm"
-          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
-          <option value={0}>All</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Category:</label>
+          <select value={filterCat} onChange={e => setFilterCat(Number(e.target.value))}
+            className="border rounded-lg px-3 py-1.5 text-sm"
+            style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            <option value={0}>All</option>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Tag:</label>
+          <select value={filterTag} onChange={e => setFilterTag(e.target.value)}
+            className="border rounded-lg px-3 py-1.5 text-sm"
+            style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+            <option value="">All</option>
+            {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {filterTag && (
+            <button onClick={() => setFilterTag('')}
+              className="text-xs px-2 py-0.5 rounded"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>✕</button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -187,6 +224,7 @@ export default function Links() {
               <th className="text-left py-3 px-4">URL</th>
               <th className="text-left py-3 px-2">Text</th>
               <th className="text-left py-3 px-2">Category</th>
+              <th className="text-left py-3 px-2">Tags</th>
               <th className="text-center py-3 px-2">QR</th>
               <th className="text-center py-3 px-2">Dashboard</th>
               <th className="text-right py-3 px-4">Actions</th>
@@ -202,6 +240,15 @@ export default function Links() {
                 </td>
                 <td className="py-3 px-2" style={{ color: 'var(--text-primary)' }}>{link.text}</td>
                 <td className="py-3 px-2" style={{ color: 'var(--text-secondary)' }}>{(link as any).category_name || '—'}</td>
+                <td className="py-3 px-2">
+                  <div className="flex flex-wrap gap-1">
+                    {(link.tags || []).map(tag => (
+                      <span key={tag} onClick={() => setFilterTag(tag)}
+                        className="text-[10px] px-1.5 py-0.5 rounded-full cursor-pointer hover:opacity-80"
+                        style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>{tag}</span>
+                    ))}
+                  </div>
+                </td>
                 <td className="py-3 px-2 text-center">
                   <button onClick={() => openQrModal(link.url)}
                     className="text-lg mx-auto" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -225,6 +272,7 @@ export default function Links() {
                     setEditText(link.text)
                     setEditCategoryId(link.category_id)
                     setEditDashboard(!!link.display_on_dashboard)
+                    setEditTagInput((link.tags || []).join(', '))
                   }}
                     className="text-xs" style={{ color: 'var(--text-primary)' }}>Edit</button>
                   <button onClick={() => deleteLink(link.id)}
@@ -233,7 +281,7 @@ export default function Links() {
               </tr>
             ))}
             {links.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>No links yet.</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>No links yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -275,6 +323,13 @@ export default function Links() {
                   Show on Dashboard
                 </label>
               </div>
+              <div>
+                <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Tags (comma-separated)</label>
+                <input value={editTagInput} onChange={e => setEditTagInput(e.target.value)}
+                  placeholder="e.g. work, important, reference"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
+              </div>
               <div className="flex gap-2 pt-2">
                 <button onClick={async () => {
                   await window.electronAPI.updateLink(editLink!.id, {
@@ -282,6 +337,7 @@ export default function Links() {
                     text: editText.trim() || editUrl.trim(),
                     category_id: editCategoryId || undefined,
                     display_on_dashboard: editDashboard ? 1 : 0,
+                    tags: parseTags(editTagInput),
                   })
                   setEditLink(null)
                   load()

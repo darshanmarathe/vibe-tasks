@@ -233,14 +233,15 @@ export interface ElectronAPI {
   getJournalSummaryReport: (start: string, end: string, criteria: JournalSummaryCriteria) => Promise<JournalSummaryReport>
 
   // Links
-  getLinks: (filters?: { categoryId?: number; linkedType?: string; linkedId?: number | string; displayOnDashboard?: number }) => Promise<Link[]>
+  getLinks: (filters?: { categoryId?: number; linkedType?: string; linkedId?: number | string; displayOnDashboard?: number; tag?: string }) => Promise<Link[]>
   getLink: (id: number) => Promise<Link | null>
-  createLink: (data: { url: string; text?: string; category_id?: number; display_on_dashboard?: number; linked_type?: string; linked_id?: number | string }) => Promise<Link>
+  createLink: (data: { url: string; text?: string; category_id?: number; display_on_dashboard?: number; linked_type?: string; linked_id?: number | string; tags?: string[] }) => Promise<Link>
   updateLink: (id: number, data: Partial<Link>) => Promise<Link>
   deleteLink: (id: number) => Promise<void>
   getLinkCategories: () => Promise<LinkCategory[]>
   createLinkCategory: (name: string) => Promise<LinkCategory>
   deleteLinkCategory: (id: number) => Promise<void>
+  getAllLinkTags: () => Promise<string[]>
 
   // Flashcards
   getFlashcardDecks: () => Promise<FlashcardDeck[]>
@@ -379,6 +380,7 @@ export interface Link {
   linked_type: string | null
   linked_id: number | string | null
   created_at: string
+  tags: string[]
 }
 
 export interface MindMap {

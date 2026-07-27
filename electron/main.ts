@@ -861,6 +861,7 @@ function registerIpcHandlers() {
   ipcMain.handle('links:categories:list', () => linkRepo.getCategories())
   ipcMain.handle('links:categories:create', (_e, name) => linkRepo.createCategory(name))
   ipcMain.handle('links:categories:delete', (_e, id) => linkRepo.deleteCategory(id))
+  ipcMain.handle('links:tags:list', () => linkRepo.getAllLinkTags())
 
   ipcMain.handle('notes:exportMarkdown', async (_e, noteId) => {
     const note = noteRepo.getNoteById(noteId)

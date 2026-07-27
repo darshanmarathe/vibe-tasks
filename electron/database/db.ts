@@ -518,6 +518,12 @@ function runLinkMigrations() {
       linked_id TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS link_tags (
+      link_id INTEGER NOT NULL REFERENCES links(id) ON DELETE CASCADE,
+      tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (link_id, tag_id)
+    );
   `)
 
   const catCount = exec('SELECT COUNT(*) as count FROM link_categories')

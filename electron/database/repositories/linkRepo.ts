@@ -1,6 +1,6 @@
 import { getDatabase } from '../db'
 
-export function getLinks(filters?: { categoryId?: number; linkedType?: string; linkedId?: number | string; displayOnDashboard?: number }): any[] {
+export function getLinks(filters?: { categoryId?: number; linkedType?: string; linkedId?: number | string; displayOnDashboard?: number; tag?: string }): any[] {
   const db = getDatabase()
   const conditions: string[] = []
   const params: any[] = []
@@ -8,24 +8,38 @@ export function getLinks(filters?: { categoryId?: number; linkedType?: string; l
   if (filters?.linkedType) { conditions.push('l.linked_type = ?'); params.push(filters.linkedType) }
   if (filters?.linkedId) { conditions.push('l.linked_id = ?'); params.push(filters.linkedId) }
   if (filters?.displayOnDashboard !== undefined) { conditions.push('l.display_on_dashboard = ?'); params.push(filters.displayOnDashboard) }
+  if (filters?.tag) {
+    conditions.push('l.id IN (SELECT lt.link_id FROM link_tags lt JOIN tags t ON lt.tag_id = t.id WHERE t.name = ?)')
+    params.push(filters.tag)
+  }
   const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''
-  return db.exec(`SELECT l.*, c.name as category_name FROM links l LEFT JOIN link_categories c ON l.category_id = c.id ${where} ORDER BY l.created_at DESC`, params)
+  const links = db.exec(`SELECT l.*, c.name as category_name FROM links l LEFT JOIN link_categories c ON l.category_id = c.id ${where} ORDER BY l.created_at DESC`, params)
+  // Attach tags to each link
+  return links.map((link: any) => ({
+    ...link,
+    tags: getLinkTags(link.id),
+  }))
 }
 
 export function getLink(id: number): any {
   const db = getDatabase()
-  return db.getSingle('SELECT l.*, c.name as category_name FROM links l LEFT JOIN link_categories c ON l.category_id = c.id WHERE l.id = ?', [id])
+  const link = db.getSingle('SELECT l.*, c.name as category_name FROM links l LEFT JOIN link_categories c ON l.category_id = c.id WHERE l.id = ?', [id])
+  if (link) link.tags = getLinkTags(id)
+  return link
 }
 
-export function createLink(data: { url: string; text?: string; category_id?: number; display_on_dashboard?: number; linked_type?: string; linked_id?: number | string }): any {
+export function createLink(data: { url: string; text?: string; category_id?: number; display_on_dashboard?: number; linked_type?: string; linked_id?: number | string; tags?: string[] }): any {
   const db = getDatabase()
   const now = new Date().toISOString()
   db.run(
     'INSERT INTO links (url, text, category_id, display_on_dashboard, linked_type, linked_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [data.url, data.text || '', data.category_id || null, data.display_on_dashboard || 0, data.linked_type || null, data.linked_id || null, now]
   )
-  db.save()
   const id = db.getSingle('SELECT last_insert_rowid() as id').id
+  if (data.tags && data.tags.length > 0) {
+    setLinkTags(id, data.tags)
+  }
+  db.save()
   return getLink(id)
 }
 
@@ -42,13 +56,17 @@ export function updateLink(id: number, data: any): any {
   if (fields.length > 0) {
     params.push(id)
     db.run(`UPDATE links SET ${fields.join(', ')} WHERE id = ?`, params)
-    db.save()
   }
+  if (data.tags !== undefined) {
+    setLinkTags(id, data.tags)
+  }
+  db.save()
   return getLink(id)
 }
 
 export function deleteLink(id: number): void {
   const db = getDatabase()
+  db.run('DELETE FROM link_tags WHERE link_id = ?', [id])
   db.run('DELETE FROM links WHERE id = ?', [id])
   db.save()
 }
@@ -72,4 +90,35 @@ export function deleteCategory(id: number): void {
   if (cat?.is_hardcoded) throw new Error('Cannot delete a hardcoded category')
   db.run('DELETE FROM link_categories WHERE id = ?', [id])
   db.save()
+}
+
+export function getLinkTags(linkId: number): string[] {
+  const db = getDatabase()
+  const rows = db.exec('SELECT t.name FROM link_tags lt JOIN tags t ON lt.tag_id = t.id WHERE lt.link_id = ? ORDER BY t.name', [linkId])
+  return rows.map((r: any) => r.name)
+}
+
+export function setLinkTags(linkId: number, tagNames: string[]): void {
+  const db = getDatabase()
+  db.run('DELETE FROM link_tags WHERE link_id = ?', [linkId])
+  for (const name of tagNames) {
+    const trimmed = name.trim()
+    if (!trimmed) continue
+    // Upsert tag
+    let tag = db.getSingle('SELECT id FROM tags WHERE name = ?', [trimmed])
+    if (!tag) {
+      db.run('INSERT INTO tags (id, name) VALUES (?, ?)', [crypto.randomUUID(), trimmed])
+      tag = db.getSingle('SELECT id FROM tags WHERE name = ?', [trimmed])
+    }
+    if (tag) {
+      db.run('INSERT OR IGNORE INTO link_tags (link_id, tag_id) VALUES (?, ?)', [linkId, tag.id])
+    }
+  }
+  db.save()
+}
+
+export function getAllLinkTags(): string[] {
+  const db = getDatabase()
+  const rows = db.exec('SELECT DISTINCT t.name FROM link_tags lt JOIN tags t ON lt.tag_id = t.id ORDER BY t.name')
+  return rows.map((r: any) => r.name)
 }

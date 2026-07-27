@@ -134,6 +134,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLinkCategories: () => ipcRenderer.invoke('links:categories:list'),
   createLinkCategory: (name: string) => ipcRenderer.invoke('links:categories:create', name),
   deleteLinkCategory: (id: number) => ipcRenderer.invoke('links:categories:delete', id),
+  getAllLinkTags: () => ipcRenderer.invoke('links:tags:list'),
 
   // Flashcards
   getFlashcardDecks: () => ipcRenderer.invoke('flashcard:decks:list'),
