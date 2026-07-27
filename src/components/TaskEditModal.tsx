@@ -172,6 +172,14 @@ export default function TaskEditModal({
                 <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }} />
               </div>
             </div>
+            <button onClick={() => {
+              const d = editDueDate || editStartDate || new Date().toISOString().slice(0, 10)
+              setEditStartDate(d)
+              setEditDueDate(d)
+              setEditDurationDays(1)
+            }} className="text-xs px-3 py-1 rounded-lg font-medium" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--accent)' }}>
+              ☀ Day Task (start = due)
+            </button>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--text-secondary)' }}>Duration (days)</label>

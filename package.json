@@ -1,6 +1,6 @@
 {
   "name": "vibetasks",
-  "version": "2.0.14",
+  "version": "2.0.15",
   "description": "Vibe Tasks - Desktop Task Management Application",
   "main": "dist-electron/main.js",
   "scripts": {
