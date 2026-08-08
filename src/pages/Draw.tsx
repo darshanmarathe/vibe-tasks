@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { FC } from 'react'
 
 type DrawDiagram = {
@@ -10,6 +11,7 @@ type DrawDiagram = {
 }
 
 const Draw: FC = () => {
+  const navigate = useNavigate()
   const [diagrams, setDiagrams] = useState<DrawDiagram[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -90,7 +92,7 @@ const Draw: FC = () => {
 
     if (msg.event === 'close_request') {
       console.log('[Draw] close_request from iframe')
-      window.electronAPI.closeWindow()
+      navigate('/dashboard', { replace: true })
     }
   }, [activeId, diagrams])
 
