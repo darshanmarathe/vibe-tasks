@@ -217,6 +217,10 @@ function createWindow() {
   }, 5000)
 
   // Content Security Policy
+  // The Draw page embeds draw.io, which loads optional third-party scripts
+  // (Google, Dropbox, OneDrive, GitHub, etc.) on demand. We relax
+  // script-src/connect-src for those hosts so the embedded editor stays
+  // functional; the renderer itself only serves local code.
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -226,8 +230,8 @@ function createWindow() {
           "style-src 'self' 'unsafe-inline'; " +
           "img-src 'self' data: blob:; " +
           "frame-src 'self' drawio:; " +
-          "script-src 'self' 'unsafe-inline'; " +
-          "connect-src 'self' http://localhost:* ws://localhost:*; " +
+          "script-src 'self' 'unsafe-inline' https://*.google.com https://apis.google.com https://*.dropbox.com https://www.dropbox.com https://*.github.com https://*.microsoft.com https://*.microsoftonline.com https://*.onedrive.com https://*.office.com https://*.trello.com https://*.confluence.com https://*.atlassian.com https://*.figma.com https://*.slack.com; " +
+          "connect-src 'self' http://localhost:* ws://localhost:* https://*; " +
           "font-src 'self' data:;"
         ]
       }
