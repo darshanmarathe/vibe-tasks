@@ -1,4 +1,5 @@
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js'
+import initSqlJs from 'sql.js'
+import type { Database as SqlJsDatabase, SqlJsStatic } from 'sql.js'
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
@@ -7,6 +8,47 @@ let db: SqlJsDatabase
 let currentDbPath: string
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
+const BACKUP_DIR = path.join(app.getPath('userData'), '.backups')
+const SQLITE_HEADER = Buffer.from('SQLite format 3\u0000', 'latin1')
+const MAX_BACKUPS = 20
+
+function isValidSqlite(buffer: Buffer): boolean {
+  return buffer.length >= 100 && buffer.subarray(0, 16).equals(SQLITE_HEADER)
+}
+
+function writeBackup(sourcePath: string, kind: 'save' | 'corrupt') {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    fs.copyFileSync(sourcePath, path.join(BACKUP_DIR, `vibetasks.db.${kind}.${stamp}`))
+  } catch (err) {
+    console.error('[db] failed to write backup:', err)
+  }
+  pruneBackups()
+}
+
+function pruneBackups() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter((f) => f.startsWith('vibetasks.db.'))
+      .map((f) => ({ f, p: path.join(BACKUP_DIR, f), t: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+      .sort((a, b) => b.t - a.t)
+    for (const file of files.slice(MAX_BACKUPS)) {
+      fs.unlinkSync(file.p)
+    }
+  } catch { /* ignore */ }
+}
+
+function openValidDatabase(SQL: SqlJsStatic, buffer?: Buffer): SqlJsDatabase | null {
+  try {
+    const candidate = buffer ? new SQL.Database(buffer) : new SQL.Database()
+    candidate.exec('SELECT 1')
+    return candidate
+  } catch (err) {
+    console.error('[db] database failed integrity check:', err)
+    return null
+  }
+}
 
 function getDefaultDbPath() {
   return path.join(app.getPath('userData'), 'vibetasks.db')
@@ -89,7 +131,15 @@ function run(sql: string, params?: any[]): { changes: number; lastInsertRowid: n
 function saveToDisk() {
   const data = db.export()
   const buffer = Buffer.from(data)
-  fs.writeFileSync(currentDbPath, buffer)
+  if (!isValidSqlite(buffer)) {
+    console.error('[db] refusing to write invalid database file to disk')
+    return
+  }
+  fs.mkdirSync(path.dirname(currentDbPath), { recursive: true })
+  const tmpPath = `${currentDbPath}.tmp`
+  fs.writeFileSync(tmpPath, buffer)
+  fs.renameSync(tmpPath, currentDbPath)
+  writeBackup(currentDbPath, 'save')
 }
 
 export function getDatabase() {
@@ -112,15 +162,56 @@ export async function initDatabase() {
   const SQL = await initSqlJs()
   currentDbPath = getConfiguredDbPath()
 
+  let loaded: SqlJsDatabase | null = null
+
   if (fs.existsSync(currentDbPath)) {
     const buffer = fs.readFileSync(currentDbPath)
-    db = new SQL.Database(buffer)
-  } else {
-    db = new SQL.Database()
+    if (isValidSqlite(buffer)) {
+      loaded = openValidDatabase(SQL, buffer)
+    } else {
+      console.error('[db] database file is corrupt (invalid header), attempting recovery')
+    }
   }
 
+  if (!loaded) {
+    loaded = recoverCorruptDatabase(SQL)
+  }
+
+  if (!loaded) {
+    console.log('[db] creating a new database')
+    loaded = openValidDatabase(SQL)
+  }
+
+  db = loaded!
   runMigrations()
   saveToDisk()
+}
+
+function recoverCorruptDatabase(SQL: SqlJsStatic): SqlJsDatabase | null {
+  if (fs.existsSync(currentDbPath)) {
+    writeBackup(currentDbPath, 'corrupt')
+  }
+
+  const backups = fs.existsSync(BACKUP_DIR)
+    ? fs.readdirSync(BACKUP_DIR)
+        .filter((f) => f.startsWith('vibetasks.db.') && !f.includes('.corrupt.'))
+        .map((f) => ({ f, p: path.join(BACKUP_DIR, f), t: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+        .sort((a, b) => b.t - a.t)
+    : []
+
+  for (const backup of backups) {
+    try {
+      const buffer = fs.readFileSync(backup.p)
+      const candidate = openValidDatabase(SQL, buffer)
+      if (candidate) {
+        console.log(`[db] restored database from backup: ${backup.f}`)
+        return candidate
+      }
+    } catch (err) {
+      console.warn(`[db] backup unusable (${backup.f}):`, err)
+    }
+  }
+  return null
 }
 
 function runMigrations() {

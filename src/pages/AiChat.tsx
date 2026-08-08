@@ -471,6 +471,15 @@ export default function AiChat() {
 
   const switchConversation = (id: number) => {
     setActiveId(id)
+    const checkStreaming = window.electronAPI.isConversationStreaming
+    if (checkStreaming) {
+      checkStreaming(id).then(isStreaming => {
+        if (!isStreaming) {
+          setStreamingConvos(prev => ({ ...prev, [id]: false }))
+          setStreamContents(prev => ({ ...prev, [id]: '' }))
+        }
+      })
+    }
   }
 
   const createNew = async () => {
@@ -703,10 +712,18 @@ export default function AiChat() {
   const purgeHistory = async () => {
     if (!activeId) return
     if (!window.confirm('Purge all messages in this conversation? This cannot be undone.')) return
+    window.electronAPI.cancelChat(activeId)
+    setStreamingConvos(prev => ({ ...prev, [activeId]: false }))
+    setStreamContents(prev => ({ ...prev, [activeId]: '' }))
+    delete streamErrorRef.current[activeId]
+    setInput('')
     await window.electronAPI.purgeConversation(activeId)
     setMessages([])
     setPinnedMessages([])
     setShowPinned(false)
+    setShowConfig(false)
+    setEditingId(null)
+    setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
   return (
@@ -804,7 +821,7 @@ export default function AiChat() {
                 </div>
                 <div className="w-28">
                   <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Max Tokens</label>
-                  <input type="number" min="1" max="131072"
+                  <input type="number" min="0" max="131072" step="1024"
                     value={localConfig.maxTokens ?? 4096}
                     onChange={e => setLocalConfig(c => ({ ...c, maxTokens: parseInt(e.target.value) || 4096 }))}
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"

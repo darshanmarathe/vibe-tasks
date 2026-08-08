@@ -47,8 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setTheme: (theme: string) => ipcRenderer.invoke('theme:set', theme),
 
-  getVersion: () => ipcRenderer.invoke('app:getVersion'),
-  openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+   openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
+   checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
 
   // Notes
   getNotebooks: () => ipcRenderer.invoke('notes:notebooks:list'),
@@ -201,6 +202,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteMessage: (id: number) => ipcRenderer.invoke('ai:chat:messages:delete', id),
   deleteMessagesAfter: (conversationId: number, afterId: number) => ipcRenderer.invoke('ai:chat:messages:delete-after', conversationId, afterId),
   purgeConversation: (conversationId: number) => ipcRenderer.invoke('ai:chat:messages:purge', conversationId),
+  isConversationStreaming: (conversationId: number) => ipcRenderer.invoke('ai:chat:is-streaming', conversationId),
   pinMessage: (id: number) => ipcRenderer.invoke('ai:chat:messages:pin', id),
   getPinnedMessages: (conversationId: number) => ipcRenderer.invoke('ai:chat:messages:pinned', conversationId),
   sendChatMessage: (conversationId: number, message: string) => ipcRenderer.send('ai:chat:send', { conversationId, message }),

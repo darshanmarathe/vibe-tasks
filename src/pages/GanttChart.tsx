@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Gantt, Task as GanttTask, ViewMode } from 'gantt-task-react'
 import 'gantt-task-react/dist/index.css'
+import * as XLSX from 'xlsx'
 import type { TaskWithRelations, Status, Priority, Project } from '../types/models'
 import TaskEditModal from '../components/TaskEditModal'
 
@@ -261,11 +262,41 @@ export default function GanttChart() {
     loadData()
   }
 
+  const exportToExcel = async () => {
+    const wb = XLSX.utils.book_new()
+    const rows = [
+      ['ID', 'Name', 'Start Date', 'Due Date', 'Progress (%)', 'Status', 'Priority', 'Project'],
+      ...filteredTasks.map(t => [
+        t.id,
+        t.name,
+        t.startDate,
+        t.dueDate,
+        t.completionPercent,
+        t.statusName,
+        t.priorityName,
+        t.projectName
+      ])
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(rows)
+    XLSX.utils.book_append_sheet(wb, ws, 'Tasks')
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const path = await window.electronAPI.showSaveDialog({
+      defaultPath: 'tasks.xlsx',
+      filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }]
+    })
+    if (!path) return
+    await window.electronAPI.writeBinaryFile(path, Array.from(new Uint8Array(buf)))
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gantt Chart</h1>
         <div className="flex items-center gap-3">
+          <button onClick={exportToExcel} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}>
+            Export to Excel
+          </button>
           <div className="flex gap-1 flex-wrap">
             {VIEW_MODES.map(({ mode, label }) => (
               <button key={mode} onClick={() => setViewMode(mode)}

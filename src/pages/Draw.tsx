@@ -229,10 +229,30 @@ const Draw: FC = () => {
   async function importDrawio() {
     const result = await window.electronAPI.importDrawioFile()
     if (!result) return
-    const diag = await window.electronAPI.createDrawDiagram(result.name)
-    await window.electronAPI.saveDrawDiagram(diag.id, result.data)
+
+    let diag
+    const existing = diagrams.find(d => d.name === result.name)
+    if (existing) {
+      const replace = window.confirm(`A diagram named "${result.name}" already exists. Replace it with the imported file?`)
+      if (replace) {
+        diag = existing
+        await window.electronAPI.saveDrawDiagram(existing.id, result.data)
+      } else {
+        diag = await window.electronAPI.createDrawDiagram(result.name)
+        await window.electronAPI.saveDrawDiagram(diag.id, result.data)
+      }
+    } else {
+      diag = await window.electronAPI.createDrawDiagram(result.name)
+      await window.electronAPI.saveDrawDiagram(diag.id, result.data)
+    }
+
     const updated = { ...diag, data: result.data }
-    setDiagrams(prev => [updated, ...prev])
+    setDiagrams(prev => {
+      if (existing && existing.id === diag.id) {
+        return prev.map(d => d.id === diag.id ? updated : d)
+      }
+      return [updated, ...prev]
+    })
     setActiveId(diag.id)
     loadedRef.current = diag.id
     setDirty(false)

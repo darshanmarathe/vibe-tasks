@@ -790,6 +790,40 @@ function registerIpcHandlers() {
 
   ipcMain.handle('app:getVersion', () => app.getVersion())
 
+  ipcMain.handle('app:checkUpdate', async () => {
+    const current = app.getVersion().replace(/^v/, '')
+    const cv = current.split('.').map(n => parseInt(n, 10) || 0)
+    const cmp = (a: number[], b: number[]) => {
+      const len = Math.max(a.length, b.length)
+      for (let i = 0; i < len; i++) {
+        const av = a[i] || 0
+        const bv = b[i] || 0
+        if (av !== bv) return av - bv
+      }
+      return 0
+    }
+    const GITHUB_API = `https://api.github.com/repos/darshanmarathe/vibe-tasks/releases/latest`
+    return new Promise(resolve => {
+      const req = net.request({ method: 'GET', url: GITHUB_API, headers: { 'User-Agent': 'vibetasks', Accept: 'application/vnd.github+json' } })
+      const chunks: Buffer[] = []
+      req.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)))
+      req.on('end', () => {
+        try {
+          const json = JSON.parse(Buffer.concat(chunks).toString('utf-8'))
+          const latest = (json.tag_name || '').replace(/^v/, '')
+          const lv = latest.split('.').map((n: string) => parseInt(n, 10) || 0)
+          resolve({ updateAvailable: cmp(lv, cv) > 0, currentVersion: current, latestVersion: latest, releaseNotes: (json.body || '').slice(0, 2000), url: json.html_url || '', prerelease: !!json.prerelease, error: null as string | null })
+        } catch (e: any) {
+          resolve({ updateAvailable: false, currentVersion: current, latestVersion: null, releaseNotes: '', url: '', prerelease: false, error: e?.message || 'parse error' })
+        }
+      })
+      req.on('error', (e: any) => {
+        resolve({ updateAvailable: false, currentVersion: current, latestVersion: null, releaseNotes: '', url: '', prerelease: false, error: e?.message || String(e) })
+      })
+      req.end()
+    })
+  })
+
   // Notes
   ipcMain.handle('notes:notebooks:list', () => noteRepo.getNotebooks())
   ipcMain.handle('notes:notebooks:create', (_e, name) => noteRepo.createNotebook(name))
@@ -983,6 +1017,7 @@ function registerIpcHandlers() {
   ipcMain.handle('ai:chat:messages:delete', (_e, id) => chatRepo.deleteMessage(id))
   ipcMain.handle('ai:chat:messages:delete-after', (_e, conversationId, afterId) => chatRepo.deleteMessagesAfter(conversationId, afterId))
   ipcMain.handle('ai:chat:messages:purge', (_e, conversationId) => chatRepo.purgeConversation(conversationId))
+  ipcMain.handle('ai:chat:is-streaming', (_e, conversationId) => activeStreams.has(conversationId))
   ipcMain.handle('ai:chat:messages:pin', (_e, id) => chatRepo.togglePinMessage(id))
   ipcMain.handle('ai:chat:messages:pinned', (_e, conversationId) => chatRepo.getPinnedMessages(conversationId))
 
@@ -1205,7 +1240,12 @@ if (!gotTheLock) {
     splashShownAt = Date.now()
     createSplashWindow()
     console.log('[startup] splash created, initializing database...')
-    await initDatabase()
+    try {
+      await initDatabase()
+    } catch (err) {
+      console.error('[startup] database initialization failed:', err)
+      throw err
+    }
     console.log('[startup] database initialized, registering IPC handlers...')
     registerIpcHandlers()
     console.log('[startup] IPC handlers registered')
