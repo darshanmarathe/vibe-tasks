@@ -158,7 +158,9 @@ export default function GanttChart() {
     })
   }
 
-  const ganttTasks = toGanttTasks(filteredTasks)
+  const ganttTasks = toGanttTasks(filteredTasks).sort(
+    (a, b) => a.end.getTime() - b.end.getTime() || a.start.getTime() - b.start.getTime()
+  )
 
   const columnWidth = viewMode === ViewMode.Week ? 250 : viewMode === ViewMode.Month ? 300 : 65
 
