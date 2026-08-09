@@ -370,8 +370,8 @@ export default function GanttChart() {
             tasks={ganttTasks}
             viewMode={viewMode}
             columnWidth={columnWidth}
-            listCellWidth={350}
-            rowHeight={40}
+            listCellWidth={450}
+            rowHeight={44}
             barCornerRadius={5}
             barFill={70}
             handleWidth={8}
@@ -405,9 +405,9 @@ export default function GanttChart() {
                           backgroundColor: isSelected ? 'var(--bg-hover)' : 'transparent',
                         }}
                       >
-                        <div className="flex-1 px-3 text-sm" style={{ color: 'var(--text-primary)' }}>{task.name}</div>
-                        <div className="w-[100px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{startStr}</div>
-                        <div className="w-[100px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{endStr}</div>
+                        <div className="flex-1 px-3 text-sm truncate" style={{ color: 'var(--text-primary)' }}>{task.name}</div>
+                        <div className="w-[120px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{startStr}</div>
+                        <div className="w-[120px] px-2 truncate text-xs text-right" style={{ color: 'var(--text-secondary)' }}>{endStr}</div>
                       </div>
                     )
                   })}
@@ -427,8 +427,8 @@ export default function GanttChart() {
                 }}
               >
                 <div className="flex-1 px-3 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Task</div>
-                <div className="w-[100px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>From</div>
-                <div className="w-[100px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>To</div>
+                <div className="w-[120px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>From</div>
+                <div className="w-[120px] px-2 text-xs font-semibold text-right" style={{ color: 'var(--text-secondary)' }}>To</div>
               </div>
             )}
             barBackgroundColor="var(--accent, #6366f1)"
