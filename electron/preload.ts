@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createStatus: (data: any) => ipcRenderer.invoke('db:statuses:create', data),
   updateStatus: (id: number, data: any) => ipcRenderer.invoke('db:statuses:update', id, data),
   deleteStatus: (id: number) => ipcRenderer.invoke('db:statuses:delete', id),
+  reorderStatuses: (items: { id: number; ord: number }[]) => ipcRenderer.invoke('db:statuses:reorder', items),
 
   getPriorities: () => ipcRenderer.invoke('db:priorities:list'),
   createPriority: (data: any) => ipcRenderer.invoke('db:priorities:create', data),
