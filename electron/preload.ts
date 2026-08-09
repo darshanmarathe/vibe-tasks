@@ -110,6 +110,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopRunningTimer: ()                   => ipcRenderer.invoke('time:stopRunning'),
   getRunningTimer:  ()                   => ipcRenderer.invoke('time:running'),
   getTaskTime:      (taskId, range)      => ipcRenderer.invoke('time:taskTime', taskId, range),
+  getTaskTimes:     (taskIds, range)     => ipcRenderer.invoke('time:taskTimes', taskIds, range),
   getDailyReport:   (date)               => ipcRenderer.invoke('time:dailyReport', date),
   getWeeklyReport:  (startDate)          => ipcRenderer.invoke('time:weeklyReport', startDate),
   getTimeEntries:   (taskId)             => ipcRenderer.invoke('time:entries', taskId),

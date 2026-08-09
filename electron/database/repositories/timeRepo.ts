@@ -88,6 +88,37 @@ export function getTaskTime(taskId: number, range?: { start: string; end: string
   return row?.total ?? 0
 }
 
+// ── Total seconds logged for multiple tasks, in a single query ─────────────────
+export function getTaskTimes(
+  taskIds: number[],
+  range?: { start: string; end: string }
+): Array<[number, number]> {
+  if (taskIds.length === 0) return []
+  const db = getDatabase()
+  const placeholders = taskIds.map(() => '?').join(',')
+
+  const sql = range
+    ? `SELECT task_id, COALESCE(SUM(duration_seconds), 0) as total
+       FROM time_entries
+       WHERE task_id IN (${placeholders}) AND start_time >= ? AND start_time <= ? AND duration_seconds IS NOT NULL
+       GROUP BY task_id`
+    : `SELECT task_id, COALESCE(SUM(duration_seconds), 0) as total
+       FROM time_entries
+       WHERE task_id IN (${placeholders}) AND duration_seconds IS NOT NULL
+       GROUP BY task_id`
+
+  const params = range ? [...taskIds, range.start, range.end] : [...taskIds]
+  const rows = db.exec(sql, params)
+
+  const byId = new Map<number, number>()
+  for (const r of rows) {
+    byId.set(Number(r.task_id), Number(r.total) || 0)
+  }
+
+  // Preserve caller ordering, defaulting missing tasks to 0
+  return taskIds.map(id => [id, byId.get(id) ?? 0] as [number, number])
+}
+
 // ── Daily report: entries grouped by task for a given date (YYYY-MM-DD) ───────
 export function getDailyReport(date: string): any[] {
   const db = getDatabase()

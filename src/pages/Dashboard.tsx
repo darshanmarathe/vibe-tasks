@@ -82,9 +82,8 @@ export default function Dashboard() {
     setTodayJournal(journal)
     setDashboardLinks(dlinks)
     setRecentIdeas(ri)
-    const times = await Promise.all(
-      t.map((task: TaskWithRelations) => window.electronAPI.getTaskTime(task.id).then(secs => [task.id, secs] as [number, number]))
-    )
+    const taskIds = t.map((task: TaskWithRelations) => task.id)
+    const times = await window.electronAPI.getTaskTimes(taskIds)
     setTaskTimes(new Map(times))
     if (!defaultsSet.current) {
       defaultsSet.current = true

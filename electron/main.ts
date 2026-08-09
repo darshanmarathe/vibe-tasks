@@ -36,8 +36,9 @@ let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
 let pomodoroWindow: BrowserWindow | null = null
 let focusWindow: BrowserWindow | null = null
-const SPLASH_MIN_DURATION_MS = 3000
+const SPLASH_MIN_DURATION_MS = 1500
 let splashShownAt = 0
+let appReadyStart = 0
 const CONFIG_PATH = path.join(app.getPath('userData'), 'vibetasks-config.json')
 const DEFAULT_THEME = 'dark'
 const DEFAULT_ZOOM_FACTOR = 1
@@ -159,6 +160,7 @@ function revealMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return
   if (mainWindow.isVisible()) return
   console.log('[main] revealing window')
+  console.log(`[perf] startup: ${Date.now() - splashShownAt}ms (splashShownAt -> reveal)`)
   mainWindow.show()
   closeSplashWindow()
   mainWindow.focus()
@@ -209,6 +211,7 @@ function createWindow() {
   })
   mainWindow.webContents.once('did-finish-load', () => {
     console.log('[main] did-finish-load')
+    console.log(`[perf] renderer loaded: ${Date.now() - splashShownAt}ms (splashShownAt -> did-finish-load)`)
     revealMainWindow()
   })
   setTimeout(() => {
@@ -973,6 +976,7 @@ function registerIpcHandlers() {
   })
   ipcMain.handle('time:running',      ()                   => timeRepo.getRunningTimer())
   ipcMain.handle('time:taskTime',     (_e, taskId, range)  => timeRepo.getTaskTime(taskId, range))
+  ipcMain.handle('time:taskTimes',    (_e, taskIds, range) => timeRepo.getTaskTimes(taskIds, range))
   ipcMain.handle('time:dailyReport',  (_e, date)           => timeRepo.getDailyReport(date))
   ipcMain.handle('time:weeklyReport', (_e, startDate)      => timeRepo.getWeeklyReport(startDate))
   ipcMain.handle('time:entries',      (_e, taskId)         => timeRepo.getAllTimeEntries(taskId))
@@ -1240,6 +1244,7 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(async () => {
+    appReadyStart = Date.now()
     console.log('[startup] app ready, creating splash...')
     splashShownAt = Date.now()
     createSplashWindow()
