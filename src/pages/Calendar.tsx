@@ -249,11 +249,6 @@ export default function Calendar() {
                 }}
               >
                 <div onClick={() => openAddPopup(dateStr)}
-                  onDoubleClick={() => {
-                    if (dayTasks.length === 0) {
-                      openAddPopup(dateStr)
-                    }
-                  }}
                   className={`text-xs font-semibold mb-1 cursor-pointer hover:opacity-70 ${isToday ? 'flex items-center justify-center w-6 h-6 rounded-full' : ''}`}
                   style={{
                     color: isToday ? '#fff' : isWeekend ? 'var(--text-muted)' : 'var(--text-primary)',
