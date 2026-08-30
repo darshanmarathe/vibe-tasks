@@ -1121,6 +1121,18 @@ function registerIpcHandlers() {
       } else if (provider === 'opencode-go') {
         console.log(`[${logPrefix}] using opencode-go`)
         client = new OpenAI({ baseURL: 'https://opencode.ai/zen/go/v1', apiKey })
+      } else if (provider === 'anthropic') {
+        console.log(`[${logPrefix}] using anthropic`)
+        client = new OpenAI({ baseURL: 'https://api.anthropic.com/v1', apiKey })
+      } else if (provider === 'deepseek') {
+        console.log(`[${logPrefix}] using deepseek`)
+        client = new OpenAI({ baseURL: 'https://api.deepseek.com/v1', apiKey })
+      } else if (provider === 'azure') {
+        console.log(`[${logPrefix}] using azure`)
+        client = new OpenAI({ baseURL: 'https://api.cerebras.ai/v1', apiKey })
+      } else if (provider === 'bedrock') {
+        console.log(`[${logPrefix}] using bedrock`)
+        client = new OpenAI({ baseURL: 'https://api.cerebras.ai/v2', apiKey })
       } else {
         console.log(`[${logPrefix}] using unknown provider, falling back`)
         client = new OpenAI({ apiKey })

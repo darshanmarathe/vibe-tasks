@@ -13,6 +13,10 @@ const PROVIDERS = [
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'opencode', label: 'OpenCode (Zen)' },
   { value: 'opencode-go', label: 'OpenCode Go' },
+  { value: 'anthropic', label: 'Anthropic (Claude)' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'azure', label: 'Azure OpenAI' },
+  { value: 'bedrock', label: 'AWS Bedrock' },
 ]
 
 const GEMINI_MODELS = [
@@ -25,6 +29,32 @@ const GEMINI_MODELS = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { value: 'gemini-2.5-pro-exp-03-25', label: 'Gemini 2.5 Pro (Experimental)' },
+]
+
+const ANTHROPIC_MODELS = [
+  { value: 'claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
+  { value: 'claude-3-opus', label: 'Claude 3.3 Opus' },
+  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+  { value: 'claude-3-indora', label: 'Claude 3 Indora' },
+  { value: 'claude-3-early', label: 'Claude 3 Early' },
+]
+
+const DEEPSEEK_MODELS = [
+  { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill Llama 70B' },
+  { value: 'deepseek-coder', label: 'DeepSeek Coder' },
+  { value: 'deepseek-v2', label: 'DeepSeek V2' },
+]
+
+const AZURE_MODELS = [
+  { value: 'openai-gpt-4o', label: 'OpenAI GPT-4o' },
+  { value: 'openai-ultra', label: 'OpenAI Ultra' },
+  { value: 'openai-poison', label: 'OpenAI Poison' },
+]
+
+const BEDROCK_MODELS = [
+  { value: 'openai-gpt-4o', label: 'OpenAI GPT-4o' },
+  { value: 'openai-llama-3-70b', label: 'Llama 3 70B' },
+  { value: 'openai-llama-3-8b', label: 'Llama 3 8B' },
 ]
 
 const GROQ_MODELS = [
@@ -304,6 +334,10 @@ const PROVIDER_BASE_URLS: Record<string, string> = {
   opencode: 'https://opencode.ai/zen/v1',
   'opencode-go': 'https://opencode.ai/zen/go/v1',
   openrouter: 'https://openrouter.ai/api/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  azure: 'https://api.cerebras.ai/v1',
+  bedrock: 'https://api.cerebras.ai/v2',
 }
 
 function ProviderModelSelect({ provider, apiKey, value, onChange }: { provider: string; apiKey: string; value: string; onChange: (m: string) => void }) {
@@ -738,7 +772,7 @@ export default function AiChat() {
                 <label className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Provider</label>
                 <select value={localConfig.provider} onChange={e => {
                   const p = e.target.value
-                  const defaults: Record<string, string> = { ollama: 'llama3.2', openai: 'gpt-4o', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', mistral: 'mistral-large-latest', openrouter: 'openai/gpt-4o', opencode: 'big-pickle', 'opencode-go': 'deepseek-v4-pro' }
+                  const defaults: Record<string, string> = { ollama: 'llama3.2', openai: 'gpt-4o', gemini: 'gemini-2.5-flash', groq: 'llama-3.3-70b-versatile', mistral: 'mistral-large-latest', openrouter: 'openai/gpt-4o', opencode: 'big-pickle', 'opencode-go': 'deepseek-v4-pro', anthropic: 'claude-3-5-sonnet', deepseek: 'deepseek-r1-distill-llama-70b', azure: 'openai-gpt-4o', bedrock: 'openai-llama-3-70b' }
                   setLocalConfig(c => ({ ...c, provider: p, model: defaults[p] || c.model }))
                 }}
                   className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
@@ -773,6 +807,30 @@ export default function AiChat() {
                     className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
                     style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                     {MISTRAL_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                ) : localConfig.provider === 'anthropic' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {ANTHROPIC_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                ) : localConfig.provider === 'deepseek' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {DEEPSEEK_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                ) : localConfig.provider === 'azure' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {AZURE_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                ) : localConfig.provider === 'bedrock' ? (
+                  <select value={localConfig.model} onChange={e => setLocalConfig(c => ({ ...c, model: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                    {BEDROCK_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 ) : localConfig.provider === 'opencode' || localConfig.provider === 'opencode-go' ? (
                   <ProviderModelSelect provider={localConfig.provider} apiKey={localConfig.apiKey} value={localConfig.model} onChange={m => setLocalConfig(c => ({ ...c, model: m }))} />
