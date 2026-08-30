@@ -304,6 +304,29 @@ export interface ElectronAPI {
   setAiConfig: (config: AiConfig) => Promise<void>
   getOllamaModels: () => Promise<string[]>
   getProviderModels: (baseUrl: string, apiKey?: string) => Promise<string[]>
+
+  // Screen Recorder
+  recorder: {
+    getSources: () => Promise<RecordingSource[]>
+    getRecordingsDir: () => Promise<string>
+    saveBlob: (data: number[], suggestedName: string) => Promise<string>
+    listRecordings: () => Promise<RecordingEntry[]>
+    renameRecording: (id: string, name: string) => Promise<void>
+    deleteRecording: (id: string) => Promise<void>
+    openInFolder: (id: string) => Promise<void>
+  }
+
+  // Video Editor (FFmpeg)
+  editor: {
+    getMetadata: (file: string) => Promise<EditorMetadata>
+    trim: (opts: EditorOp) => Promise<string>
+    cut: (opts: EditorOp) => Promise<string>
+    speed: (opts: EditorOp) => Promise<string>
+    caption: (opts: EditorCaptionOp) => Promise<string>
+    audio: (opts: EditorAudioOp) => Promise<string>
+    openFile: (filePath: string) => Promise<void>
+    onProgress: (callback: (p: EditorProgress) => void) => () => void
+  }
 }
 
 export interface FlashcardDeck {
@@ -597,6 +620,80 @@ export interface AiConfig {
   systemPrompt?: string
   temperature?: number
   maxTokens?: number
+}
+
+// Screen Recorder
+export interface RecordingSource {
+  id: string
+  name: string
+  thumbnail: string
+  type: 'screen' | 'window'
+  display_id?: number
+}
+
+export interface RecordingEntry {
+  id: string
+  name: string
+  path: string
+  size: number
+  durationSec: number
+  createdAt: string
+  mimeType: string
+}
+
+export interface RecorderStatus {
+  state: 'idle' | 'recording' | 'paused'
+  elapsedSec: number
+  sourceName: string
+  hasAudio: boolean
+}
+
+export interface RecordingOptions {
+  micAudio: boolean
+  maxFps: number
+  maxWidth: number
+  maxHeight: number
+}
+
+// Video Editor (FFmpeg)
+export interface EditorMetadata {
+  durationSec: number
+  size: number
+  width: number
+  height: number
+  error?: string
+}
+
+export interface EditorOp {
+  file: string
+  outName: string
+  start?: number
+  end?: number
+  cutStart?: number
+  cutEnd?: number
+  factor?: number
+}
+
+export interface EditorCaptionOp {
+  file: string
+  outName: string
+  text: string
+  x: number
+  y: number
+  fontSize: number
+  color: string
+}
+
+export interface EditorAudioOp {
+  file: string
+  outName: string
+  mode: 'mute' | 'gain' | 'extract'
+  gain?: number
+}
+
+export interface EditorProgress {
+  pct: number
+  label: string
 }
 
 declare global {

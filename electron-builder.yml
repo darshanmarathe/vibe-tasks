@@ -16,6 +16,11 @@ extraResources:
     filter:
       - "*.cjs"
       - "*.html"
+  - from: "node_modules/ffmpeg-static/"
+    to: "ffmpeg/"
+    filter:
+      - "ffmpeg"
+      - "ffmpeg.exe"
   - from: "."
     to: "."
     filter:

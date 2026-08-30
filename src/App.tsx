@@ -27,6 +27,8 @@ const TimeReports = lazy(() => import('./pages/TimeReports'))
 const DailyJournal = lazy(() => import('./pages/DailyJournal'))
 const AiChat = lazy(() => import('./pages/AiChat'))
 const GanttChart = lazy(() => import('./pages/GanttChart'))
+const ScreenRecorder = lazy(() => import('./pages/ScreenRecorder'))
+const VideoEditor = lazy(() => import('./pages/VideoEditor'))
 
 function LoadingFallback() {
   return (
@@ -71,6 +73,8 @@ function App() {
                 <Route path="/ai-chat" element={<AiChat />} />
                 <Route path="/ideas" element={<Ideas />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/recorder" element={<ScreenRecorder />} />
+                <Route path="/editor" element={<VideoEditor />} />
               </Route>
             </Routes>
           </Suspense>

@@ -198,5 +198,31 @@ import_electron.contextBridge.exposeInMainWorld("electronAPI", {
   getAiConfig: () => import_electron.ipcRenderer.invoke("ai:chat:config:get"),
   setAiConfig: (config) => import_electron.ipcRenderer.invoke("ai:chat:config:set", config),
   getOllamaModels: () => import_electron.ipcRenderer.invoke("ai:chat:ollama-models"),
-  getProviderModels: (baseUrl, apiKey) => import_electron.ipcRenderer.invoke("ai:chat:provider-models", baseUrl, apiKey)
+  getProviderModels: (baseUrl, apiKey) => import_electron.ipcRenderer.invoke("ai:chat:provider-models", baseUrl, apiKey),
+  // Screen Recorder
+  recorder: {
+    getSources: () => import_electron.ipcRenderer.invoke("record:getSources"),
+    getRecordingsDir: () => import_electron.ipcRenderer.invoke("record:getDir"),
+    saveBlob: (data, suggestedName) => import_electron.ipcRenderer.invoke("record:saveBlob", data, suggestedName),
+    listRecordings: () => import_electron.ipcRenderer.invoke("record:list"),
+    renameRecording: (id, name) => import_electron.ipcRenderer.invoke("record:rename", id, name),
+    deleteRecording: (id) => import_electron.ipcRenderer.invoke("record:delete", id),
+    openInFolder: (id) => import_electron.ipcRenderer.invoke("record:openFolder", id)
+  },
+  // Video Editor (FFmpeg)
+  editor: {
+    getMetadata: (file) => import_electron.ipcRenderer.invoke("editor:metadata", file),
+    trim: (opts) => import_electron.ipcRenderer.invoke("editor:trim", opts),
+    cut: (opts) => import_electron.ipcRenderer.invoke("editor:cut", opts),
+    speed: (opts) => import_electron.ipcRenderer.invoke("editor:speed", opts),
+    caption: (opts) => import_electron.ipcRenderer.invoke("editor:caption", opts),
+    audio: (opts) => import_electron.ipcRenderer.invoke("editor:audio", opts),
+    openFile: (filePath) => import_electron.ipcRenderer.invoke("editor:open", filePath),
+    onProgress: (callback) => {
+      const handler = (_e, p) => callback(p);
+      import_electron.ipcRenderer.on("editor:progress", handler);
+      return () => import_electron.ipcRenderer.removeListener("editor:progress", handler);
+    }
+  }
 });
+

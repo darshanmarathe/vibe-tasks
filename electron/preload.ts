@@ -219,4 +219,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setAiConfig: (config: any) => ipcRenderer.invoke('ai:chat:config:set', config),
   getOllamaModels: () => ipcRenderer.invoke('ai:chat:ollama-models'),
   getProviderModels: (baseUrl: string, apiKey?: string) => ipcRenderer.invoke('ai:chat:provider-models', baseUrl, apiKey),
+
+  // Screen Recorder
+  recorder: {
+    getSources: () => ipcRenderer.invoke('record:getSources'),
+    getRecordingsDir: () => ipcRenderer.invoke('record:getDir'),
+    saveBlob: (data: number[], suggestedName: string) => ipcRenderer.invoke('record:saveBlob', data, suggestedName),
+    listRecordings: () => ipcRenderer.invoke('record:list'),
+    renameRecording: (id: string, name: string) => ipcRenderer.invoke('record:rename', id, name),
+    deleteRecording: (id: string) => ipcRenderer.invoke('record:delete', id),
+    openInFolder: (id: string) => ipcRenderer.invoke('record:openFolder', id),
+  },
+
+  // Video Editor (FFmpeg)
+  editor: {
+    getMetadata: (file: string) => ipcRenderer.invoke('editor:metadata', file),
+    trim: (opts: any) => ipcRenderer.invoke('editor:trim', opts),
+    cut: (opts: any) => ipcRenderer.invoke('editor:cut', opts),
+    speed: (opts: any) => ipcRenderer.invoke('editor:speed', opts),
+    caption: (opts: any) => ipcRenderer.invoke('editor:caption', opts),
+    audio: (opts: any) => ipcRenderer.invoke('editor:audio', opts),
+    openFile: (filePath: string) => ipcRenderer.invoke('editor:open', filePath),
+    onProgress: (callback: (p: any) => void) => {
+      const handler = (_e: any, p: any) => callback(p)
+      ipcRenderer.on('editor:progress', handler)
+      return () => ipcRenderer.removeListener('editor:progress', handler)
+    },
+  },
 })

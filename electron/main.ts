@@ -1,7 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath, pathToFileURL } from 'url'
-import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu, protocol, net } from 'electron'
+import { spawn, execFileSync } from 'child_process'
+import { app, BrowserWindow, ipcMain, Notification, dialog, shell, Menu, protocol, net, desktopCapturer, screen } from 'electron'
 import type OpenAI from 'openai'
 import { initDatabase, getDbPath, setDbPath, getDatabase } from './database/db'
 import * as userRepo from './database/repositories/userRepo'
@@ -29,7 +30,8 @@ if (process.argv.includes('--app-version') || process.argv.includes('-V')) {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'drawio', privileges: { standard: true, secure: true, bypassCSP: true, stream: true, supportFetchAPI: true } }
+  { scheme: 'drawio', privileges: { standard: true, secure: true, bypassCSP: true, stream: true, supportFetchAPI: true } },
+  { scheme: 'media', privileges: { standard: true, secure: true, bypassCSP: true, stream: true, supportFetchAPI: true, corsEnabled: true } }
 ])
 
 let mainWindow: BrowserWindow | null = null
@@ -45,6 +47,149 @@ const DEFAULT_ZOOM_FACTOR = 1
 const MIN_ZOOM_FACTOR = 0.5
 const MAX_ZOOM_FACTOR = 3
 const ZOOM_STEP = 0.1
+
+function recordingsDir(): string {
+  const dir = path.join(app.getPath('videos'), 'VibeTasks')
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function safeFileName(name: string): string {
+  const cleaned = name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'recording'
+  return cleaned + (cleaned.toLowerCase().endsWith('.webm') ? '' : '.webm')
+}
+
+// ── Video Editor (FFmpeg) ─────────────────────────────────────────
+let ffmpegPathCache: string | null = null
+
+function ffmpegPath(): string {  if (ffmpegPathCache) return ffmpegPathCache
+  const candidates = [
+    path.join(process.resourcesPath, 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
+    path.join(process.cwd(), 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
+    path.join(app.getAppPath(), 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'),
+  ]
+  for (const c of candidates) {
+    if (fs.existsSync(c)) { ffmpegPathCache = c; return c }
+  }
+  throw new Error('FFmpeg binary not found')
+}
+
+function editsDir(): string {
+  const dir = path.join(recordingsDir(), 'edited')
+  fs.mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function safeCodecSafeName(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'edited'
+}
+
+let encodersCache: string[] | null = null
+function availEncoders(): string[] {
+  if (encodersCache) return encodersCache
+  try {
+    const bin = ffmpegPath()
+    const out = execFileSync(bin, ['-hide_banner', '-encoders'], { encoding: 'utf8' })
+    encodersCache = out.split('\n').map(l => l.trim()).filter(l => l.includes('V')).map(l => l.split(/\s+/)[1]).filter(Boolean)
+  } catch {
+    encodersCache = []
+  }
+  return encodersCache
+}
+
+// Extra codec options per hardware encoder.
+function h264ExtraArgsFor(enc: string): string[] {
+  if (enc === 'h264_nvenc') return ['-rc', 'vbr', '-cq', '20', '-b:v', '0']
+  if (enc === 'h264_qsv') return ['-global_quality', '20']
+  if (h264EncodingConfig?.[enc]?.extra) return h264EncodingConfig[enc].extra
+  return ['-crf', '20']
+}
+
+type EncoderConfig = { validate: (stderr: string) => boolean; extra?: string[] }
+const h264EncodingConfig: Record<string, EncoderConfig> = {
+  h264_nvenc: { validate: e => !/Driver does not support|Error while opening/.test(e) },
+  h264_qsv: { validate: e => !/Error while opening|not implemented|Invalid right operand/.test(e) },
+  h264_amf: { validate: e => !/Error while opening|Failed to open|not implemented/.test(e) },
+  h264_mf: { validate: e => !/Error while opening|not implemented/.test(e) },
+}
+
+// Pick the fastest H.264 encoder that ACTUALLY works on this machine by running
+// a real 1-frame transcode probe (hardware first, CPU fallback). The encoder
+// list alone is not enough: e.g. NVENC may be listed but fail on old drivers.
+const ENCODER_PRIORITY = ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf', 'libx264']
+let h264EncoderCache: string | null = null
+function probeEncoder(enc: string): boolean {
+  const bin = ffmpegPath()
+  const probeArgs = ['-y', '-f', 'lavfi', '-i', 'testsrc=duration=1:size=160x90:rate=10',
+    '-frames:v', '1', '-c:v', enc,
+    ...(enc === 'libx264' ? ['-crf', '28'] : h264ExtraArgsFor(enc)),
+    '-f', 'null', '-']
+  try {
+    execFileSync(bin, probeArgs, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+function h264Encoder(): string {
+  if (h264EncoderCache) return h264EncoderCache
+  const list = availEncoders()
+  for (const pref of ENCODER_PRIORITY) {
+    if (pref !== 'libx264' && !list.includes(pref)) continue
+    if (probeEncoder(pref)) { h264EncoderCache = pref; return pref }
+  }
+  h264EncoderCache = 'libx264'
+  return h264EncoderCache
+}
+
+// Extra codec options for the selected hardware encoder.
+function h264ExtraArgs(): string[] {
+  const e = h264Encoder()
+  return h264ExtraArgsFor(e)
+}
+
+function runFFmpeg(args: string[], onProgress?: (pct: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const bin = ffmpegPath()
+    const proc = spawn(bin, args, { windowsHide: true })
+    let stderr = ''
+    proc.stderr.on('data', (d: Buffer) => {
+      const text = d.toString()
+      stderr += text
+      if (onProgress) {
+        const m = text.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g)
+        if (m && m.length) {
+          const last = m[m.length - 1]
+          const parts = last.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/)
+          if (parts) {
+            const secs = parseInt(parts[1], 10) * 3600 + parseInt(parts[2], 10) * 60 + parseFloat(parts[3])
+            onProgress(secs)
+          }
+        }
+      }
+    })
+    proc.on('error', err => reject(err))
+    proc.on('close', code => {
+      if (code === 0) resolve(stderr)
+      else reject(new Error(`FFmpeg exited with code ${code}: ${stderr.slice(-500)}`))
+    })
+  })
+}
+
+function ffprobeDuration(filePath: string): Promise<number> {
+  return new Promise((resolve) => {
+    const bin = ffmpegPath()
+    const proc = spawn(bin, ['-i', filePath], { windowsHide: true })
+    let stderr = ''
+    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
+    proc.on('close', () => {
+      const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/)
+      if (m) resolve(parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]))
+      else resolve(0)
+    })
+    proc.on('error', () => resolve(0))
+  })
+}
 
 let habitsInterval: ReturnType<typeof setInterval> | null = null
 
@@ -502,6 +647,23 @@ function registerIpcHandlers() {
     // Prevent path traversal outside drawio directory
     if (!fullPath.startsWith(drawioPath)) {
       return new Response(null, { status: 403 })
+    }
+    return net.fetch(pathToFileURL(fullPath).href)
+  })
+
+  // Serve local recording/edited media files through a privileged scheme.
+  // The absolute path is base64-encoded in the URL to safely allow any file
+  // under the recordings directory (plus any file that exists on disk).
+  protocol.handle('media', async (request) => {
+    let enc = new URL(request.url).pathname.replace(/^\//, '')
+    let fullPath = ''
+    try {
+      fullPath = decodeURIComponent(enc)
+    } catch {
+      return new Response(null, { status: 400 })
+    }
+    if (!fullPath || !path.isAbsolute(fullPath) || !fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+      return new Response(null, { status: 404 })
     }
     return net.fetch(pathToFileURL(fullPath).href)
   })
@@ -1241,6 +1403,256 @@ function registerIpcHandlers() {
     if (pomodoroWindow && !pomodoroWindow.isDestroyed()) {
       pomodoroWindow.webContents.send('theme:changed', theme)
     }
+  })
+
+  // ── Screen Recorder ──────────────────────────────────────────────
+  ipcMain.handle('record:getDir', () => {
+    return recordingsDir()
+  })
+
+  ipcMain.handle('record:getSources', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 320, height: 180 },
+        fetchWindowIcons: true,
+      })
+      const displays = screen.getAllDisplays()
+      return sources.map(s => {
+        const isScreen = s.id.startsWith('screen:')
+        let displayId: number | undefined
+        if (isScreen) {
+          const rank = parseInt(s.id.replace('screen:', ''), 10)
+          displayId = displays[rank]?.id
+        }
+        return {
+          id: s.id,
+          name: s.name,
+          thumbnail: s.thumbnail.isEmpty() ? '' : s.thumbnail.toDataURL(),
+          type: isScreen ? ('screen' as const) : ('window' as const),
+          display_id: displayId,
+        }
+      })
+    } catch (err: any) {
+      console.error('[Recorder] failed to get sources:', err.message)
+      return []
+    }
+  })
+
+  ipcMain.handle('record:saveBlob', (_e, data: number[], suggestedName: string) => {
+    const dir = recordingsDir()
+    const filePath = path.join(dir, safeFileName(suggestedName))
+    fs.writeFileSync(filePath, Buffer.from(data))
+    return filePath
+  })
+
+  ipcMain.handle('record:list', () => {
+    const dir = recordingsDir()
+    let entries
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return []
+    }
+    return entries
+      .filter(e => e.isFile() && /\.(webm|mp4|mov)$/i.test(e.name))
+      .map(e => {
+        const full = path.join(dir, e.name)
+        let stat
+        try { stat = fs.statSync(full) } catch { return null }
+        if (!stat) return null
+        return {
+          id: e.name,
+          name: e.name.replace(/\.(webm|mp4|mov)$/i, ''),
+          path: full,
+          size: stat.size,
+          durationSec: 0,
+          createdAt: stat.mtime.toISOString(),
+          mimeType: e.name.toLowerCase().endsWith('.webm') ? 'video/webm' : e.name.toLowerCase().endsWith('.mp4') ? 'video/mp4' : 'video/quicktime',
+        }
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt))
+  })
+
+  ipcMain.handle('record:rename', (_e, id: string, name: string) => {
+    const dir = recordingsDir()
+    const oldPath = path.join(dir, id)
+    if (!fs.existsSync(oldPath)) return
+    const ext = path.extname(oldPath) || '.webm'
+    const newName = name.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'recording'
+    const newPath = path.join(dir, `${newName}${ext}`)
+    fs.renameSync(oldPath, newPath)
+  })
+
+  ipcMain.handle('record:delete', (_e, id: string) => {
+    const dir = recordingsDir()
+    const filePath = path.join(dir, id)
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+  })
+
+  ipcMain.handle('record:openFolder', (_e, id: string) => {
+    const dir = recordingsDir()
+    const filePath = path.join(dir, id)
+    if (fs.existsSync(filePath)) shell.showItemInFolder(filePath)
+    else shell.openPath(dir)
+  })
+
+  // ── Video Editor (FFmpeg) ────────────────────────────────────────
+  const sendProgress = (pct: number, label: string) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('editor:progress', { pct, label })
+    }
+  }
+
+  const h264EncodeArgs = () => {
+    const enc = h264Encoder()
+    const args = ['-c:v', enc]
+    if (enc === 'libx264') args.push('-preset', 'fast')
+    args.push(...h264ExtraArgs())
+    args.push('-c:a', 'aac', '-b:a', '192k')
+    return args
+  }
+
+  // Run an encode with automatic CPU fallback if GPU encoding fails.
+  const runEncode = async (args: string[], onProgress?: (pct: number) => void) => {
+    const enc = h264Encoder()
+    try {
+      await runFFmpeg(args, onProgress)
+    } catch (err) {
+      if (enc === 'libx264') throw err
+      // fall back to software encoding
+      const idx = args.indexOf('-c:v')
+      const safe = args.slice()
+      if (idx >= 0) safe.splice(idx, 2, '-c:v', 'libx264')
+      // strip hardware quality args that libx264 doesn't understand
+      const strip = ['-rc', '-cq', '-b:v', '-global_quality', '-quality', '-qp_i', '-qp_p']
+      for (let i = 0; i < safe.length; i++) {
+        if (strip.includes(safe[i])) { safe.splice(i, 2); i -= 1 }
+      }
+      if (!safe.includes('-preset')) {
+        const ci = safe.indexOf('-c:v')
+        safe.splice(ci + 2, 0, '-preset', 'fast', '-crf', '20')
+      }
+      await runFFmpeg(safe, onProgress)
+    }
+  }
+
+  const ffmpegVideoArgs = (inPath: string, outPath: string, vf: string[], af: string[] = [], extraArgs: string[] = []) => {
+    const args = ['-y', '-i', inPath]
+    if (vf.length) args.push('-vf', vf.join(','))
+    if (af.length) args.push('-af', af.join(','))
+    args.push(...h264EncodeArgs())
+    args.push(...extraArgs)
+    args.push('-movflags', '+faststart', outPath)
+    return args
+  }
+
+  ipcMain.handle('editor:metadata', async (_e, file: string) => {
+    try {
+      const durationSec = await ffprobeDuration(file)
+      const stat = fs.statSync(file)
+      let width = 0, height = 0
+      try {
+        const bin = ffmpegPath()
+        const proc = spawn(bin, ['-i', file], { windowsHide: true })
+        let stderr = ''
+        proc.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
+        await new Promise<void>(res => { proc.on('close', () => res()); proc.on('error', () => res()) })
+        const m = stderr.match(/(\d{2,5})x(\d{2,5})/)
+        if (m) { width = parseInt(m[1], 10); height = parseInt(m[2], 10) }
+      } catch { /* ignore */ }
+      return { durationSec, size: stat.size, width, height }
+    } catch (err: any) {
+      return { error: err?.message ?? String(err) }
+    }
+  })
+
+  ipcMain.handle('editor:trim', async (_e, opts: { file: string; start: number; end: number; outName: string }) => {
+    const { file, start, end } = opts
+    const outName = safeCodecSafeName(opts.outName) + '.mp4'
+    const outPath = path.join(editsDir(), outName)
+    const dur = end - start
+    const args = ['-y', '-ss', String(start), '-i', file, '-t', String(dur)]
+    args.push(...h264EncodeArgs(), '-movflags', '+faststart', outPath)
+    await runEncode(args, secs => {
+      const pct = dur ? Math.min(100, Math.round((secs / dur) * 100)) : 100
+      sendProgress(pct, `Trimming… ${pct}%`)
+    })
+    return outPath
+  })
+
+  ipcMain.handle('editor:cut', async (_e, opts: { file: string; cutStart: number; cutEnd: number; outName: string }) => {
+    const { file, cutStart, cutEnd } = opts
+    const outName = safeCodecSafeName(opts.outName) + '.mp4'
+    const outPath = path.join(editsDir(), outName)
+    const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, `\\'`)
+    const filter =
+      `[0:v]trim=start=0:end=${esc(String(cutStart))},setpts=PTS-STARTPTS[v0];` +
+      `[0:a]atrim=start=0:end=${esc(String(cutStart))},asetpts=PTS-STARTPTS[a0];` +
+      `[0:v]trim=start=${esc(String(cutEnd))},setpts=PTS-STARTPTS[v1];` +
+      `[0:a]atrim=start=${esc(String(cutEnd))},asetpts=PTS-STARTPTS[a1];` +
+      `[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]`
+    const args = ['-y', '-i', file, '-filter_complex', filter, '-map', '[v]', '-map', '[a]',
+      ...h264EncodeArgs(), '-movflags', '+faststart', outPath]
+    await runEncode(args, secs => sendProgress(Math.min(100, Math.round(secs * 2)), `Cutting…`))
+    return outPath
+  })
+
+  ipcMain.handle('editor:speed', async (_e, opts: { file: string; factor: number; outName: string }) => {
+    const { file, factor } = opts
+    const f = Math.max(0.1, Math.min(8, factor))
+    const outName = safeCodecSafeName(opts.outName) + '.mp4'
+    const outPath = path.join(editsDir(), outName)
+    const vf = `setpts=${(1 / f).toFixed(4)}*PTS`
+    const afs: string[] = []
+    let remaining = f
+    while (remaining > 2.0001) { afs.push('atempo=2.0'); remaining /= 2 }
+    while (remaining < 0.4999) { afs.push('atempo=0.5'); remaining /= 0.5 }
+    if (Math.abs(remaining - 1) >= 0.001) afs.push(`atempo=${remaining.toFixed(6)}`)
+    if (afs.length === 0) afs.push('atempo=1.0')
+    const af = afs.join(',')
+    try {
+      await runEncode(ffmpegVideoArgs(file, outPath, [vf], [af]))
+    } catch {
+      await runEncode(ffmpegVideoArgs(file, outPath, [vf]))
+    }
+    return outPath
+  })
+
+  ipcMain.handle('editor:caption', async (_e, opts: { file: string; text: string; x: number; y: number; fontSize: number; color: string; outName: string }) => {
+    const { file, text, x, y, fontSize, color, outName: on } = opts
+    const outName = safeCodecSafeName(on) + '.mp4'
+    const outPath = path.join(editsDir(), outName)
+    const colorVal = (color || '#ffffff').replace('#', '')
+    const escText = text.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, `\\'`)
+    const drawtext = `drawtext=text='${escText}':x=${x}:y=${y}:fontsize=${fontSize || 24}:fontcolor=${colorVal}:box=1:boxcolor=black@0.5:boxborderw=8`
+    await runEncode(ffmpegVideoArgs(file, outPath, [drawtext]), secs => sendProgress(Math.min(100, Math.round(secs * 2)), 'Burning captions…'))
+    return outPath
+  })
+
+  ipcMain.handle('editor:audio', async (_e, opts: { file: string; mode: 'mute' | 'gain' | 'extract'; gain: number; outName: string }) => {
+    const { file, mode, gain } = opts
+    const base = safeCodecSafeName(opts.outName)
+    if (mode === 'extract') {
+      const outPath = path.join(editsDir(), base + '.mp3')
+      await runFFmpeg(['-y', '-i', file, '-vn', '-c:a', 'libmp3lame', '-q:a', '2', outPath],
+        secs => sendProgress(Math.min(100, Math.round(secs * 2)), 'Extracting audio…'))
+      return outPath
+    }
+    const outPath = path.join(editsDir(), base + '.mp4')
+    if (mode === 'mute') {
+      await runEncode(ffmpegVideoArgs(file, outPath, [], ['-an']))
+    } else {
+      const g = Math.max(0, gain || 1)
+      await runFFmpeg(['-y', '-i', file, '-c:v', 'copy', '-af', `volume=${g.toFixed(4)}`, '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', outPath])
+    }
+    return outPath
+  })
+
+  ipcMain.handle('editor:open', (_e, filePath: string) => {
+    shell.showItemInFolder(filePath)
+    return true
   })
 }
 
