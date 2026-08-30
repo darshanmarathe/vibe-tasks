@@ -150,6 +150,14 @@ export default function Calendar() {
     setCurrentYear(new Date().getFullYear())
   }
 
+  const openAddPopup = (dateStr: string) => {
+    setShowAddForDate(dateStr)
+    setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
+    setAddProject(projects[0]?.id || 0); setAddAssignedTo(0)
+    setAddRecurrenceType('none'); setAddRecurrenceInterval(1)
+    setAddRecurrenceDaysOfWeek(''); setAddRecurrenceEndDate(''); setAddRecurrenceCount(null)
+  }
+
   const openEdit = (task: TaskWithRelations) => {
     setEditingTask(task)
     setEditName(task.name)
@@ -240,13 +248,12 @@ export default function Calendar() {
                   backgroundColor: isToday ? 'var(--bg-hover)' : 'transparent',
                 }}
               >
-                <div onClick={() => {
-                  setShowAddForDate(dateStr)
-                  setAddName(''); setAddDesc(''); setAddPriority(priorities[0]?.id || 0)
-                  setAddProject(projects[0]?.id || 0); setAddAssignedTo(0)
-                  setAddRecurrenceType('none'); setAddRecurrenceInterval(1)
-                  setAddRecurrenceDaysOfWeek(''); setAddRecurrenceEndDate(''); setAddRecurrenceCount(null)
-                }}
+                <div onClick={() => openAddPopup(dateStr)}
+                  onDoubleClick={() => {
+                    if (dayTasks.length === 0) {
+                      openAddPopup(dateStr)
+                    }
+                  }}
                   className={`text-xs font-semibold mb-1 cursor-pointer hover:opacity-70 ${isToday ? 'flex items-center justify-center w-6 h-6 rounded-full' : ''}`}
                   style={{
                     color: isToday ? '#fff' : isWeekend ? 'var(--text-muted)' : 'var(--text-primary)',
