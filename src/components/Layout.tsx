@@ -5,7 +5,7 @@ import { TimerBadge } from './TimerBadge'
 import FloatingTaskWidget from './FloatingTaskWidget'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-type NavItem  = { path: string; label: string; icon: string }
+type NavItem  = { path: string; label: string; icon: string; beta?: boolean }
 type NavGroup = { label?: string; items: NavItem[] }
 
 const navGroups: NavGroup[] = [
@@ -33,9 +33,9 @@ const navGroups: NavGroup[] = [
       { path: '/habits',        label: 'Habits',       icon: '✅' },
       { path: '/mindmap',       label: 'Mind Map',     icon: '🧠' },
       { path: '/draw',         label: 'Draw',        icon: '📐' },
-      { path: '/ideas',        label: 'Ideas',       icon: '💡' },
-      { path: '/recorder',     label: 'Recorder',    icon: '🎥' },
-      { path: '/editor',       label: 'Video Editor', icon: '✂️' },
+      { path: '/ideas',        label: 'Ideas',       icon: '💡', beta: true },
+      { path: '/recorder',     label: 'Recorder',    icon: '🎥', beta: true },
+      { path: '/editor',       label: 'Video Editor', icon: '✂️', beta: true },
     ],
   },
   {
@@ -101,6 +101,12 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
               style={{ backgroundColor: i === sel ? 'var(--bg-hover)' : 'transparent', color: 'var(--text-primary)' }}>
               <span>{item.icon}</span>
               <span>{item.label}</span>
+              {item.beta && (
+                <span className="text-[9px] font-semibold uppercase tracking-wide px-1 py-px rounded"
+                  style={{ backgroundColor: 'rgba(234,179,8,0.18)', color: '#eab308' }}>
+                  beta
+                </span>
+              )}
               <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{item.path}</span>
             </div>
           ))}
@@ -212,6 +218,12 @@ export default function Layout() {
                     {!collapsed && (
                       <span className="flex items-center gap-1.5">
                         {item.label}
+                        {item.beta && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wide px-1 py-px rounded"
+                            style={{ backgroundColor: 'rgba(234,179,8,0.18)', color: '#eab308' }}>
+                            beta
+                          </span>
+                        )}
                       </span>
                     )}
                   </NavLink>
