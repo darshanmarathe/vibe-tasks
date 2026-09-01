@@ -103,7 +103,7 @@ function CommandPalette({ onClose }: { onClose: () => void }) {
               <span>{item.label}</span>
               {item.beta && (
                 <span className="text-[9px] font-semibold uppercase tracking-wide px-1 py-px rounded"
-                  style={{ backgroundColor: 'rgba(234,179,8,0.18)', color: '#eab308' }}>
+                  style={{ backgroundColor: '#1e3a8a', color: '#fff' }}>
                   beta
                 </span>
               )}
@@ -220,7 +220,7 @@ export default function Layout() {
                         {item.label}
                         {item.beta && (
                           <span className="text-[9px] font-semibold uppercase tracking-wide px-1 py-px rounded"
-                            style={{ backgroundColor: 'rgba(234,179,8,0.18)', color: '#eab308' }}>
+                            style={{ backgroundColor: '#1e3a8a', color: '#fff' }}>
                             beta
                           </span>
                         )}
