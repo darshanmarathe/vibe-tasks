@@ -705,13 +705,17 @@ export default function AiChat() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const el = textareaRef.current
+    const caretAtStart = !!el && el.selectionStart === 0 && el.selectionEnd === 0
+    const caretAtEnd = !!el && el.selectionStart === el.value.length && el.selectionEnd === el.value.length
+
     if (e.key === 'ArrowUp') {
-      if (navigateHistory('older')) e.preventDefault()
+      if (caretAtStart && navigateHistory('older')) e.preventDefault()
       return
     }
 
     if (e.key === 'ArrowDown') {
-      if (navigateHistory('newer')) e.preventDefault()
+      if (caretAtEnd && navigateHistory('newer')) e.preventDefault()
       return
     }
 
@@ -1204,6 +1208,9 @@ export default function AiChat() {
                     Send
                   </button>
                 )}
+              </div>
+              <div className="mt-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                Enter to send · Shift+Enter for a new line
               </div>
             </div>
           </>
