@@ -3,6 +3,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useTimer } from '../contexts/TimerContext'
 import { TimerBadge } from './TimerBadge'
 import FloatingTaskWidget from './FloatingTaskWidget'
+import BackForward from './BackForward'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 type NavItem  = { path: string; label: string; icon: string; beta?: boolean }
@@ -326,7 +327,9 @@ export default function Layout() {
         <header
           className="h-10 flex items-center px-4"
           style={{ backgroundColor: 'var(--bg-secondary)', borderBottomColor: 'var(--border)', borderBottomWidth: '1px', WebkitAppRegion: 'drag' } as any}
-        />
+        >
+          <BackForward />
+        </header>
         <div className="flex-1 overflow-auto p-6">
           <Outlet />
         </div>

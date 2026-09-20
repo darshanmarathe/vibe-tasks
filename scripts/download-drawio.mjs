@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, rmSync, readdirSync, statSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, rmSync, readdirSync, statSync, readFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import os from 'os'
@@ -11,9 +11,10 @@ const tempDir = join(root, 'tmp', 'drawio-download')
 const versionFile = join(root, 'drawio-version.txt')
 const isWin = os.platform() === 'win32'
 
-// Currently-bundled draw.io version, sourced from drawio-version.txt so the
-// pinned version is easy to update (the build will also warn if a newer
-// draw.io release exists on GitHub).
+// Currently-bundled draw.io version, sourced from drawio-version.txt so it is
+// easy to inspect. The build always downloads the LATEST published draw.io
+// release from GitHub (no env var required); this pinned version is only used
+// as an offline fallback if the GitHub check fails.
 function readBundledVersion() {
   try {
     const raw = readFileSync(versionFile, 'utf-8').trim()
@@ -25,18 +26,6 @@ function readBundledVersion() {
 }
 
 const BUNDLED_RELEASE = readBundledVersion()
-
-function compareVersions(a, b) {
-  const pa = a.replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0)
-  const pb = b.replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0)
-  const len = Math.max(pa.length, pb.length)
-  for (let i = 0; i < len; i++) {
-    const av = pa[i] || 0
-    const bv = pb[i] || 0
-    if (av !== bv) return av - bv
-  }
-  return 0
-}
 
 async function fetchLatestRelease() {
   try {
@@ -58,33 +47,37 @@ const latest = await fetchLatestRelease()
 console.log(`\n  Bundled draw.io: ${BUNDLED_RELEASE}`)
 if (latest) {
   console.log(`  Latest draw.io:  ${latest}`)
-  if (compareVersions(latest, BUNDLED_RELEASE) > 0) {
-    console.log(`  UPDATE AVAILABLE: a newer draw.io (${latest}) exists.`)
-    console.log(`  Run with FORCE_DRAWIO_VERSION=${latest.replace(/^v/, '')} to update the bundled draw.io.`)
-  } else {
-    console.log('  draw.io is up to date.')
-  }
+} else {
+  console.log('  Could not fetch latest draw.io release — falling back to bundled version.')
 }
 
+// Always use the latest published release (no env var required). If the
+// GitHub check fails (offline/rate-limited), fall back to the pinned version
+// from drawio-version.txt so the build still succeeds.
 const RELEASE = process.env.FORCE_DRAWIO_VERSION
   ? `v${process.env.FORCE_DRAWIO_VERSION.replace(/^v/, '')}`
-  : BUNDLED_RELEASE
+  : latest || BUNDLED_RELEASE
 const WAR_URL = `https://github.com/jgraph/drawio/releases/download/${RELEASE}/draw.war`
 const WAR_PATH = join(tempDir, 'draw.war')
+const VERSION_MARKER = join(tempDir, '.release-version')
 
 console.log(`\n  Downloading draw.io ${RELEASE}...\n`)
 
 if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true })
 
-if (!existsSync(WAR_PATH) || process.env.FORCE_DRAWIO_VERSION) {
+let cachedRelease = ''
+try { cachedRelease = readFileSync(VERSION_MARKER, 'utf-8').trim() } catch { /* first run */ }
+
+if (!existsSync(WAR_PATH) || !cachedRelease || cachedRelease !== RELEASE) {
   console.log(`  Downloading ${WAR_URL} ...`)
   if (isWin) {
     execSync(`powershell -Command "Invoke-WebRequest -Uri '${WAR_URL}' -OutFile '${WAR_PATH}'"`, { cwd: root, stdio: 'inherit' })
   } else {
     execSync(`curl -fsSL '${WAR_URL}' -o '${WAR_PATH}'`, { cwd: root, stdio: 'inherit' })
   }
+  writeFileSync(VERSION_MARKER, RELEASE)
 } else {
-  console.log('  Already downloaded, skipping.')
+  console.log(`  draw.io ${RELEASE} already downloaded, skipping.`)
 }
 
 if (existsSync(targetDir)) rmSync(targetDir, { recursive: true })
@@ -99,6 +92,13 @@ if (isWin) {
 
 const webinf = join(targetDir, 'WEB-INF')
 if (existsSync(webinf)) rmSync(webinf, { recursive: true })
+
+// Keep the pinned version file in sync so future offline builds (and the
+// startup log) reference the actual bundled release.
+if (latest && RELEASE !== BUNDLED_RELEASE) {
+  writeFileSync(versionFile, RELEASE.replace(/^v/, ''))
+  console.log(`  Updated drawio-version.txt -> ${RELEASE}`)
+}
 
 console.log(`\n  Done! draw.io extracted to public/drawio/\n`)
 
